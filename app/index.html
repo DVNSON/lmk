@@ -2597,6 +2597,9 @@ function openWelcome(){
     set("wBody5", "LMK times your work quietly (sprints, Canvas quiz times, the extension) and shares only anonymous minutes per assignment with other LMK students in your courses — no names, no grades — so everyone's estimates get better.");
   } else if (!gdReady()) {
     set("wBody1", "Everything you do here saves privately on this device. Nothing is sent anywhere.");
+    const ws = document.getElementById("wSync"); if (ws) ws.style.display = "none";
+  } else {
+    set("wBody1", "Everything saves privately on this device. Sign in with Google later and your plan follows you to your phone — into your own Drive, where only you can read it.");
   }
   document.getElementById("wName").value = (store.profile && store.profile.name) || "";
   document.getElementById("wCal").textContent = store.custom ? "your uploaded calendar" : "the ASU Fall 2026 semester";
