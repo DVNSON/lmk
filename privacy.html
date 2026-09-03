@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LMK — Privacy Policy</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600&display=swap">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23e0489a'/><text y='68' x='50' text-anchor='middle' font-size='38' font-weight='800' font-family='sans-serif' fill='white'>LMK</text></svg>">
+</head>
+<body>
+
+<style>
+  :root{--bg:#f2f3f6;--surface:#fff;--ink:#14161a;--ink-2:#565b64;--muted:#8a8f98;--line:#e3e5ea;--accent:#e0489a;color-scheme:light}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0f1013;--surface:#1a1c21;--ink:#f4f5f7;--ink-2:#b6bac2;--muted:#83878f;--line:#2a2d34;--accent:#e85fa2;color-scheme:dark}}
+  :root[data-theme="dark"]{--bg:#0f1013;--surface:#1a1c21;--ink:#f4f5f7;--ink-2:#b6bac2;--muted:#83878f;--line:#2a2d34;--accent:#e85fa2;color-scheme:dark}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.65 "Public Sans",-apple-system,BlinkMacSystemFont,sans-serif}
+  .wrap{max-width:720px;margin:0 auto;padding:44px 22px 80px}
+  h1{font-size:34px;line-height:1.1;margin:0 0 6px;letter-spacing:-.01em}
+  h2{font-size:18px;margin:32px 0 8px;padding-top:14px;border-top:1px solid var(--line)}
+  p,li{max-width:66ch} p{margin:0 0 12px} ul{padding-left:22px;margin:0 0 12px} li{margin:0 0 6px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:22px}
+  .brand{display:inline-block;width:44px;height:6px;border-radius:99px;background:linear-gradient(115deg,#ff5d52,#e0489a 48%,#f7a521);margin-bottom:18px}
+  b{font-weight:600}
+</style>
+<div class="wrap">
+  <span class="brand"></span>
+  <h1>LMK for Canvas — Privacy Policy</h1>
+  <div class="sub">Effective September 3, 2026 · Applies to the LMK app and the "LMK for Canvas" browser extension</div>
+
+  <p>LMK for Canvas is a browser extension that reads your own Canvas assignments and feeds them into LMK, your personal assignment planner. This page explains exactly what it reads, where that data goes, and what it never does.</p>
+
+  <h2>What the extension reads</h2>
+  <ul>
+    <li><b>Your Canvas course and assignment data</b>: course names, assignment titles, due dates, points, submission state, scores, and the time Canvas recorded on your quiz attempts. It reads this through Canvas's own API using the login session already in your browser. It never sees or stores your password.</li>
+    <li><b>Time you spend working</b>: while a Canvas assignment page, its quiz, or the external course tool you launched from it (for example MyEducator or Edfinity) is visible and you are active, the extension counts minutes toward that assignment. It records only a minute tally per assignment. It does not record what you type, read, or click.</li>
+  </ul>
+
+  <h2>Where the data goes</h2>
+  <ul>
+    <li>Everything the extension collects is stored <b>in your own browser</b> (extension storage) and handed to the LMK page when you open it.</li>
+    <li>By default, everything stays <b>on the device you are using</b>. Nothing is uploaded.</li>
+    <li>If you choose to sign in with Google, LMK saves your data to a private folder in <b>your own Google Drive</b> so your phone and laptop stay in sync. That folder belongs to the app: nobody else can read it, and revoking LMK's access from your Google account deletes it.</li>
+    <li>LMK shares <b>anonymous course statistics</b> with other LMK users: an assignment's Canvas ID, a median number of minutes, and a type vote (for example "done in class"). This never includes your name, your scores, your grades, or which assignments you completed. These statistics exist so that every student's time estimates improve.</li>
+  </ul>
+
+  <h2>What it never does</h2>
+  <ul>
+    <li>It never sends your data to the extension's developers or to any advertising or analytics service.</li>
+    <li>It never sells, rents, or shares personal information with anyone.</li>
+    <li>It never changes anything in Canvas. It only reads.</li>
+    <li>It never runs on sites other than Canvas, the course tools listed in its permissions, and the LMK page itself.</li>
+  </ul>
+
+  <h2>Permissions, and why</h2>
+  <ul>
+    <li><b>storage</b>: to keep the collected assignment data and minute tallies in your browser between visits.</li>
+    <li><b>Canvas hosts</b>: to read your assignments through Canvas's API and to time work on assignment pages.</li>
+    <li><b>Course tool hosts</b> (MyEducator, Edfinity, McGraw-Hill Connect, Macmillan, Pearson, Cengage, zyBooks, WebAssign): to time work you do there after launching from a Canvas assignment.</li>
+    <li><b>claude.ai hosts</b>: to deliver the collected data to the LMK page, which runs there.</li>
+  </ul>
+
+  <h2>Deleting your data</h2>
+  <p>Removing the extension deletes everything it stored in your browser. Deleting the file named <b>LMK-data.json</b> from your Google Drive removes your synced LMK data. Anonymous course statistics cannot be traced back to you and are not deleted individually.</p>
+
+  <h2>Changes and contact</h2>
+  <p>If this policy changes, the date at the top changes with it. Questions: emieldieuvenson@gmail.com.</p>
+</div>
+
+<div style="max-width:720px;margin:0 auto;padding:0 22px 60px"><a href="./" style="color:#8a8f98;font:14px/1 'Public Sans',sans-serif;text-decoration:none">← Back to LMK</a></div>
+</body>
+</html>
