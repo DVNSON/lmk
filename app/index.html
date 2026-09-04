@@ -2318,6 +2318,13 @@ document.getElementById("caSave").addEventListener("click", ()=>{
 const LMK_CONFIG = {
   googleClientId: "",           // paste an OAuth client id to turn on cross-device sync in web mode
 };
+/* A client id can also be dropped in from the browser console, which is how you try one out
+   before baking it into the build:  localStorage.lmk_gcid = "….apps.googleusercontent.com"
+   Clear it with:  delete localStorage.lmk_gcid  */
+function gClientId(){
+  try { const o = localStorage.getItem("lmk_gcid"); if (o && /\.apps\.googleusercontent\.com$/.test(o)) return o; } catch(_){}
+  return LMK_CONFIG.googleClientId;
+}
 const MODE = (typeof window !== "undefined" && window.claude && typeof window.claude.use === "function") ? "artifact" : "web";
 const SYNC_FILE = "LMK-data.json";
 const drive = {mcp:null, server:null, fileId:null, ready:false, pushing:false, pending:false, timer:null};
@@ -2383,7 +2390,7 @@ function scheduleDrivePush(){
    never the rest of the student's Drive. That scope is non-sensitive, so there is no Google
    verification, no "unverified app" warning, and no 100-user cap. */
 const gd = {token:null, exp:0, fileId:null, tc:null, busy:false, pending:false};
-function gdReady(){ return MODE === "web" && !!LMK_CONFIG.googleClientId; }
+function gdReady(){ return MODE === "web" && !!gClientId(); }
 function loadGIS(){
   return new Promise((res, rej) => {
     if (window.google && window.google.accounts) return res();
@@ -2398,7 +2405,7 @@ function gdToken(interactive){
     if (gd.token && Date.now() < gd.exp - 60000) return res(gd.token);
     if (!gd.tc) {
       gd.tc = window.google.accounts.oauth2.initTokenClient({
-        client_id: LMK_CONFIG.googleClientId,
+        client_id: gClientId(),
         scope: "https://www.googleapis.com/auth/drive.file",
         callback: () => {},
       });
