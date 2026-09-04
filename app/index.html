@@ -674,7 +674,6 @@ function repairInProgress(){
     }
     if (!extInProgress(x)) continue;
     if (store.done[id] && !store.handDone[id]) { delete store.done[id]; delete store.extDone[id]; n++; }
-    if (store.grades[id] && store.extGraded[id]) { delete store.grades[id]; delete store.extGraded[id]; }
   }
   return n;
 }
@@ -801,7 +800,6 @@ function applyCanvasPayload(p, opts = {}){
     const inProgress = extInProgress(x);
     if (inProgress) {
       if (store.done[id] && !(store.handDone || {})[id]) { delete store.done[id]; delete store.extDone[id]; unDone++; }
-      if (store.grades[id] && store.extGraded[id]) { delete store.grades[id]; delete store.extGraded[id]; }
     }
     else if (extDoneOk(x) && !store.done[id]) {
       const ts = Date.parse(x.subAt) || p.at;
@@ -813,7 +811,7 @@ function applyCanvasPayload(p, opts = {}){
     const dueMs2 = Date.parse(x.due) || 0;
     const placeholderZero = !(x.score > 0) && !x.subAt && !x.missing && dueMs2 > Date.now();
     if (placeholderZero && store.grades[id] && store.extGraded[id]) { delete store.grades[id]; delete store.extGraded[id]; }
-    if (!inProgress && !placeholderZero && x.score != null && x.pts > 0 && (!store.grades[id] || store.extGraded[id])) {
+    if (!placeholderZero && x.score != null && x.pts > 0 && (!store.grades[id] || store.extGraded[id])) {
       if (!store.grades[id] || store.grades[id].got !== x.score || store.grades[id].max !== x.pts) newGrades++;
       store.grades[id] = {got:x.score, max:x.pts}; store.extGraded[id] = 1;
     }
@@ -1918,7 +1916,7 @@ function openGradeDetail(course){
   const cid = scored.length ? (items[scored[0].e.id.slice(1)] || {}).cid || "" : "";
   const gmeta = {}; (groupsByCourse[cid] || []).forEach(x => gmeta[String(x.id)] = x);
   // what is actually costing points, worst first
-  const lost = scored.map(x => ({...x, pctOf: +x.g.got / +x.g.max, gap: +x.g.max - +x.g.got}))
+  const lost = scored.map(x => ({...x, pctOf: +x.g.got / +x.g.max, gap: +x.g.max - +x.g.got, ip: extInProgress(items[x.e.id.slice(1)])}))
     .sort((a, b) => (a.pctOf - b.pctOf) || (b.gap - a.gap));
   const ungraded = EVENTS.filter(e => e.course === course && !store.dropped[e.id] && !(store.grades||{})[e.id]).length;
   const byGroup = {};
@@ -1940,11 +1938,11 @@ function openGradeDetail(course){
     <div class="card" style="padding:6px 0;margin:8px 0 14px;max-height:290px;overflow-y:auto">
       ${lost.slice(0, 14).map(x => { const pc = Math.round(x.pctOf * 100);
         return `<div style="display:flex;gap:10px;align-items:baseline;padding:7px 14px;font-size:13.5px;border-bottom:1px solid var(--line)">
-          <span style="flex:1">${esc(x.e.title.slice(0, 46))}${x.e.title.length > 46 ? "…" : ""}</span>
+          <span style="flex:1">${esc(x.e.title.slice(0, 42))}${x.e.title.length > 42 ? "…" : ""}${x.ip ? ` <span class="etag" style="text-transform:none;color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--line))">still working</span>` : ""}</span>
           <span style="color:var(--muted);font-variant-numeric:tabular-nums">${+x.g.got}/${+x.g.max}</span>
           <b class="${gradeTone(pc)}" style="width:44px;text-align:right;font-variant-numeric:tabular-nums">${pc}%</b></div>`; }).join("")}
     </div>
-    <p class="privacy">Only work Canvas has actually scored counts. LMK ignores zeros sitting on assignments that aren't due yet, and it can't see dropped scores, curves or extra credit — so your professor's gradebook is still the official one.</p>
+    <p class="privacy">Only work Canvas has actually scored counts, the same way Canvas builds your current grade. Anything marked <b>still working</b> counts at its running score and will move as you finish it. LMK ignores zeros sitting on assignments that aren't due yet, and it can't see dropped scores, curves or extra credit — so your professor's gradebook is still the official one.</p>
     <div class="row" style="margin-top:14px"><button class="btn ghost" id="ddClose">Close</button></div>`;
   detailOverlay.classList.add("open");
 }
