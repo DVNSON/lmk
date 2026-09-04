@@ -825,7 +825,7 @@ function applyCanvasPayload(p, opts = {}){
     }
   }
   if (!n) return null;
-  store.ext = {at:p.at || Date.now(), host:p.host || "", items, courses:p.courses || [], groups:p.groups || (store.ext || {}).groups || {}};
+  store.ext = {at:p.at || Date.now(), host:p.host || "", items, courses:(p.courses && p.courses.length) ? p.courses : ((store.ext || {}).courses || []), groups:p.groups || (store.ext || {}).groups || {}};
   save(); loadData(); render();
   if (!opts.quiet) toast(`Canvas synced: ${n} assignments${newDone ? ` · ${newDone} marked done` : ""}${unDone ? ` · ${unDone} back to in-progress` : ""}${newGrades ? ` · ${newGrades} grades` : ""}${shelfAdd ? ` · ${shelfAdd} undated on the shelf` : ""}.`);
   return {n, newDone, newGrades, shelfAdd};
@@ -947,8 +947,12 @@ function buildGrades(){
     if (!scored.length) { GRADES[c] = null; return; }
     // weights live per Canvas course id; find the one this course's items belong to
     const cid = (items[(scored[0].e.id || "").slice(1)] || {}).cid || "";
+    // A course can define weights and still grade on total points — apply_assignment_group_weights
+    // is the switch Canvas honours. Older payloads have no flag, so fall back to "weights if present".
+    const meta = ((store.ext || {}).courses || []).find(x => String(x.id) === String(cid));
+    const useWeights = !meta || meta.wt === undefined || meta.wt === true;
     const weights = {};
-    (groupsByCourse[cid] || []).forEach(g => { if (+g.w > 0) weights[String(g.id)] = +g.w; });
+    if (useWeights) (groupsByCourse[cid] || []).forEach(g => { if (+g.w > 0) weights[String(g.id)] = +g.w; });
     let pct = null, weighted = false;
     if (Object.keys(weights).length) {
       const byGroup = {};
