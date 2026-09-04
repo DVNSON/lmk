@@ -664,6 +664,10 @@ function repairInProgress(){
   store.handDone = store.handDone || {}; store.extGraded = store.extGraded || {}; store.extDone = store.extDone || {};
   for (const aid in items){
     const x = items[aid], id = "a" + aid;
+    const dueMs = Date.parse(x.due) || 0;
+    if (!(x.score > 0) && !x.subAt && !x.missing && dueMs > Date.now() && store.grades[id] && store.extGraded[id]) {
+      delete store.grades[id]; delete store.extGraded[id];   // placeholder zero for work not due yet
+    }
     if (extMissing(x)) {
       if (store.done[id] && !store.handDone[id]) { delete store.done[id]; delete store.extDone[id]; n++; }
       continue;
@@ -804,7 +808,12 @@ function applyCanvasPayload(p, opts = {}){
       const tomb = store.deleted["done:" + id] || 0;
       if (ts >= tomb) { store.done[id] = ts; store.extDone[id] = 1; delete store.deleted["done:" + id]; newDone++; if (dayKey(new Date(ts)) === dayKey(now())) markDoneToday(); }
     }
-    if (!inProgress && x.score != null && x.pts > 0 && (!store.grades[id] || store.extGraded[id])) {
+    // Canvas gradebooks often pre-enter 0 for work that has not happened yet (attendance, upcoming
+    // quizzes). Counting those would invent a grade the student never earned.
+    const dueMs2 = Date.parse(x.due) || 0;
+    const placeholderZero = !(x.score > 0) && !x.subAt && !x.missing && dueMs2 > Date.now();
+    if (placeholderZero && store.grades[id] && store.extGraded[id]) { delete store.grades[id]; delete store.extGraded[id]; }
+    if (!inProgress && !placeholderZero && x.score != null && x.pts > 0 && (!store.grades[id] || store.extGraded[id])) {
       if (!store.grades[id] || store.grades[id].got !== x.score || store.grades[id].max !== x.pts) newGrades++;
       store.grades[id] = {got:x.score, max:x.pts}; store.extGraded[id] = 1;
     }
@@ -968,8 +977,8 @@ function gradesStrip(){
   if (!withGrades.length) return "";
   return `<div class="gstrip" role="list"><span class="glabel">Grades</span>` + withGrades.map(c => {
     const g = gradeFor(c);
-    return `<button class="gpill ${gradeTone(g.pct)}" role="listitem" data-act="gfilter" data-course="${esc(c)}"
-      title="${esc(c)}: ${g.pct}% from ${g.n} graded item${g.n > 1 ? "s" : ""}${g.weighted ? ", weighted by category" : ""}. An estimate — your professor's gradebook is the real one.">
+    return `<button class="gpill ${gradeTone(g.pct)}" role="listitem" data-act="gbreak" data-course="${esc(c)}"
+      title="${esc(c)}: ${g.pct}% from ${g.n} graded item${g.n > 1 ? "s" : ""}${g.weighted ? ", weighted by category" : ""}. Tap to see what makes it up.">
       <span class="cdot" style="background:${COLOR[c]}"></span><span class="gc">${esc(c)}</span><span class="gn">${g.pct}%</span><span class="gl">${g.letter}</span>
     </button>`;
   }).join("") + `<span class="gnote" title="LMK weights each category the way your syllabus does, but it can't know about dropped scores, curves or extra credit.">estimate</span></div>`;
@@ -1788,7 +1797,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="cap") {
     store.capacity = Object.assign({}, CAP_DEFAULT, store.capacity || {}); store.capacity[act.dataset.kind] = +act.dataset.v; save(); render();
   }
-  else if (a==="gfilter") { const c = act.dataset.course; courseFilter = courseFilter === c ? null : c; render(); }
+  else if (a==="gbreak") openGradeDetail(act.dataset.course);
   else if (a==="open-gear") { const g = document.getElementById("gearBtn"); if (g) g.click(); }
   else if (a==="cap-close") { showCap = false; render(); }
   else if (a==="cap-edit") { showCap = !showCap; render(); }
@@ -1900,6 +1909,45 @@ document.getElementById("clearProgress").addEventListener("click", ()=>{
 });
 
 /* ================= assignment detail & notes ================= */
+function openGradeDetail(course){
+  const g = gradeFor(course); if (!g) return;
+  detailCtx = {kind:"grade", course};
+  const ext = store.ext || {}, items = ext.items || {}, groupsByCourse = ext.groups || {};
+  const scored = EVENTS.filter(e => e.course === course && !store.dropped[e.id])
+    .map(e => ({e, g:(store.grades||{})[e.id]})).filter(x => x.g && +x.g.max > 0);
+  const cid = scored.length ? (items[scored[0].e.id.slice(1)] || {}).cid || "" : "";
+  const gmeta = {}; (groupsByCourse[cid] || []).forEach(x => gmeta[String(x.id)] = x);
+  // what is actually costing points, worst first
+  const lost = scored.map(x => ({...x, pctOf: +x.g.got / +x.g.max, gap: +x.g.max - +x.g.got}))
+    .sort((a, b) => (a.pctOf - b.pctOf) || (b.gap - a.gap));
+  const ungraded = EVENTS.filter(e => e.course === course && !store.dropped[e.id] && !(store.grades||{})[e.id]).length;
+  const byGroup = {};
+  scored.forEach(x => { const gid = (items[x.e.id.slice(1)] || {}).grp || ""; const b = byGroup[gid] = byGroup[gid] || {got:0, max:0, n:0}; b.got += +x.g.got; b.max += +x.g.max; b.n++; });
+  const cats = Object.keys(byGroup).filter(gid => gmeta[gid] && +gmeta[gid].w > 0);
+  document.getElementById("detailModal").innerHTML = `
+    <h3 id="ddTitle" style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+      <span class="cdot" style="background:${COLOR[course]}"></span>${esc(course)}
+      <span class="gbig ${gradeTone(g.pct)}" style="margin-left:auto">${g.pct}% <b>${g.letter}</b></span></h3>
+    <p class="sub2" style="margin:2px 0 14px">From <b>${g.n}</b> graded item${g.n > 1 ? "s" : ""}${g.weighted ? ", weighted by category" : " (no category weights, so straight points)"}${ungraded ? ` · ${ungraded} not graded yet` : ""}.</p>
+    ${cats.length ? `<div class="card" style="padding:12px 14px;margin-bottom:14px">
+      <b style="font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">By category</b>
+      ${cats.map(gid => { const b = byGroup[gid], pc = Math.round(b.got / b.max * 1000) / 10;
+        return `<div style="display:flex;gap:10px;align-items:baseline;margin-top:8px;font-size:13.5px">
+          <span style="flex:1">${esc(gmeta[gid].name || "Category")} <span style="color:var(--muted)">· ${gmeta[gid].w}% of grade · ${b.n} item${b.n > 1 ? "s" : ""}</span></span>
+          <b class="${gradeTone(pc)}" style="font-variant-numeric:tabular-nums">${pc}%</b></div>`; }).join("")}
+    </div>` : ""}
+    <b style="font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">What's costing you points</b>
+    <div class="card" style="padding:6px 0;margin:8px 0 14px;max-height:290px;overflow-y:auto">
+      ${lost.slice(0, 14).map(x => { const pc = Math.round(x.pctOf * 100);
+        return `<div style="display:flex;gap:10px;align-items:baseline;padding:7px 14px;font-size:13.5px;border-bottom:1px solid var(--line)">
+          <span style="flex:1">${esc(x.e.title.slice(0, 46))}${x.e.title.length > 46 ? "…" : ""}</span>
+          <span style="color:var(--muted);font-variant-numeric:tabular-nums">${+x.g.got}/${+x.g.max}</span>
+          <b class="${gradeTone(pc)}" style="width:44px;text-align:right;font-variant-numeric:tabular-nums">${pc}%</b></div>`; }).join("")}
+    </div>
+    <p class="privacy">Only work Canvas has actually scored counts. LMK ignores zeros sitting on assignments that aren't due yet, and it can't see dropped scores, curves or extra credit — so your professor's gradebook is still the official one.</p>
+    <div class="row" style="margin-top:14px"><button class="btn ghost" id="ddClose">Close</button></div>`;
+  detailOverlay.classList.add("open");
+}
 const detailOverlay = document.getElementById("detailOverlay");
 let detailCtx = null; // {kind:"item", id} | {kind:"course", course}
 function openDetail(id){
