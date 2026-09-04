@@ -674,6 +674,7 @@ function repairInProgress(){
     }
     if (!extInProgress(x)) continue;
     if (store.done[id] && !store.handDone[id]) { delete store.done[id]; delete store.extDone[id]; n++; }
+    if (store.grades[id] && store.extGraded[id]) { delete store.grades[id]; delete store.extGraded[id]; }
   }
   return n;
 }
@@ -800,6 +801,7 @@ function applyCanvasPayload(p, opts = {}){
     const inProgress = extInProgress(x);
     if (inProgress) {
       if (store.done[id] && !(store.handDone || {})[id]) { delete store.done[id]; delete store.extDone[id]; unDone++; }
+      if (store.grades[id] && store.extGraded[id]) { delete store.grades[id]; delete store.extGraded[id]; }
     }
     else if (extDoneOk(x) && !store.done[id]) {
       const ts = Date.parse(x.subAt) || p.at;
@@ -811,7 +813,7 @@ function applyCanvasPayload(p, opts = {}){
     const dueMs2 = Date.parse(x.due) || 0;
     const placeholderZero = !(x.score > 0) && !x.subAt && !x.missing && dueMs2 > Date.now();
     if (placeholderZero && store.grades[id] && store.extGraded[id]) { delete store.grades[id]; delete store.extGraded[id]; }
-    if (!placeholderZero && x.score != null && x.pts > 0 && (!store.grades[id] || store.extGraded[id])) {
+    if (!inProgress && !placeholderZero && x.score != null && x.pts > 0 && (!store.grades[id] || store.extGraded[id])) {
       if (!store.grades[id] || store.grades[id].got !== x.score || store.grades[id].max !== x.pts) newGrades++;
       store.grades[id] = {got:x.score, max:x.pts}; store.extGraded[id] = 1;
     }
@@ -966,7 +968,8 @@ function buildGrades(){
       pct = scored.reduce((t, x) => t + +x.g.got, 0) / max * 100;
     }
     pct = Math.round(pct * 10) / 10;
-    GRADES[c] = {pct, letter: letterFor(pct), n: scored.length, weighted};
+    const working = EVENTS.filter(e => e.course === c && !store.dropped[e.id] && extInProgress(items[e.id.slice(1)])).length;
+    GRADES[c] = {pct, letter: letterFor(pct), n: scored.length, weighted, working};
   });
 }
 function gradeFor(c){ if (!GRADES) buildGrades(); return GRADES[c]; }
@@ -976,7 +979,7 @@ function gradesStrip(){
   return `<div class="gstrip" role="list"><span class="glabel">Grades</span>` + withGrades.map(c => {
     const g = gradeFor(c);
     return `<button class="gpill ${gradeTone(g.pct)}" role="listitem" data-act="gbreak" data-course="${esc(c)}"
-      title="${esc(c)}: ${g.pct}% from ${g.n} graded item${g.n > 1 ? "s" : ""}${g.weighted ? ", weighted by category" : ""}. Tap to see what makes it up.">
+      title="${esc(c)}: ${g.pct}% from ${g.n} graded item${g.n > 1 ? "s" : ""}${g.weighted ? ", weighted by category" : ""}${g.working ? ` · ${g.working} still in progress, not counted yet` : ""}. Tap to see what makes it up.">
       <span class="cdot" style="background:${COLOR[c]}"></span><span class="gc">${esc(c)}</span><span class="gn">${g.pct}%</span><span class="gl">${g.letter}</span>
     </button>`;
   }).join("") + `<span class="gnote" title="LMK weights each category the way your syllabus does, but it can't know about dropped scores, curves or extra credit.">estimate</span></div>`;
@@ -1675,7 +1678,7 @@ function renderSemester(root){
     const pill = {ok:["✓","On track"], watch:["◐","Watch"], risk:["!","Slipping"]}[status];
     html += `<div class="card hcard" style="background:linear-gradient(180deg, color-mix(in srgb, ${COLOR[c]} 11%, var(--surface)), var(--surface) 60%)">
       <div class="hd"><span class="cdot" style="width:10px;height:10px;background:${COLOR[c]}"></span>${esc(c)}
-        ${cg ? `<span class="gbig ${gradeTone(cg.pct)}">${cg.pct}% <b>${cg.letter}</b></span>` : ""}
+        ${cg ? `<span class="gbig ${gradeTone(cg.pct)}" title="${cg.working ? cg.working + " in progress, not counted yet" : ""}">${cg.pct}%${cg.working ? "*" : ""} <b>${cg.letter}</b></span>` : ""}
         <span class="pill ${status==="ok"?"ok":status==="watch"?"watch":"risk"}"><span aria-hidden="true">${pill[0]}</span>${pill[1]}</span></div>
       <div class="bar"><i style="width:${pct}%;background:${COLOR[c]}"></i></div>
       <div class="nums"><span><b>${pct}%</b> of past work done</span><span><b>${week}</b> due this week</span></div>
@@ -1916,7 +1919,9 @@ function openGradeDetail(course){
   const cid = scored.length ? (items[scored[0].e.id.slice(1)] || {}).cid || "" : "";
   const gmeta = {}; (groupsByCourse[cid] || []).forEach(x => gmeta[String(x.id)] = x);
   // what is actually costing points, worst first
-  const lost = scored.map(x => ({...x, pctOf: +x.g.got / +x.g.max, gap: +x.g.max - +x.g.got, ip: extInProgress(items[x.e.id.slice(1)])}))
+  const working = EVENTS.filter(e => e.course === course && !store.dropped[e.id] && extInProgress(items[e.id.slice(1)]))
+    .map(e => ({e, x: items[e.id.slice(1)]}));
+  const lost = scored.map(x => ({...x, pctOf: +x.g.got / +x.g.max, gap: +x.g.max - +x.g.got}))
     .sort((a, b) => (a.pctOf - b.pctOf) || (b.gap - a.gap));
   const ungraded = EVENTS.filter(e => e.course === course && !store.dropped[e.id] && !(store.grades||{})[e.id]).length;
   const byGroup = {};
@@ -1926,7 +1931,7 @@ function openGradeDetail(course){
     <h3 id="ddTitle" style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
       <span class="cdot" style="background:${COLOR[course]}"></span>${esc(course)}
       <span class="gbig ${gradeTone(g.pct)}" style="margin-left:auto">${g.pct}% <b>${g.letter}</b></span></h3>
-    <p class="sub2" style="margin:2px 0 14px">From <b>${g.n}</b> graded item${g.n > 1 ? "s" : ""}${g.weighted ? ", weighted by category" : " (no category weights, so straight points)"}${ungraded ? ` · ${ungraded} not graded yet` : ""}.</p>
+    <p class="sub2" style="margin:2px 0 14px">From <b>${g.n}</b> graded item${g.n > 1 ? "s" : ""}${g.weighted ? ", weighted by category" : " (no category weights, so straight points)"}${working.length ? ` · <b>${working.length} still working</b>, not counted yet` : ""}${ungraded ? ` · ${ungraded} not graded yet` : ""}.</p>
     ${cats.length ? `<div class="card" style="padding:12px 14px;margin-bottom:14px">
       <b style="font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">By category</b>
       ${cats.map(gid => { const b = byGroup[gid], pc = Math.round(b.got / b.max * 1000) / 10;
@@ -1938,11 +1943,20 @@ function openGradeDetail(course){
     <div class="card" style="padding:6px 0;margin:8px 0 14px;max-height:290px;overflow-y:auto">
       ${lost.slice(0, 14).map(x => { const pc = Math.round(x.pctOf * 100);
         return `<div style="display:flex;gap:10px;align-items:baseline;padding:7px 14px;font-size:13.5px;border-bottom:1px solid var(--line)">
-          <span style="flex:1">${esc(x.e.title.slice(0, 42))}${x.e.title.length > 42 ? "…" : ""}${x.ip ? ` <span class="etag" style="text-transform:none;color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--line))">still working</span>` : ""}</span>
+          <span style="flex:1">${esc(x.e.title.slice(0, 46))}${x.e.title.length > 46 ? "…" : ""}</span>
           <span style="color:var(--muted);font-variant-numeric:tabular-nums">${+x.g.got}/${+x.g.max}</span>
           <b class="${gradeTone(pc)}" style="width:44px;text-align:right;font-variant-numeric:tabular-nums">${pc}%</b></div>`; }).join("")}
     </div>
-    <p class="privacy">Only work Canvas has actually scored counts, the same way Canvas builds your current grade. Anything marked <b>still working</b> counts at its running score and will move as you finish it. LMK ignores zeros sitting on assignments that aren't due yet, and it can't see dropped scores, curves or extra credit — so your professor's gradebook is still the official one.</p>
+    ${working.length ? `<b style="font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">Still working — not counted yet</b>
+    <div class="card" style="padding:6px 0;margin:8px 0 14px">
+      ${working.slice(0, 8).map(w => { const pc = Math.round(+w.x.score / +w.x.pts * 100);
+        return `<div style="display:flex;gap:10px;align-items:baseline;padding:7px 14px;font-size:13.5px;border-bottom:1px solid var(--line)">
+          <span style="flex:1;color:var(--ink-2)">${esc(w.e.title.slice(0, 42))}${w.e.title.length > 42 ? "…" : ""}</span>
+          <span style="color:var(--muted);font-variant-numeric:tabular-nums">${+w.x.score}/${+w.x.pts}</span>
+          <b style="width:44px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums">${pc}%</b></div>`; }).join("")}
+      <div style="padding:8px 14px 4px;font-size:12px;color:var(--muted)">These count once they're due or finished — so a partly-done set can't drag your grade down while you still have time.</div>
+    </div>` : ""}
+    <p class="privacy">Only finished work counts, the same way your grade will settle once everything is turned in. LMK ignores zeros sitting on assignments that aren't due yet, and it can't see dropped scores, curves or extra credit — so your professor's gradebook is still the official one.</p>
     <div class="row" style="margin-top:14px"><button class="btn ghost" id="ddClose">Close</button></div>`;
   detailOverlay.classList.add("open");
 }
