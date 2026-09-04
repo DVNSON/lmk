@@ -173,6 +173,25 @@
   .triage .msg{flex:1 1 200px;font-size:14px}
   .triage .msg b{font-weight:700}
   .tri-actions{display:flex;gap:8px}
+  /* grades: glanceable, never alarming */
+  .gstrip{display:flex;gap:7px;overflow-x:auto;padding:0 0 12px;margin:-2px 0 2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .gstrip::-webkit-scrollbar{display:none}
+  .glabel{flex:none;align-self:center;font:600 10.5px "Spline Sans Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding-right:2px}
+  .gnote{flex:none;align-self:center;font-size:11px;color:var(--muted);padding-left:2px;cursor:help;border-bottom:1px dotted var(--line-strong)}
+  .gpill{flex:none;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);
+    border-radius:99px;padding:6px 11px 6px 9px;font:inherit;font-size:12.5px;color:var(--ink-2);cursor:pointer;transition:transform .12s,border-color .2s}
+  .gpill:hover{transform:translateY(-1px);border-color:var(--line-strong)}
+  .gpill:active{transform:scale(.97)}
+  .gpill .cdot{width:7px;height:7px}
+  .gpill .gc{font-family:"Spline Sans Mono",monospace;font-size:11px;letter-spacing:.03em;color:var(--muted)}
+  .gpill .gn{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+  .gpill .gl{font:700 11.5px "Bricolage Grotesque",sans-serif;padding:1px 5px;border-radius:5px;background:var(--surface-2);color:var(--ink-2)}
+  .gpill.good .gl{background:color-mix(in srgb,var(--good) 16%,var(--surface-2));color:var(--good-text)}
+  .gpill.warn .gl{background:color-mix(in srgb,var(--warn) 20%,var(--surface-2));color:var(--warn)}
+  .gpill.critical .gl{background:color-mix(in srgb,var(--critical) 16%,var(--surface-2));color:var(--critical)}
+  .gbig{margin-left:auto;font:700 13px "Bricolage Grotesque",sans-serif;font-variant-numeric:tabular-nums;color:var(--ink-2)}
+  .gbig b{font-weight:800;color:var(--ink)}
+  .gbig.good b{color:var(--good-text)} .gbig.warn b{color:var(--warn)} .gbig.critical b{color:var(--critical)}
   .budget{padding:14px 16px;display:flex;flex-direction:column;gap:9px;margin-bottom:10px}
   .budget .bar{height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line)}
   .budget .bar i{display:block;height:100%;border-radius:99px;background:var(--good);transition:width .5s ease}
@@ -770,7 +789,7 @@ function applyCanvasPayload(p, opts = {}){
   for (const aid in p.items){
     const x = p.items[aid] || {}; if (!x.t) continue;
     n++;
-    items[aid] = {t:x.t, c:x.c, cid:x.cid, due:x.due || "", pts:x.pts, gt:x.gt, st:x.st, k:x.k || "", sub:x.sub || "", subAt:x.subAt || "", score:x.score == null ? null : x.score, missing:!!x.missing, late:!!x.late, url:x.url || "", desc:x.due ? "" : (x.desc || "")};
+    items[aid] = {t:x.t, c:x.c, cid:x.cid, due:x.due || "", pts:x.pts, gt:x.gt, st:x.st, k:x.k || "", grp:x.grp == null ? "" : String(x.grp), sub:x.sub || "", subAt:x.subAt || "", score:x.score == null ? null : x.score, missing:!!x.missing, late:!!x.late, url:x.url || "", desc:x.due ? "" : (x.desc || "")};
     const id = "a" + aid;
     // External-tool work (MyEducator, Edfinity, Connect…) pushes a running score back to Canvas
     // while you're still working, which flips the state to "graded" early. Treat that as
@@ -797,7 +816,7 @@ function applyCanvasPayload(p, opts = {}){
     }
   }
   if (!n) return null;
-  store.ext = {at:p.at || Date.now(), host:p.host || "", items, courses:p.courses || []};
+  store.ext = {at:p.at || Date.now(), host:p.host || "", items, courses:p.courses || [], groups:p.groups || (store.ext || {}).groups || {}};
   save(); loadData(); render();
   if (!opts.quiet) toast(`Canvas synced: ${n} assignments${newDone ? ` · ${newDone} marked done` : ""}${unDone ? ` · ${unDone} back to in-progress` : ""}${newGrades ? ` · ${newGrades} grades` : ""}${shelfAdd ? ` · ${shelfAdd} undated on the shelf` : ""}.`);
   return {n, newDone, newGrades, shelfAdd};
@@ -808,7 +827,7 @@ window.addEventListener("message", ev => {
 });
 let repairToast = 0;
 function loadData(){
-  LEARN = null;
+  LEARN = null; GRADES = null;
   const fixed = repairInProgress();
   if (fixed) { save(); repairToast += fixed; setTimeout(() => { if (repairToast) { toast(`${repairToast} in-progress assignment${repairToast > 1 ? "s" : ""} unchecked — they'll check themselves when finished.`); repairToast = 0; } }, 600); }
   const base = (store.custom ? store.custom.rows : SAFE_SEED).concat(store.customRows || []);
@@ -899,16 +918,69 @@ function streakCount(){
   return n;
 }
 
+/* ================= grades =================
+   Canvas hides your standing behind a tab per class, and a naive points average is wrong whenever
+   a course weights its categories (homework 20%, exams 50%...). The extension already reads each
+   course's assignment groups and their weights, so compute the weighted current grade the way
+   Canvas does: score only what has been graded, average within each group, then weight the groups.
+   This is an estimate — the professor's gradebook can drop lowest scores or add extra credit. */
+const LETTERS = [[97,"A+"],[93,"A"],[90,"A-"],[87,"B+"],[83,"B"],[80,"B-"],[77,"C+"],[73,"C"],[70,"C-"],[67,"D+"],[60,"D"],[0,"E"]];
+function letterFor(pct){ for (const [min, l] of LETTERS) if (pct >= min) return l; return "E"; }
+function gradeTone(pct){ return pct >= 90 ? "good" : pct >= 80 ? "" : pct >= 70 ? "warn" : "critical"; }
+let GRADES = null;
+function buildGrades(){
+  GRADES = {};
+  const ext = store.ext || {}, items = ext.items || {}, groupsByCourse = ext.groups || {};
+  COURSES.forEach(c => {
+    const scored = EVENTS.filter(e => e.course === c && !store.dropped[e.id])
+      .map(e => ({e, g: (store.grades || {})[e.id]}))
+      .filter(x => x.g && +x.g.max > 0);
+    if (!scored.length) { GRADES[c] = null; return; }
+    // weights live per Canvas course id; find the one this course's items belong to
+    const cid = (items[(scored[0].e.id || "").slice(1)] || {}).cid || "";
+    const weights = {};
+    (groupsByCourse[cid] || []).forEach(g => { if (+g.w > 0) weights[String(g.id)] = +g.w; });
+    let pct = null, weighted = false;
+    if (Object.keys(weights).length) {
+      const byGroup = {};
+      scored.forEach(x => {
+        const gid = (items[x.e.id.slice(1)] || {}).grp || "";
+        if (!weights[gid]) return;
+        const b = byGroup[gid] = byGroup[gid] || {got:0, max:0};
+        b.got += +x.g.got; b.max += +x.g.max;
+      });
+      let wsum = 0, acc = 0;
+      for (const gid in byGroup) if (byGroup[gid].max > 0) { acc += (byGroup[gid].got / byGroup[gid].max) * weights[gid]; wsum += weights[gid]; }
+      if (wsum > 0) { pct = acc / wsum * 100; weighted = true; }
+    }
+    if (pct === null) {
+      const max = scored.reduce((t, x) => t + +x.g.max, 0);
+      if (!max) { GRADES[c] = null; return; }
+      pct = scored.reduce((t, x) => t + +x.g.got, 0) / max * 100;
+    }
+    pct = Math.round(pct * 10) / 10;
+    GRADES[c] = {pct, letter: letterFor(pct), n: scored.length, weighted};
+  });
+}
+function gradeFor(c){ if (!GRADES) buildGrades(); return GRADES[c]; }
+function gradesStrip(){
+  const withGrades = COURSES.filter(c => gradeFor(c));
+  if (!withGrades.length) return "";
+  return `<div class="gstrip" role="list"><span class="glabel">Grades</span>` + withGrades.map(c => {
+    const g = gradeFor(c);
+    return `<button class="gpill ${gradeTone(g.pct)}" role="listitem" data-act="gfilter" data-course="${esc(c)}"
+      title="${esc(c)}: ${g.pct}% from ${g.n} graded item${g.n > 1 ? "s" : ""}${g.weighted ? ", weighted by category" : ""}. An estimate — your professor's gradebook is the real one.">
+      <span class="cdot" style="background:${COLOR[c]}"></span><span class="gc">${esc(c)}</span><span class="gn">${g.pct}%</span><span class="gl">${g.letter}</span>
+    </button>`;
+  }).join("") + `<span class="gnote" title="LMK weights each category the way your syllabus does, but it can't know about dropped scores, curves or extra credit.">estimate</span></div>`;
+}
+
 /* ================= priority engine ================= */
 function rankOpen(){
   const n = now();
   const pool = EVENTS.filter(open).filter(e => !skipped.has(e.id)).filter(e => e.kind !== "fyi").filter(e => e.kind !== "inclass" || dayKey(e.due) === dayKey(n));
   const courseG = {};
-  COURSES.forEach(c => {
-    const g = EVENTS.filter(e => e.course === c).map(e => (store.grades||{})[e.id]).filter(x => x && x.max > 0);
-    const mx = g.reduce((t,x) => t + +x.max, 0);
-    if (mx) courseG[c] = g.reduce((t,x) => t + +x.got, 0) / mx;
-  });
+  COURSES.forEach(c => { const g = gradeFor(c); if (g) courseG[c] = g.pct / 100; });
   return pool.map(e => {
     const hrs = (e.due - n)/36e5;
     let s = 0, why = [];
@@ -1266,7 +1338,7 @@ function listCard(events, opts={}){
 /* ---------- NOW ---------- */
 function renderNow(root){
   const n = now(), today = startOfDay(n);
-  let html = "";
+  let html = gradesStrip();
 
   // catch-up triage
   const overdue = EVENTS.filter(open).filter(e => e.due < n && !store.triaged[e.id] && e.kind !== "inclass" && e.kind !== "fyi");
@@ -1578,7 +1650,9 @@ function renderSemester(root){
   }
 
   // course health
-  html += `<h2 class="sec">Course health</h2><div class="health">`;
+  html += `<h2 class="sec">Course health</h2>
+    <div class="empty" style="margin:-2px 0 12px;border-style:solid;font-size:12.5px">Grades are calculated from what Canvas has actually scored, weighted by your syllabus categories. Your professor's gradebook is still the official one — it can drop a lowest score or add a curve that LMK can't see.</div>
+    <div class="health">`;
   COURSES.filter(c => !courseFilter || c === courseFilter).forEach(c=>{
     const all = EVENTS.filter(e=>e.course===c && !store.dropped[e.id]);
     const past = all.filter(e=>e.due < n);
@@ -1586,14 +1660,15 @@ function renderSemester(root){
     const pct = past.length ? Math.round(doneCt/past.length*100) : 100;
     const week = all.filter(e=>e.due>=n && e.due<addDays(n,7) && !store.done[e.id]).length;
     let status = past.length===0 ? (week>=6?"watch":"ok") : pct>=80 ? "ok" : pct>=50 ? "watch" : "risk";
-    const gradedC = all.filter(e => (store.grades||{})[e.id] && store.grades[e.id].max > 0);
-    const gMaxSum = gradedC.reduce((t,e) => t + +store.grades[e.id].max, 0);
-    const gPct = gMaxSum ? Math.round(gradedC.reduce((t,e) => t + +store.grades[e.id].got, 0) / gMaxSum * 100) : null;
+    const cg = gradeFor(c);
+    const gPct = cg ? cg.pct : null;
+    const gradedC = {length: cg ? cg.n : 0};
     if (gPct !== null && gPct < 70) status = "risk";
     else if (gPct !== null && gPct < 80 && status === "ok") status = "watch";
     const pill = {ok:["✓","On track"], watch:["◐","Watch"], risk:["!","Slipping"]}[status];
     html += `<div class="card hcard" style="background:linear-gradient(180deg, color-mix(in srgb, ${COLOR[c]} 11%, var(--surface)), var(--surface) 60%)">
       <div class="hd"><span class="cdot" style="width:10px;height:10px;background:${COLOR[c]}"></span>${esc(c)}
+        ${cg ? `<span class="gbig ${gradeTone(cg.pct)}">${cg.pct}% <b>${cg.letter}</b></span>` : ""}
         <span class="pill ${status==="ok"?"ok":status==="watch"?"watch":"risk"}"><span aria-hidden="true">${pill[0]}</span>${pill[1]}</span></div>
       <div class="bar"><i style="width:${pct}%;background:${COLOR[c]}"></i></div>
       <div class="nums"><span><b>${pct}%</b> of past work done</span><span><b>${week}</b> due this week</span></div>
@@ -1713,6 +1788,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="cap") {
     store.capacity = Object.assign({}, CAP_DEFAULT, store.capacity || {}); store.capacity[act.dataset.kind] = +act.dataset.v; save(); render();
   }
+  else if (a==="gfilter") { const c = act.dataset.course; courseFilter = courseFilter === c ? null : c; render(); }
   else if (a==="open-gear") { const g = document.getElementById("gearBtn"); if (g) g.click(); }
   else if (a==="cap-close") { showCap = false; render(); }
   else if (a==="cap-edit") { showCap = !showCap; render(); }
