@@ -378,7 +378,6 @@
     <button role="tab" data-tab="now" aria-selected="true">Now</button>
     <button role="tab" data-tab="plan" aria-selected="false">Plan</button>
     <button role="tab" data-tab="semester" aria-selected="false">Semester</button>
-    <button role="tab" data-tab="tutor" aria-selected="false">Tutor</button>
   </nav>
 
   <div class="chips" id="courseChips" aria-label="Filter by course"></div>
@@ -386,7 +385,6 @@
   <section class="view" id="view-now"></section>
   <section class="view" id="view-plan" hidden></section>
   <section class="view" id="view-semester" hidden></section>
-  <section class="view" id="view-tutor" hidden></section>
 
   <footer class="pagefoot">
     <span id="srcLabel"></span> <span style="color:var(--muted)" title="Anonymous: assignment id + minutes only. No names, no grades.">· learning from you + anonymous course stats</span>
@@ -398,8 +396,7 @@
   <button role="tab" data-tab="now" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M13 2 4.1 13.2h6L11 22l8.9-11.2h-6z"/></svg>Now</button>
   <button role="tab" data-tab="plan" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>Plan</button>
   <button role="tab" data-tab="semester" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Semester</button>
-  <button role="tab" data-tab="tutor" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></svg>Tutor</button>
-</nav>
+  </nav>
 
 <div class="tooltip" id="tooltip"></div>
 
@@ -1092,74 +1089,6 @@ function tickSprint(){
   if (el) el.textContent = Math.floor(ms/60000) + ":" + String(Math.floor(ms%60000/1000)).padStart(2,"0");
 }
 
-/* ================= tutor tab ================= */
-let tutorCourse = null, tutorDraft = "", tutorEditing = null, tutorAsked = false;
-function buildTutorPrompt(course, q){
-  let p = `I'm a college student in ${course}. Act as my personal tutor.`;
-  const ctx = (store.tutorCtx || {})[course];
-  if (ctx) p += `\n\nWhat you should know about this class (from me): ${ctx.slice(0, 1200)}`;
-  const s = parseSyllabus(course);
-  const wkN = currentWeekNum();
-  if (s && s.weeks[wkN]) p += `\n\nThis week in class, per my syllabus: ${s.weeks[wkN]}`;
-  if ((store.lmkSyllabusIds || {})[course]) p += `\n\nMy complete ${course} syllabus is in my Google Drive as a doc titled "LMK syllabus — ${course}" — open it if you need more.`;
-  p += `\n\nMy question: ${q}\n\nCoach me like a tutor: hints and guiding questions before full answers, and explain the underlying concept so it sticks.`;
-  if (encodeURIComponent(p).length > 7500) p = p.slice(0, 2600);
-  return p;
-}
-function renderTutor(root){
-  if (!tutorCourse || !COURSES.includes(tutorCourse)) tutorCourse = courseFilter || COURSES[0] || null;
-  const c = tutorCourse;
-  const ctx = c ? (store.tutorCtx || {})[c] || "" : "";
-  const log = (store.tutorLog || []).filter(x => x.course === c).sort((a, b) => b.ts - a.ts);
-  let html = `<div class="card hero" style="--hero-tint:color-mix(in srgb, var(--c7) 22%, transparent)">
-    <div class="kicker">Tutor — right here, no tab-hopping</div>
-    <h1 style="font-size:22px">Ask with your class context attached.</h1>
-    <div class="why">Your book, your chapter, your syllabus week — packed into every question automatically.</div>
-  </div>
-  <div class="chips" style="padding-top:16px">` +
-    COURSES.map(x => `<button class="chip" aria-pressed="${x === c}" data-act="tutor-course" data-course="${esc(x)}" style="--chip-c:${COLOR[x]};--chip-bg:color-mix(in srgb, ${COLOR[x]} 13%, var(--surface))"><span class="dot" style="background:${COLOR[x]}"></span>${esc(x)}</button>`).join("") + `</div>`;
-  if (!c) { root.innerHTML = html + `<div class="empty">No courses yet.</div>`; return; }
-  html += `<h2 class="sec">What your tutor knows about ${esc(c)}</h2>
-  <div class="card" style="padding:14px 16px">
-    <textarea id="tutCtx" placeholder="e.g. Book: Calculus & Its Applications, 15th ed. We're in ch. 4 (derivatives). I struggle with word problems." style="width:100%;min-height:76px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink);padding:10px;font:inherit;font-size:13.5px;resize:vertical">${esc(ctx)}</textarea>
-    <div style="font-size:11.5px;color:var(--muted);margin-top:7px">Saves automatically · rides with every question · your syllabus week attaches too</div>
-  </div>
-  <h2 class="sec">Ask</h2>
-  <div class="card" style="padding:14px 16px">
-    <textarea id="tutQ" placeholder="e.g. Chapter 4.2 #7 — I don't get why the chain rule applies here" style="width:100%;min-height:66px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink);padding:10px;font:inherit;font-size:14px;resize:vertical">${esc(tutorDraft)}</textarea>
-    <div class="actions" style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
-      ${MODE === "artifact" ? `<button class="btn primary" data-act="tutor-ask">✦ Ask here — answer lands on this page</button>
-      <button class="btn ghost" data-act="tutor-side">Side window ↗</button>` :
-      `<button class="btn primary" data-act="tutor-side">✦ Ask your tutor ↗</button>`}
-    </div>
-    ${tutorAsked ? `<div class="empty" style="margin-top:12px;border-style:solid;font-size:13px;line-height:1.6">
-      <b>Question packed &amp; copied ✓</b> Now tap the <b>💬 comment bubble</b> in this page's toolbar, paste, and choose <b>Send to Claude</b>. Your tutor's reply appears right here on the page, usually within a couple of minutes. No reply? The tutor line is asleep — use <b>Side window</b> instead.
-    </div>` : ""}
-  </div>`;
-  if (log.length){
-    html += `<h2 class="sec">Notebook <span class="count">${log.length}</span></h2><div class="card"><div class="list">` +
-      log.slice(0, 20).map(x => `
-      <div class="item" style="flex-direction:column;align-items:stretch;gap:7px;flex-wrap:nowrap">
-        <div style="display:flex;gap:10px;align-items:baseline">
-          <div class="t" style="flex:1;cursor:default">${esc(x.q)}</div>
-          <span class="duelbl">${new Date(x.ts).toLocaleDateString([], {month:"short", day:"numeric"})}</span>
-          <button class="iconbtn" data-act="tutor-del" data-tid="${x.id}" aria-label="Delete question">${ICON_TRASH}</button>
-        </div>
-        ${x.a && tutorEditing !== x.id ? `<div style="font-size:13px;color:var(--ink-2);line-height:1.55;border-left:3px solid var(--c7);padding-left:10px;white-space:pre-wrap">${esc(x.a)}</div>` : ""}
-        ${tutorEditing === x.id ? `<textarea data-tid="${x.id}" class="tutans" placeholder="Paste the tutor's answer here to keep it forever" style="width:100%;min-height:64px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:9px;font:inherit;font-size:13px;resize:vertical">${esc(x.a || "")}</textarea>` : `<button class="minibtn" data-act="tutor-ans" data-tid="${x.id}" style="align-self:flex-start">${x.a ? "Edit saved answer" : "+ Save the answer for later"}</button>`}
-      </div>`).join("") + `</div></div>`;
-  }
-  root.innerHTML = html;
-  const tc = document.getElementById("tutCtx");
-  if (tc) tc.addEventListener("input", () => { store.tutorCtx = store.tutorCtx || {}; if (tc.value.trim()) store.tutorCtx[c] = tc.value; else delete store.tutorCtx[c]; save(); });
-  const tq = document.getElementById("tutQ");
-  if (tq) tq.addEventListener("input", () => { tutorDraft = tq.value; });
-  root.querySelectorAll(".tutans").forEach(ta => ta.addEventListener("input", () => {
-    const entry = (store.tutorLog || []).find(x => x.id === ta.dataset.tid);
-    if (entry) { entry.a = ta.value; save(); }
-  }));
-}
-
 /* ================= renderers ================= */
 const ICON_CHECK = `<svg viewBox="0 0 16 16" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5 6.5 12 13 4.5"/></svg>`;
 const ICON_LINK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>`;
@@ -1699,8 +1628,8 @@ function renderHeader(){
 function render(){
   computeBundles(); computePlan();
   renderHeader(); renderChips();
-  const views = {now:renderNow, plan:renderPlan, semester:renderSemester, tutor:renderTutor};
-  ["now","plan","semester","tutor"].forEach(t=>{
+  const views = {now:renderNow, plan:renderPlan, semester:renderSemester};
+  ["now","plan","semester"].forEach(t=>{
     const el = document.getElementById("view-"+t);
     el.hidden = t !== activeTab;
   });
@@ -1750,26 +1679,6 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="sprint") startSprint(id);
   else if (a==="sprint-stop") stopSprint(false);
   else if (a==="examplan") { const ex = act.closest("[data-id]"); if (ex) openExamPlan(ex.dataset.id); }
-  else if (a==="tutor-course") { tutorCourse = act.dataset.course; tutorAsked = false; tutorEditing = null; render(); }
-  else if (a==="tutor-ask" || a==="tutor-side") {
-    const q = ((document.getElementById("tutQ") || {}).value || tutorDraft || "").trim();
-    if (!q) { toast("Type your question first."); return; }
-    const p = buildTutorPrompt(tutorCourse, q);
-    store.tutorLog = store.tutorLog || [];
-    store.tutorLog.push({id: "t" + Date.now(), course: tutorCourse, q, ts: Date.now()});
-    save();
-    tutorDraft = "";
-    if (a === "tutor-ask") {
-      try { navigator.clipboard.writeText(p); } catch(_){}
-      tutorAsked = true; render();
-    } else {
-      window.open("https://claude.ai/new?q=" + encodeURIComponent(p), "lmkTutor", "width=460,height=780");
-      toast("Tutor opened beside the app — question & context went with it.");
-      render();
-    }
-  }
-  else if (a==="tutor-del") { const tid = act.dataset.tid; store.tutorLog = (store.tutorLog||[]).filter(x => x.id !== tid); store.deleted = store.deleted || {}; store.deleted["tutor:" + tid] = Date.now(); if (tutorEditing === tid) tutorEditing = null; save(); render(); }
-  else if (a==="tutor-ans") { tutorEditing = act.dataset.tid; render(); }
   else if (a==="recap-done") { store.recapSeen = store.recapSeen || {}; store.recapSeen[act.dataset.rk] = 1; save(); render(); }
   else if (a==="brief-prev") { briefWeek = Math.max(1, (briefWeek || currentWeekNum()) - 1); render(); }
   else if (a==="brief-next") { briefWeek = Math.min(17, (briefWeek || currentWeekNum()) + 1); render(); }
@@ -1951,7 +1860,7 @@ function openDetail(id){
       return n2 > 1 ? `<label style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--ink-2);margin:0 0 12px;cursor:pointer"><input type="checkbox" id="ddApplyAll" style="margin-top:2px"> Teach LMK: apply this size &amp; start time to all <b>${n2}</b> “${esc(sk.split("|")[0].trim())}…” assignments in ${esc(e.course)} — including future ones</label>` : `<div style="margin-bottom:6px"></div>`; })()}
     ${/(\d+\s*(hour|hr)s?\b|\bplay\b|\bwatch\b|\d{3,}\s*words|essay|record|film|interview)/i.test(e.desc || "") && e.effort !== "big" ? `<p class="privacy" style="margin:0 0 12px">⚡ The instructions mention time-consuming work (playing / watching / writing) — consider sizing this <b>Big</b> with an earlier start.</p>` : ""}
     ${e.desc ? `<div class="card" style="padding:13px 15px;font-size:13.5px;line-height:1.6;color:var(--ink-2);max-height:180px;overflow-y:auto;margin-bottom:14px"><b style="color:var(--ink);display:block;margin-bottom:4px;font-size:12px;letter-spacing:.04em;text-transform:uppercase">Instructions from Canvas</b>${esc(e.desc)}</div>` : `<p class="privacy" style="margin:0 0 12px">No instructions came through the calendar feed for this one — add what you know below and the AI tutor will use it.</p>`}
-    <label class="field">My notes for the AI tutor (what the professor wants, rubric points, where you're stuck…)
+    <label class="field">My notes (what the professor wants, rubric points, where you're stuck…)
       <textarea id="ddNotes" style="min-height:76px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:9px 10px;font:inherit;font-size:13.5px;resize:vertical">${esc(notes)}</textarea>
     </label>
     <div class="row" style="margin-top:14px">
@@ -1959,7 +1868,7 @@ function openDetail(id){
       ${e.url?`<a class="btn ghost" href="${e.url}" target="_blank" rel="noopener">Open in Canvas ↗</a>`:""}
       <button class="btn ghost" id="ddClose">Close</button>
     </div>
-    <p class="privacy" style="margin-top:12px">Notes save automatically and ride along in every AI prompt for this assignment.</p>`;
+    <p class="privacy" style="margin-top:12px">Notes save automatically and ride along in every ✦ Study with AI prompt for this assignment.</p>`;
   detailOverlay.classList.add("open");
   const skT = seriesKey(e.title, e.course);
   const effSel = document.getElementById("ddEffort"), leadSel = document.getElementById("ddLead"), kindSel = document.getElementById("ddKind");
@@ -2330,8 +2239,9 @@ function scheduleDrivePush(){
 }
 
 /* ---------- WEB MODE sync: Google Drive REST, no server, no Claude account ----------
-   Data lives in the app's own private folder in the student's Drive (appDataFolder): invisible
-   in their Drive UI, unreadable by any other app, and deleted when they remove app access. */
+   Uses the `drive.file` scope: LMK can only ever see the one file it created (LMK-data.json),
+   never the rest of the student's Drive. That scope is non-sensitive, so there is no Google
+   verification, no "unverified app" warning, and no 100-user cap. */
 const gd = {token:null, exp:0, fileId:null, tc:null, busy:false, pending:false};
 function gdReady(){ return MODE === "web" && !!LMK_CONFIG.googleClientId; }
 function loadGIS(){
@@ -2349,7 +2259,7 @@ function gdToken(interactive){
     if (!gd.tc) {
       gd.tc = window.google.accounts.oauth2.initTokenClient({
         client_id: LMK_CONFIG.googleClientId,
-        scope: "https://www.googleapis.com/auth/drive.appdata",
+        scope: "https://www.googleapis.com/auth/drive.file",
         callback: () => {},
       });
     }
@@ -2369,7 +2279,7 @@ async function gdFetch(url, opts = {}){
 }
 async function gdrivePull(){
   const q = encodeURIComponent("name='" + SYNC_FILE + "'");
-  const r = await gdFetch("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=" + q + "&fields=files(id,modifiedTime)&orderBy=modifiedTime desc");
+  const r = await gdFetch("https://www.googleapis.com/drive/v3/files?q=" + q + "&fields=files(id,modifiedTime)&orderBy=modifiedTime desc");
   if (!r.ok) throw new Error("list " + r.status);
   const j = await r.json(); const f = (j.files || [])[0];
   if (!f) { drive.remoteExists = false; return; }
@@ -2403,7 +2313,7 @@ async function gdrivePush(){
       if (!r.ok) throw new Error("save " + r.status);
     } else {
       const boundary = "lmk" + Date.now();
-      const meta = JSON.stringify({name: SYNC_FILE, parents: ["appDataFolder"]});
+      const meta = JSON.stringify({name: SYNC_FILE});
       const multipart = "--" + boundary + "\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n" + meta +
         "\r\n--" + boundary + "\r\nContent-Type: application/json\r\n\r\n" + body + "\r\n--" + boundary + "--";
       const r = await gdFetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id", {method:"POST", headers:{"Content-Type":"multipart/related; boundary=" + boundary}, body: multipart});
@@ -2412,7 +2322,7 @@ async function gdrivePush(){
     }
     drive.everRead = true;
     syncBadge("☁ Synced to your Google Drive · " + new Date().toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}),
-      "Private to you, in this app's own Drive folder. Nobody else can read it.");
+      "Saved as LMK-data.json in your Google Drive. Only you and LMK can read it.");
   } catch(err) {
     syncBadge("☁ Not synced — tap to retry", (err && err.message) || "");
   } finally {
@@ -2436,7 +2346,7 @@ async function initWebSync(){
     drive.ready = true;
     if (drive.everRead && store.onboarded) welcomeOverlay.classList.remove("open");
     scheduleDrivePush();
-    syncBadge("☁ Synced to your Google Drive", "Private to you, in this app's own Drive folder.");
+    syncBadge("☁ Synced to your Google Drive", "Saved as LMK-data.json in your Drive. Only you and LMK can read it.");
   } catch(_) {
     syncBadge("☁ Sync across devices — tap to sign in with Google");
   }
@@ -2616,7 +2526,7 @@ function openWelcome(){
     set("wBody1", "Everything you do here saves privately on this device. Nothing is sent anywhere.");
     const ws = document.getElementById("wSync"); if (ws) ws.style.display = "none";
   } else {
-    set("wBody1", "Everything saves privately on this device. Sign in with Google later and your plan follows you to your phone — into your own Drive, where only you can read it.");
+    set("wBody1", "Everything saves privately on this device. Sign in with Google later and your plan follows you to your phone — saved to your own Google Drive, where only you can read it.");
   }
   document.getElementById("wName").value = (store.profile && store.profile.name) || "";
   document.getElementById("wCal").textContent =
@@ -2650,6 +2560,10 @@ setTimeout(maybeWelcome, 9000);
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
 setInterval(render, 60000);
 </script>
+
+
+
+
 
 
 

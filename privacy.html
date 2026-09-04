@@ -39,7 +39,7 @@
   <ul>
     <li>Everything the extension collects is stored <b>in your own browser</b> (extension storage) and handed to the LMK page when you open it.</li>
     <li>By default, everything stays <b>on the device you are using</b>. Nothing is uploaded.</li>
-    <li>If you choose to sign in with Google, LMK saves your data to a private folder in <b>your own Google Drive</b> so your phone and laptop stay in sync. That folder belongs to the app: nobody else can read it, and revoking LMK's access from your Google account deletes it.</li>
+    <li>If you choose to sign in with Google, LMK saves your data as a file named <b>LMK-data.json</b> in <b>your own Google Drive</b> so your phone and laptop stay in sync. LMK uses Google's <code>drive.file</code> permission, which lets it see <b>only the one file it created</b> — it can never read anything else in your Drive. Delete that file, or revoke LMK's access in your Google account, and the synced copy is gone.</li>
     <li>LMK shares <b>anonymous course statistics</b> with other LMK users: an assignment's Canvas ID, a median number of minutes, and a type vote (for example "done in class"). This never includes your name, your scores, your grades, or which assignments you completed. These statistics exist so that every student's time estimates improve.</li>
   </ul>
 

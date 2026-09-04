@@ -27,13 +27,15 @@ id into `LMK_CONFIG.googleClientId` near the top of the script in
 
 1. console.cloud.google.com → new project → **APIs & Services**
 2. Enable the **Google Drive API**
-3. **OAuth consent screen** → External → add the `drive.appdata` scope
+3. **OAuth consent screen** → External → add the `drive.file` scope (non-sensitive:
+   no Google verification, no warning screen, no 100-user cap)
 4. **Credentials** → Create OAuth client ID → *Web application*
 5. Add the site origin under **Authorized JavaScript origins**
 6. Copy the client id into `LMK_CONFIG.googleClientId`
 
-Data is written to the app's private `appDataFolder` in the student's own
-Drive: invisible to other apps, deleted when they revoke access.
+Data is written as `LMK-data.json` in the student's own Drive. The `drive.file`
+scope means LMK can only ever see the file it created, never the rest of their
+Drive — which is why it needs no Google review to publish.
 
 ## Deploying
 
