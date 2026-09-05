@@ -142,10 +142,10 @@
   <h1>Know what to do <em>today.</em></h1>
   <p class="lede">Canvas tells you what's due. LMK tells you what to actually do today — one short list, sized to the hours you really have. It learns how long your work takes, so the plan gets more honest every week.</p>
   <div class="cta">
-    <a class="btn grad" href="app/">Open LMK — it's free</a>
-    <a class="btn" href="#how">See how it works</a>
+    <a class="btn grad" id="ctaMain" href="https://chromewebstore.google.com/search/LMK%20for%20Canvas" target="_blank" rel="noopener">Add to Chrome — it's free</a>
+    <a class="btn" id="ctaAlt" href="app/">Open LMK</a>
   </div>
-  <p class="ctanote">Works with any school on Canvas. No account required to start.</p>
+  <p class="ctanote">No account required. Built at ASU; works at any school whose Canvas runs on instructure.com.</p>
 
   <div class="shot">
     <img src="assets/screenshot-app.jpg" alt="The LMK Now view: a Next Up card, a daily budget bar reading about four hours of your four hours, and a short list of today's assignments with time estimates.">
@@ -160,7 +160,7 @@
     <div class="steps">
       <div class="step"><div class="n">1</div><div>
         <h3>Add the Chrome extension</h3>
-        <p>Install it, then open Canvas once like you normally would. LMK reads your courses, every assignment, what you've already submitted, and your scores.</p>
+        <p><a href="https://chromewebstore.google.com/search/LMK%20for%20Canvas" target="_blank" rel="noopener">Get it on the Chrome Web Store</a>, then open Canvas once like you normally would. LMK reads your courses, every assignment, what you've already submitted, and your scores — and opens your plan for you.</p>
       </div></div>
       <div class="step"><div class="n">2</div><div>
         <h3>Answer one question</h3>
@@ -222,7 +222,7 @@
       <div class="card"><span class="ic">🌤️</span><h3>"Nothing needed today"</h3><p>A clear day is a real answer, and LMK will say it plainly instead of showing you a wall of future work.</p></div>
       <div class="card"><span class="ic">🔀</span><h3>Honest overflow</h3><p>When a day doesn't fit, it names the one thing that can slip to tomorrow and whether that's still safe.</p></div>
       <div class="card"><span class="ic">🧯</span><h3>No wall of red</h3><p>After a rough week, one tap decides what's still worth points and what to let go. No shame, no badge counts.</p></div>
-      <div class="card"><span class="ic">🔔</span><h3>One notification a day</h3><p>A short morning digest and a Sunday week preview. Silence when there's nothing worth saying.</p></div>
+      <div class="card"><span class="ic">🔔</span><h3>One notification a day</h3><p>The extension says good morning on your laptop with today's short list. Silence when there's nothing worth saying.</p></div>
       <div class="card"><span class="ic">🏫</span><h3>Knows in-class work</h3><p>Attendance quizzes and participation stop being treated like homework you have to start early.</p></div>
       <div class="card"><span class="ic">📱</span><h3>Phone and laptop</h3><p>Sign in with Google and your plan follows you. Your data lives in your own Drive, private to you.</p></div>
     </div>
@@ -246,9 +246,10 @@
 <section class="final">
   <div class="wrap">
     <h2>Stop guessing what tonight looks like.</h2>
-    <p class="sub">Free, and it works with any school on Canvas.</p>
+    <p class="sub">Free. Built at ASU, works anywhere Canvas runs on instructure.com.</p>
     <div class="cta">
-      <a class="btn grad" href="app/">Open LMK</a>
+      <a class="btn grad" href="https://chromewebstore.google.com/search/LMK%20for%20Canvas" target="_blank" rel="noopener">Add to Chrome</a>
+      <a class="btn" href="app/">Open LMK</a>
       <a class="btn" href="privacy.html">Read the privacy policy</a>
     </div>
   </div>
@@ -266,6 +267,11 @@
 </footer>
 
 <script>
+/* Phones cannot add a Chrome extension, so lead with the app there. */
+if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) {
+  var m = document.getElementById("ctaMain"), a = document.getElementById("ctaAlt");
+  if (m && a) { m.textContent = "Open LMK — it's free"; m.href = "app/"; m.removeAttribute("target"); a.textContent = "See how it works"; a.href = "#how"; }
+}
   const hdr = document.getElementById("hdr");
   addEventListener("scroll", () => hdr.classList.toggle("stuck", scrollY > 8), {passive:true});
 </script>

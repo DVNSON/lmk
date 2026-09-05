@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="LMK">
 <link rel="manifest" href="manifest.webmanifest">
+<script>if ("serviceWorker" in navigator) addEventListener("load", function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); });</script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23e0489a'/><text y='68' x='50' text-anchor='middle' font-size='38' font-weight='800' font-family='sans-serif' fill='white'>LMK</text></svg>">
 <style>
   :root{color-scheme:light}
@@ -35,6 +36,7 @@
     --splash:linear-gradient(115deg,#ff5d52,#e0489a 48%,#f7a521);
     --blob1:rgba(224,72,154,.09);--blob2:rgba(42,120,214,.09);--blob3:rgba(247,165,33,.11);
     --shadow:0 1px 2px rgba(20,22,26,.06),0 6px 24px -8px rgba(20,22,26,.10);
+    --card-hi:rgba(255,255,255,.65);
     color-scheme:light;
   }
   @media (prefers-color-scheme: dark){
@@ -49,6 +51,7 @@
       --splash:linear-gradient(115deg,#ff6b5e,#e85fa2 48%,#ffb02e);
     --blob1:rgba(213,81,129,.17);--blob2:rgba(57,135,229,.15);--blob3:rgba(201,133,0,.13);
     --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 24px -8px rgba(0,0,0,.5);
+    --card-hi:rgba(255,255,255,.05);
       color-scheme:dark;
     }
   }
@@ -63,6 +66,7 @@
     --splash:linear-gradient(115deg,#ff6b5e,#e85fa2 48%,#ffb02e);
     --blob1:rgba(213,81,129,.17);--blob2:rgba(57,135,229,.15);--blob3:rgba(201,133,0,.13);
     --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 24px -8px rgba(0,0,0,.5);
+    --card-hi:rgba(255,255,255,.05);
     color-scheme:dark;
   }
   *{box-sizing:border-box}
@@ -71,12 +75,14 @@
     font:400 15px/1.5 "Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
     -webkit-font-smoothing:antialiased;
   }
-  body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  body::before{content:"";position:fixed;inset:-12%;z-index:-1;pointer-events:none;
     background:radial-gradient(52vw 42vh at 12% -6%,var(--blob1),transparent 62%),
       radial-gradient(46vw 38vh at 96% 4%,var(--blob2),transparent 60%),
       radial-gradient(50vw 40vh at 55% 108%,var(--blob3),transparent 60%)}
   a{color:inherit}
   button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;padding:0}
+  button,a,.chip,.cbx,.cal-day{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+  [hidden]{display:none!important}
   button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--c1);outline-offset:2px;border-radius:4px}
   .wrap{max-width:980px;margin:0 auto;padding:0 20px 80px}
 
@@ -108,7 +114,7 @@
 
   /* ---------- cards & sections ---------- */
   section.view{padding-top:14px}
-  .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow),inset 0 1px 0 var(--card-hi)}
   h2.sec{font:700 13px/1 "Spline Sans Mono",monospace;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:26px 0 10px;display:flex;align-items:center;gap:10px}
   h2.sec::before{content:"";width:16px;height:5px;border-radius:99px;background:var(--splash);flex:none}
   h2.sec .count{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:2px 8px;font-size:11px;color:var(--ink-2)}
@@ -119,7 +125,9 @@
   .hero::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:var(--splash)}
   .hero .kicker{font:600 11.5px/1 "Spline Sans Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px}
   .hero .kicker::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 20%,transparent)}
-  .hero h1{margin:0;font:700 clamp(20px,4vw,28px)/1.2 "Bricolage Grotesque",sans-serif;letter-spacing:-.01em;text-wrap:balance}
+  .hero h1{margin:0;font:700 clamp(21px,4vw,30px)/1.18 "Bricolage Grotesque",sans-serif;letter-spacing:-.02em;text-wrap:balance}
+  .hero::before{z-index:2}
+  .hero.clear h1{background:var(--splash);-webkit-background-clip:text;background-clip:text;color:transparent;width:fit-content}
   .hero .meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--ink-2)}
   .hero .why{font-size:13.5px;color:var(--ink-2)}
   .hero .why b{color:var(--ink)}
@@ -315,6 +323,24 @@
   .toast button{color:inherit;text-decoration:underline;font-weight:700;margin-left:10px;font-size:13px}
   .srconly{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 
+  /* ---------- setup & welcome ---------- */
+  .btn.grad{background:var(--splash);color:#fff;border-color:transparent;box-shadow:0 6px 18px -8px rgba(224,72,154,.6)}
+  .btn.grad:hover{filter:brightness(1.06)}
+  .wact{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+  .modal .h4{margin:0 0 4px;font:700 16px/1.2 "Bricolage Grotesque",sans-serif}
+  .setupway{border-top:1px solid var(--line);margin-top:16px;padding-top:14px}
+  #setupExt{border-top:none;margin-top:0;padding-top:0}
+  details.setupway summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;color:var(--ink-2)}
+  details.setupway summary::-webkit-details-marker{display:none}
+  details.setupway summary::after{content:"›";margin-left:auto;font-size:20px;line-height:1;color:var(--muted);transition:transform .2s}
+  details.setupway[open] summary::after{transform:rotate(90deg)}
+  details.setupway[open] summary{color:var(--ink);margin-bottom:6px}
+  .triagecard{margin-top:18px}
+  .triagecard .triage{margin:0;border:none;border-radius:18px 18px 0 0;border-bottom:1px solid var(--line)}
+  .triagecard .list .item:first-child{border-top:none}
+  .morebtn{display:block;width:100%;padding:12px 16px;font-weight:600;font-size:13.5px;color:var(--ink-2);border-top:1px solid var(--line);border-radius:0 0 18px 18px}
+  .morebtn:hover{background:var(--surface-2);color:var(--ink)}
+
   /* ---------- glow-up: motion & physics ---------- */
   @media (prefers-reduced-motion: no-preference){
     .btn,.minibtn,.gear,.chip,.iconbtn,.cal-nav{transition:transform .12s ease, background .15s ease, border-color .15s ease}
@@ -322,7 +348,38 @@
     .hcard,.exam,.finditem{transition:transform .16s ease, box-shadow .16s ease}
     @media (hover:hover){ .hcard:hover{transform:translateY(-2px)} }
     section.view{animation:viewin .24s ease}
-    @keyframes viewin{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+    @keyframes viewin{from{opacity:0;transform:translate(calc(var(--dir,0) * 22px),6px)}to{opacity:1;transform:none}}
+  }
+
+  /* ---------- alive: motion that means something ---------- */
+  @media (prefers-reduced-motion: no-preference){
+    body::before{animation:blobs 38s ease-in-out infinite alternate;will-change:transform}
+    @keyframes blobs{from{transform:translate(0,0) scale(1)}to{transform:translate(-2.5%,2%) scale(1.07)}}
+    /* a view settles in piece by piece when opened — never on the quiet minute-by-minute refresh */
+    section.view.anim > *{animation:rise .46s cubic-bezier(.22,.8,.3,1) both;animation-delay:calc(var(--i,0) * 45ms)}
+    @keyframes rise{from{opacity:0;transform:translateY(12px) scale(.992)}to{opacity:1;transform:none}}
+    .hero{isolation:isolate}
+    .hero::after{content:"";position:absolute;inset:-40%;z-index:0;pointer-events:none;opacity:.42;
+      background:radial-gradient(closest-side at 72% 38%,var(--hero-tint,transparent),transparent 72%);animation:drift 16s ease-in-out infinite alternate}
+    .hero > *{position:relative;z-index:1}
+    @keyframes drift{from{transform:translate(0,0) rotate(0)}to{transform:translate(-7%,6%) rotate(9deg)}}
+    .hero .kicker::before{animation:breathe 2.8s ease-in-out infinite}
+    @keyframes breathe{0%,100%{box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 22%,transparent)}50%{box-shadow:0 0 0 8px color-mix(in srgb,var(--good) 6%,transparent)}}
+    .item.popping .cbx{animation:checkpop .5s cubic-bezier(.34,1.56,.64,1)}
+    @keyframes checkpop{0%{transform:scale(.6)}55%{transform:scale(1.22)}100%{transform:scale(1)}}
+    .streak.lit > span:first-child{display:inline-block;animation:flicker 2.2s ease-in-out infinite;transform-origin:50% 95%}
+    @keyframes flicker{0%,100%{transform:scale(1) rotate(-3deg)}50%{transform:scale(1.14) rotate(4deg)}}
+    .toast{transform:translateX(-50%) translateY(10px);transition:opacity .25s,transform .32s cubic-bezier(.22,.8,.3,1)}
+    .toast.show{transform:translateX(-50%) translateY(0)}
+    .overlay.open{animation:scrim .22s ease}
+    @keyframes scrim{from{background:rgba(10,11,13,0)}to{background:rgba(10,11,13,.5)}}
+    nav.bottombar button[aria-selected="true"]{animation:tabpop .34s cubic-bezier(.34,1.56,.64,1)}
+    @keyframes tabpop{from{transform:scale(.9)}to{transform:scale(1)}}
+    .budget .bar i{transition:width .9s cubic-bezier(.22,.8,.3,1)}
+    .gpill,.chip{transition:transform .14s ease,border-color .2s,background .2s}
+    .burst{position:fixed;z-index:150;pointer-events:none;width:0;height:0}
+    .burst i{position:absolute;left:0;top:0;width:7px;height:7px;border-radius:50%;background:var(--c,var(--good));transform:translate(-50%,-50%);animation:burst .62s cubic-bezier(.2,.7,.3,1) forwards}
+    @keyframes burst{to{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(.15);opacity:0}}
   }
 
   /* ---------- mobile: app shell ---------- */
@@ -342,13 +399,20 @@
     nav.bottombar button[aria-selected="true"]::after{display:none}
     .wrap{padding-bottom:120px}
     .toast{bottom:calc(84px + env(safe-area-inset-bottom))}
-    .today-line{display:none}
+    .today-line{display:block;flex:1 1 100%;order:10;padding:2px 0 0;font-size:10.5px;letter-spacing:.06em}
+    header.top{padding:12px 20px 8px;gap:10px}
+    @media (display-mode: standalone){ header.top{padding-top:calc(12px + env(safe-area-inset-top))} }
+    .hero{padding:20px 18px 18px}
+    .hero .actions .btn.primary{flex-basis:100%}
+    .modal input,.modal select,.modal textarea,#findQ{font-size:16px!important}
     .chips{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:10px}
     .chips::-webkit-scrollbar{display:none}
     .chip{flex:none;padding:7px 13px}
     .hero .actions .btn{flex:1 1 calc(50% - 5px);min-width:0;justify-content:center;text-align:center;padding:10px 8px}
-    .item{flex-wrap:wrap}
-    .item .side{margin-left:auto}
+    .item .body{min-width:0}
+    .item .side .iconbtn[data-act="ai"]{display:none}
+    .item.tri{flex-wrap:wrap}
+    .item.tri .side{margin-left:auto}
     .streak #streakTxt{display:none}
     .streak{padding:6px 11px}
     .lmksub{font-size:13px}
@@ -421,28 +485,19 @@
 
 <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
   <div class="modal">
-    <h3 id="modalTitle">Connect your Canvas calendar</h3>
-    <p class="sub2">Load your own semester — everything is parsed and stored right here in your browser.</p>
-    <ol>
-      <li>In Canvas, open <b>Calendar</b> → click <b>Calendar Feed</b> (bottom right).</li>
-      <li>Copy the feed link, open it in a new tab — it downloads an <b>.ics</b> file.</li>
-      <li>Drop that file below (or open it in a text editor and paste its contents).</li>
-    </ol>
-    <div class="drop" id="dropZone" tabindex="0" role="button" aria-label="Choose or drop your .ics file">
-      Drop your <b>.ics</b> file here, or click to browse
-      <input type="file" id="fileInput" accept=".ics,text/calendar" class="srconly">
+    <h3 id="modalTitle">Get your classes in</h3>
+    <p class="sub2">Three ways. The first one runs itself.</p>
+
+    <div class="setupway" id="setupExt">
+      <h3 class="h4">Chrome extension</h3>
+      <p class="sub2">Add it to Chrome, then open Canvas once like you normally would. LMK learns every assignment, what's already submitted, your scores, and which items are in-class or not graded. It re-syncs whenever you're in Canvas.</p>
+      <div class="row" style="margin-top:4px"><a class="btn grad" id="setupInstall" href="#" target="_blank" rel="noopener">Add to Chrome →</a></div>
+      <p class="sub2" id="setupPhone" style="margin:10px 0 0;font-size:12.5px" hidden>On a phone? Set up on a laptop once, then sign in with Google (bottom of the page) and your plan appears here.</p>
     </div>
-    <textarea id="icsPaste" placeholder="…or paste the .ics file contents here (starts with BEGIN:VCALENDAR)"></textarea>
-    <div class="row">
-      <button class="btn primary" id="loadBtn">Load my semester</button>
-      <span class="parse-msg" id="parseMsg" role="status"></span>
-    </div>
-    <div style="border-top:1px solid var(--line);margin-top:18px;padding-top:16px">
-      <h3 style="margin:0 0 4px;font:700 16px/1.2 'Bricolage Grotesque',sans-serif">Let Canvas do the tracking</h3>
-      <p class="sub2"><b>Laptop:</b> install the <b>LMK for Canvas</b> extension (the <code>lmk-extension</code> folder → chrome://extensions → Load unpacked). Open Canvas once and LMK learns every assignment, what's already submitted, your scores, and which items are in-class or not graded. <b>Phone:</b> tap the <b>LMK sync</b> bookmark while on Canvas, then paste what it copied into the box below — no course needed.</p>
-      <p class="sub2" style="font-size:12px;color:var(--muted)">Extension target: <code id="extOrigin"></code></p>
-      <h3 style="margin:14px 0 4px;font:700 16px/1.2 'Bricolage Grotesque',sans-serif">Or paste a page</h3>
-      <p class="sub2">Open a course in Canvas → <b>Assignments</b> → select the whole page (Ctrl/Cmd-A), copy, paste it here.</p>
+
+    <div class="setupway">
+      <h3 class="h4">Or paste a page</h3>
+      <p class="sub2">Open a course in Canvas → <b>Assignments</b> → select the whole page (Ctrl/Cmd-A), copy, paste it here. On a phone, the <b>LMK sync</b> bookmark copies it for you.</p>
       <label class="field" style="margin-bottom:10px">Which course is that page from?<input id="impCourse" list="courseList2" placeholder="BIO 101"><datalist id="courseList2"></datalist></label>
       <textarea id="impPaste" placeholder="Paste the LMK sync from your phone, or a whole Assignments page — messy is fine, I’ll sort it out."></textarea>
       <div class="row">
@@ -450,15 +505,34 @@
         <span class="parse-msg" id="impMsg" role="status"></span>
       </div>
     </div>
+
+    <details class="setupway">
+      <summary class="h4">Or upload your Canvas calendar (.ics)</summary>
+      <ol>
+        <li>In Canvas, open <b>Calendar</b> → click <b>Calendar Feed</b> (bottom right).</li>
+        <li>Copy the feed link, open it in a new tab — it downloads an <b>.ics</b> file.</li>
+        <li>Drop that file below (or open it in a text editor and paste its contents).</li>
+      </ol>
+      <div class="drop" id="dropZone" tabindex="0" role="button" aria-label="Choose or drop your .ics file">
+        Drop your <b>.ics</b> file here, or click to browse
+        <input type="file" id="fileInput" accept=".ics,text/calendar" class="srconly">
+      </div>
+      <textarea id="icsPaste" placeholder="…or paste the .ics file contents here (starts with BEGIN:VCALENDAR)"></textarea>
+      <div class="row">
+        <button class="btn primary" id="loadBtn">Load my semester</button>
+        <span class="parse-msg" id="parseMsg" role="status"></span>
+      </div>
+      <p class="privacy">A calendar file is a snapshot — re-upload any time to refresh it. Your feed link contains a private token: treat it like a password and don’t post it anywhere. This app never sends your link or your data off this device.</p>
+    </details>
+
     <div class="foot">
-      <button class="minibtn" id="setupGuide">Setup guide</button>
-      <button class="minibtn" id="resetSample">Use sample semester (ASU · Fall ’26)</button>
+      <button class="minibtn" id="setupGuide">Welcome tour</button>
+      <button class="minibtn" id="resetSample">Use sample semester</button>
       <button class="minibtn drop" id="clearProgress">Clear my checkmarks</button>
       <button class="minibtn" id="closeModal">Close</button>
     </div>
-    <p class="privacy"><b>Cloud sync (cross-device):</b> when you open this app on claude.ai with the Google Drive connector added (claude.ai Settings → Connectors), your checkmarks, notes, syllabi, and added assignments save to a private <b>LMK-data.json</b> in <b>your own</b> Google Drive and follow you across devices. Everyone who uses the app syncs to their own Drive — nobody can see anyone else's data. No Drive? Everything still works, saved on this device.</p>
-    <p class="privacy"><b>Auto-sync:</b> the built-in ASU semester re-pulls itself from Canvas every morning — new assignments and changed due dates just show up. An uploaded calendar is a snapshot: re-upload any time to refresh it. The + button up top covers work that isn’t in Canvas at all.</p>
-    <p class="privacy">Heads up: your calendar feed link contains a private token — treat it like a password and don’t post it anywhere. This app never sends your link or your data off this device.</p>
+    <p class="privacy" id="setupSync"></p>
+    <p class="privacy">The + button up top covers work that isn’t in Canvas at all.<span id="extOrigin" hidden></span></p>
   </div>
 </div>
 
@@ -466,18 +540,19 @@
   <div class="modal" style="max-width:530px">
     <div style="display:flex;align-items:center;gap:13px;margin-bottom:14px">
       <span class="lmkmark" aria-hidden="true" style="font-size:25px;padding:10px 14px 11px">LMK</span>
-      <div><h3 id="wTitle" style="margin:0">Let Me Know</h3><p class="sub2" style="margin:2px 0 0">Your semester, on your side.</p></div>
+      <div><h3 id="wTitle" style="margin:0">Let Me Know</h3><p class="sub2" style="margin:2px 0 0">Know what to do today. Nothing more.</p></div>
     </div>
-    <div class="wstep"><span class="wnum">1</span><div><b id="wHead1">No account needed.</b>
-      <span class="whint"><span id="wBody1">Everything you do here saves privately to your own device and your own Google Drive — no one else can see it.</span> <span id="wSync">Checking your sync…</span></span></div></div>
-    <div class="wstep"><span class="wnum">2</span><div><b>What should LMK call you?</b>
+    <div class="wstep"><span class="wnum">1</span><div><b>What should LMK call you?</b>
       <input id="wName" placeholder="First name" autocomplete="off"></div></div>
-    <div class="wstep"><span class="wnum">3</span><div><b>Your assignments.</b>
-      <span class="whint"><span id="wCal">Right now you're looking at a sample semester.</span> <span id="wBody3">To load your own: install the LMK for Canvas extension, then open Canvas once.</span></span></div></div>
-    <div class="wstep"><span class="wnum">4</span><div><b>Teach the AI your classes.</b>
-      <span class="whint">Semester tab → each course card → ✎ class notes. Paste your syllabus once; every ✦ study session gets smarter.</span></div></div>
-    <div class="wstep"><span class="wnum">5</span><div><b>It learns as you go.</b>
-      <span class="whint" id="wBody5">LMK times your work quietly (sprints, Canvas quiz times, the extension) so its estimates of how long things take get better every week. No names, no grades, ever.</span></div></div>
+    <div class="wstep"><span class="wnum">2</span><div><b id="wHead2">Get your classes in.</b>
+      <span class="whint" id="wBody2">Add the LMK for Canvas extension to Chrome, then open Canvas once. Everything lands here by itself.</span>
+      <div class="wact">
+        <a class="btn grad" id="wInstall" href="#" target="_blank" rel="noopener">Add to Chrome →</a>
+        <button class="btn grad" id="wSignin" hidden>Sign in with Google</button>
+        <button class="minibtn" id="wOther">Other ways</button>
+      </div></div></div>
+    <div class="wstep"><span class="wnum">3</span><div><b>Private by design.</b>
+      <span class="whint" id="wBody3">No account, no password. Everything saves on this device; sign in with Google and it follows you to your phone through your own Drive. LMK times your work quietly so its estimates get honest — no names, no grades, ever.</span></div></div>
     <div class="row" style="margin-top:16px"><button class="btn primary" id="wGo">Let's go →</button></div>
   </div>
 </div>
@@ -1051,7 +1126,7 @@ function toggleDone(id, el, doneMsg){
     store.handDone = store.handDone || {}; store.handDone[id] = 1;
     measureOnDone(id);
     markDoneToday();
-    if (el) { el.classList.add("popping"); }
+    if (el) { el.classList.add("popping"); burstAt(el.querySelector(".cbx")); }
     toast(doneMsg || "Marked done.", {label: "Undo", fn: () => {
       delete store.done[id];
       store.deleted = store.deleted || {}; store.deleted["done:" + id] = Date.now();
@@ -1350,28 +1425,36 @@ function listCard(events, opts={}){
 }
 
 /* ---------- NOW ---------- */
-function renderNow(root){
-  const n = now(), today = startOfDay(n);
-  let html = gradesStrip();
-
-  // catch-up triage
-  const overdue = EVENTS.filter(open).filter(e => e.due < n && !store.triaged[e.id] && e.kind !== "inclass" && e.kind !== "fyi");
-  if (overdue.length) {
-    html += `<div class="triage">
+/* Catch-up triage. Three at a time: a wall of overdue rows is exactly the stress the app exists to remove. */
+let triageOpen = false;
+function triageCard(overdue){
+  if (!overdue.length) return "";
+  const shown = triageOpen ? overdue.slice(0, 40) : overdue.slice(0, 3);
+  const rest = overdue.length - shown.length;
+  return `<div class="card triagecard">
+    <div class="triage">
       <svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
       <div class="msg"><b>${overdue.length} past due.</b> No shame — decide once and move on: keep what’s still worth points, let the rest go.</div>
-    </div>`;
-    html += `<div class="card"><div class="list">` + overdue.slice(0,8).map(e => {
+    </div>
+    <div class="list">` + shown.map(e => {
       const d = dueLabel(e);
-      return `<div class="item" data-id="${e.id}" style="box-shadow:inset 3px 0 0 ${COLOR[e.course]}">
+      return `<div class="item tri" data-id="${e.id}" style="box-shadow:inset 3px 0 0 ${COLOR[e.course]}">
         <div class="body" style="padding-left:4px">
           <div class="t">${esc(e.title)}</div>
           <div class="sub"><span class="cdot" style="background:${COLOR[e.course]}"></span><span class="ccode">${esc(e.course)}</span><span class="duelbl hot">${d.txt}</span></div>
         </div>
-        <div class="side"><button class="minibtn keep" data-act="keep">Still worth it</button><button class="minibtn drop" data-act="drop">Let it go</button></div>
+        <div class="side tri-actions"><button class="minibtn keep" data-act="keep">Still worth it</button><button class="minibtn drop" data-act="drop">Let it go</button></div>
       </div>`;
-    }).join("") + `</div></div>`;
-  }
+    }).join("") + `</div>
+    ${rest > 0 ? `<button class="morebtn" data-act="triage-more">Show ${rest} more</button>` : ""}
+  </div>`;
+}
+function renderNow(root){
+  const n = now(), today = startOfDay(n);
+  let html = gradesStrip();
+
+  // overdue work waits for a decision below today's plan — it is never the first thing on screen
+  const overdue = EVENTS.filter(open).filter(e => e.due < n && !store.triaged[e.id] && e.kind !== "inclass" && e.kind !== "fyi");
 
   // next up hero
   let ranked = rankOpen();
@@ -1382,7 +1465,7 @@ function renderNow(root){
     const d = dueLabel(e);
     const nothingToday = !EVENTS.filter(open).some(x => startOfDay(x.due) <= today && x.due >= n);
     const whyTxt = why.length ? why.join(" · ") : (nothingToday ? "nothing due today — bank this and get ahead" : "highest-urgency item on your plate");
-    html += `<div class="card hero" style="margin-top:${overdue.length?18:0}px;--hero-tint:color-mix(in srgb, ${COLOR[e.course]} 26%, transparent)">
+    html += `<div class="card hero" style="--hero-tint:color-mix(in srgb, ${COLOR[e.course]} 26%, transparent)">
       <div class="kicker">${e.kind === "inclass" ? "Today in class — just show up" : "Next up — do this one thing"}</div>
       <h1>${esc(e.title)}</h1>
       <div class="meta">
@@ -1401,19 +1484,22 @@ function renderNow(root){
     </div>`;
   } else {
     if (!EVENTS.length && !store.ext && !store.custom) {
+      const phone = IS_MOBILE && MODE === "web";
       html += `<div class="card hero" style="--hero-tint:color-mix(in srgb, var(--c1) 20%, transparent)">
         <div class="kicker">First run</div>
-        <h1>Let's get your classes in.</h1>
-        <div class="why">Two ways, both about a minute:</div>
-        <ol style="margin:6px 0 0;padding-left:20px;color:var(--ink-2);line-height:1.75;font-size:14.5px">
-          <li><b>On a laptop —</b> install the <b>LMK for Canvas</b> extension, then open Canvas once. Everything lands here by itself.</li>
-          <li><b>Anywhere —</b> gear icon → <b>Paste from Canvas</b>, and paste a course's assignments page.</li>
-        </ol>
-        <div class="actions"><button class="btn ghost" data-act="open-gear">Open setup</button></div>
+        <h1>${phone ? "Set up once on a laptop." : "Let's get your classes in."}</h1>
+        <div class="why">${phone
+          ? "Add the <b>LMK for Canvas</b> extension to Chrome on a laptop and open Canvas once. Then sign in with Google here and your plan appears on this phone."
+          : "Add the <b>LMK for Canvas</b> extension to Chrome, then open Canvas once like you normally would. Everything lands here by itself — about a minute."}</div>
+        <div class="actions">
+          ${phone ? (gdReady() ? `<button class="btn grad" data-act="web-signin">Sign in with Google</button>` : "")
+                  : `<a class="btn grad" href="${LMK_CONFIG.storeUrl}" target="_blank" rel="noopener">Add to Chrome →</a>`}
+          <button class="btn ghost" data-act="open-gear">Other ways</button>
+        </div>
       </div>`;
       root.innerHTML = html; return;
     }
-    html += `<div class="card hero" style="--hero-tint:color-mix(in srgb, var(--good) 18%, transparent)"><div class="kicker">Next up</div><h1>All clear. Actually clear.</h1><div class="why">Every assignment in view is done or scheduled ahead. Go touch grass — you earned it.</div></div>`;
+    html += `<div class="card hero clear" style="--hero-tint:color-mix(in srgb, var(--good) 18%, transparent)"><div class="kicker">Next up</div><h1>All clear. Actually clear.</h1><div class="why">Every assignment in view is done or scheduled ahead. Go touch grass — you earned it.</div></div>`;
   }
 
   // today's plan — the budget, the short list, and one honest sentence
@@ -1425,7 +1511,7 @@ function renderNow(root){
   const doneTodayIds = Object.keys(store.done).filter(id => dayKey(new Date(store.done[id])) === dayKey(n));
   html += `<h2 class="sec">Today <span class="count">${day.items.length ? `${day.items.length} thing${day.items.length > 1 ? "s" : ""} · ~${fmtMins(day.mins)}` : "clear"}</span></h2>`;
   html += `<div class="card budget ${bl.tone}">
-    <div class="bar"><i style="width:${pct}%"></i></div>
+    <div class="bar"><i style="width:${animNext ? 0 : pct}%" data-w="${pct}%"></i></div>
     <div class="btxt"><span>~${fmtMins(day.mins)} of your ${fmtMins(day.cap)}</span><b>${esc(bl.txt)}</b></div>
     ${(() => { const k = PLAN_OVER.find(x => x !== dayKey(today)); if (!k || day.mins > day.cap) return ""; const od = PLAN[k]; return `<div class="bdiff">Heads up: <b>${FMT_DAY.format(od.date)}</b> is packed — ~${fmtMins(od.mins)} of ${fmtMins(od.cap)}. An extra hour today pulls some of it forward.</div>`; })()}
     <div class="bacts">
@@ -1439,6 +1525,8 @@ function renderNow(root){
   if (day.items.length) html += `<div class="card"><div class="list">${day.items.map(c => planRow(c, today)).join("")}</div></div>`;
   else if (!doneTodayIds.length) html += `<div class="empty">Nothing to do today. Tomorrow's plan is already set — go outside.</div>`;
   if (icToday.length) html += `<div class="empty" style="margin-top:8px;border-style:solid;font-size:12.5px">🏫 In class today: ${icToday.map(e => `<b>${esc(e.course)}</b> ${esc(e.title.slice(0, 40))}`).join(" · ")} — just show up.</div>`;
+
+  html += triageCard(overdue);
 
   // piles — several things for one course landing on the same day
   const piles = BUNDLE_LIST.filter(b => b.day > today);
@@ -1714,6 +1802,27 @@ function renderHeader(){
   document.getElementById("streakTxt").textContent = s === 0 ? "start a streak" : "day streak";
   document.getElementById("streakChip").classList.toggle("lit", s > 0);
 }
+/* The browser extension shows a morning notification with today's plan — no server involved.
+   It only ever gets counts, minutes and one title per day, and only when something changed. */
+let lastPlanMsg = "";
+function postPlanToExtension(){
+  try {
+    const today = startOfDay(now()), days = {};
+    for (let i = 0; i < 4; i++) {
+      const k = dayKey(addDays(today, i)), d = PLAN[k];
+      if (!d) continue;
+      const first = d.items[0];
+      days[k] = {n: d.items.length, mins: d.mins, cap: d.cap,
+        first: first ? {title: first.e.title.slice(0, 80), course: first.e.course, mins: first.mins} : null};
+    }
+    const key = JSON.stringify(days);
+    if (key === lastPlanMsg) return;
+    lastPlanMsg = key;
+    window.postMessage({lmk:"plan", at: Date.now(), days,
+      openUrl: MODE === "artifact" ? LMK_CONFIG.artifactUrl : location.origin + location.pathname}, "*");
+  } catch(_){}
+}
+let animNext = true;   // stagger the entrance when a view opens or the filter changes — not on the quiet refresh
 function render(){
   computeBundles(); computePlan();
   renderHeader(); renderChips();
@@ -1722,19 +1831,80 @@ function render(){
     const el = document.getElementById("view-"+t);
     el.hidden = t !== activeTab;
   });
-  views[activeTab](document.getElementById("view-"+activeTab));
+  const root = document.getElementById("view-"+activeTab);
+  views[activeTab](root);
+  if (animNext) {
+    animNext = false;
+    root.classList.add("anim");
+    [...root.children].forEach((c, i) => c.style.setProperty("--i", Math.min(i, 8)));
+    requestAnimationFrame(() => requestAnimationFrame(() => root.querySelectorAll("[data-w]").forEach(el => { el.style.width = el.dataset.w; })));
+    setTimeout(() => root.classList.remove("anim"), 900);
+  }
+  postPlanToExtension();
+}
+/* A little burst from the checkbox when something gets finished. The one moment that should feel good. */
+function burstAt(el){
+  if (!el || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  try { if (navigator.vibrate) navigator.vibrate(12); } catch(_){}
+  const r = el.getBoundingClientRect();
+  const b = document.createElement("div"); b.className = "burst";
+  b.style.left = (r.left + r.width / 2) + "px"; b.style.top = (r.top + r.height / 2) + "px";
+  const cols = ["var(--good)", "var(--c5)", "var(--c4)", "var(--c1)"];
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2 + Math.random() * .4, dist = 24 + Math.random() * 20;
+    const q = document.createElement("i");
+    q.style.setProperty("--dx", Math.cos(a) * dist + "px"); q.style.setProperty("--dy", Math.sin(a) * dist + "px");
+    q.style.setProperty("--c", cols[i % cols.length]);
+    b.appendChild(q);
+  }
+  document.body.appendChild(b);
+  setTimeout(() => b.remove(), 750);
+}
+/* Home screen: Android hands us a real install prompt; iPhone gets a one-time hint. */
+let installEvt = null;
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; });
+function maybeHomeScreenHint(){
+  if (MODE !== "web" || !IS_MOBILE || !store.onboarded) return;
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  let seen = false; try { seen = localStorage.getItem("lmk_a2hs") === "1"; } catch(_){}
+  if (standalone || seen) return;
+  try { localStorage.setItem("lmk_a2hs", "1"); } catch(_){}
+  if (installEvt) toast("Put LMK on your home screen?", {label:"Install", fn: () => { installEvt.prompt(); installEvt = null; }});
+  else if (/iPhone|iPad|iPod/.test(navigator.userAgent)) toast("Tip: Share → “Add to Home Screen” makes LMK a real app on this phone.");
 }
 
 /* ================= events ================= */
 function switchTab(e){
   const b = e.target.closest("[data-tab]"); if (!b) return;
+  const order = ["now","plan","semester"], from = order.indexOf(activeTab), to = order.indexOf(b.dataset.tab);
   activeTab = b.dataset.tab;
   document.querySelectorAll("nav.tabs [data-tab]").forEach(x=>x.setAttribute("aria-selected", x.dataset.tab === activeTab ? "true":"false"));
+  document.getElementById("view-"+activeTab).style.setProperty("--dir", to > from ? 1 : to < from ? -1 : 0);
+  animNext = true;
   render();
 }
+/* Swipe sideways between views on a phone. Ignored when the gesture starts on something that scrolls sideways. */
+(function swipeTabs(){
+  const order = ["now","plan","semester"];
+  let x0 = 0, y0 = 0, t0 = 0, ok = false;
+  document.addEventListener("touchstart", e => {
+    const t = e.touches[0]; x0 = t.clientX; y0 = t.clientY; t0 = Date.now();
+    ok = !e.target.closest(".chips,.gstrip,.radar,.overlay,textarea,input,.cal,.caprow");
+  }, {passive:true});
+  document.addEventListener("touchend", e => {
+    if (!ok) return;
+    const t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0;
+    if (Date.now() - t0 > 600 || Math.abs(dx) < 70 || Math.abs(dy) > 50) return;
+    const i = order.indexOf(activeTab), j = i + (dx < 0 ? 1 : -1);
+    if (j < 0 || j >= order.length) return;
+    const b = document.querySelector(`nav.bottombar [data-tab="${order[j]}"]`);
+    if (b) b.click();
+  }, {passive:true});
+})();
 document.querySelector("nav.topnav").addEventListener("click", switchTab);
 document.querySelector("nav.bottombar").addEventListener("click", switchTab);
 document.getElementById("courseChips").addEventListener("click", e=>{
+  animNext = true;
   const b = e.target.closest("[data-course]"); if (!b) return;
   courseFilter = b.dataset.course || null;
   render();
@@ -1748,6 +1918,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   if (a==="done-submit" && id) {
     const ev = EVENTS.find(x => x.id === id);
     if (ev && ev.url) window.open(ev.url, "_blank", "noopener");
+    burstAt(act);
     toggleDone(id, null, ev && ev.url ? "Done — Canvas is open, go turn it in." : undefined);
   }
   else if (a==="done" && id) toggleDone(id, row);
@@ -1804,6 +1975,8 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   }
   else if (a==="gbreak") openGradeDetail(act.dataset.course);
   else if (a==="open-gear") { const g = document.getElementById("gearBtn"); if (g) g.click(); }
+  else if (a==="web-signin") { webSignIn(); }
+  else if (a==="triage-more") { triageOpen = true; render(); }
   else if (a==="cap-close") { showCap = false; render(); }
   else if (a==="cap-edit") { showCap = !showCap; render(); }
   else if (a==="cap-bump") { store.capOv = store.capOv || {}; store.capOv[dayKey(now())] = capHours(now()) + 1; save(); render(); toast("Today got an extra hour. Just today."); }
@@ -1997,7 +2170,7 @@ function openDetail(id){
     </div>
     ${e.aiWhy ? `<p class="privacy" style="margin:0 0 10px">🧠 <b>LMK's read:</b> ${esc(e.aiWhy)} — sized ${EFFORT[e.effort].label}, start ${leadFor(e)}d before it's due. Adjust above if it's wrong.</p>` : ""}
     ${(() => { const sk = seriesKey(e.title, e.course); const n2 = sk ? EVENTS.filter(x => seriesKey(x.title, x.course) === sk).length : 0;
-      return n2 > 1 ? `<label style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--ink-2);margin:0 0 12px;cursor:pointer"><input type="checkbox" id="ddApplyAll" style="margin-top:2px"> Teach LMK: apply this size &amp; start time to all <b>${n2}</b> “${esc(sk.split("|")[0].trim())}…” assignments in ${esc(e.course)} — including future ones</label>` : `<div style="margin-bottom:6px"></div>`; })()}
+      return n2 > 1 ? `<label style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--ink-2);margin:0 0 12px;cursor:pointer"><input type="checkbox" id="ddApplyAll" style="margin-top:2px;flex:none"><span>Teach LMK: apply this size &amp; start time to all <b>${n2}</b> “${esc(sk.split("|")[0].trim())}…” assignments in ${esc(e.course)} — including future ones</span></label>` : `<div style="margin-bottom:6px"></div>`; })()}
     ${/(\d+\s*(hour|hr)s?\b|\bplay\b|\bwatch\b|\d{3,}\s*words|essay|record|film|interview)/i.test(e.desc || "") && e.effort !== "big" ? `<p class="privacy" style="margin:0 0 12px">⚡ The instructions mention time-consuming work (playing / watching / writing) — consider sizing this <b>Big</b> with an earlier start.</p>` : ""}
     ${e.desc ? `<div class="card" style="padding:13px 15px;font-size:13.5px;line-height:1.6;color:var(--ink-2);max-height:180px;overflow-y:auto;margin-bottom:14px"><b style="color:var(--ink);display:block;margin-bottom:4px;font-size:12px;letter-spacing:.04em;text-transform:uppercase">Instructions from Canvas</b>${esc(e.desc)}</div>` : `<p class="privacy" style="margin:0 0 12px">No instructions came through the calendar feed for this one — add what you know below and the AI tutor will use it.</p>`}
     <label class="field">My notes (what the professor wants, rubric points, where you're stuck…)
@@ -2317,6 +2490,9 @@ document.getElementById("caSave").addEventListener("click", ()=>{
    sign-in (no Claude account needed), and the claude-only extras hide themselves. */
 const LMK_CONFIG = {
   googleClientId: "775343527321-m6m9082hu2uk2iuf1ibuj1f0m0i7pdad.apps.googleusercontent.com",   // web-mode Google sign-in (public by design)
+  storeUrl: "https://chromewebstore.google.com/search/LMK%20for%20Canvas",   // swap for the exact listing URL once the store publishes it
+  appUrl: "https://dvnson.github.io/lmk/app/",
+  artifactUrl: "https://claude.ai/code/artifact/931fab3e-a465-475b-b596-ef68915e6b9f",
 };
 /* A client id can also be dropped in from the browser console, which is how you try one out
    before baking it into the build:  localStorage.lmk_gcid = "….apps.googleusercontent.com"
@@ -2326,6 +2502,10 @@ function gClientId(){
   return LMK_CONFIG.googleClientId;
 }
 const MODE = (typeof window !== "undefined" && window.claude && typeof window.claude.use === "function") ? "artifact" : "web";
+/* Phones cannot install a Chrome extension, so the setup copy has to point them at a laptop first. */
+const IS_MOBILE = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+  || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent))
+  || (matchMedia("(pointer:coarse)").matches && matchMedia("(max-width:760px)").matches);
 const SYNC_FILE = "LMK-data.json";
 const drive = {mcp:null, server:null, fileId:null, ready:false, pushing:false, pending:false, timer:null};
 function syncBadge(txt, title){
@@ -2664,31 +2844,59 @@ document.getElementById("syncBadge").addEventListener("click", () => {
 const welcomeOverlay = document.getElementById("welcomeOverlay");
 function openWelcome(){
   const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  const show = (id, on) => { const el = document.getElementById(id); if (el) el.hidden = !on; };
   if (MODE === "artifact") {
-    set("wHead1", "You're already signed in — no password, ever.");
-    set("wBody1", "You're in through your claude.ai account, and everything you do here saves privately to your own Google Drive — no one else can see it.");
-    set("wBody3", "To load your own: gear icon → drop in your Canvas calendar feed.");
-    set("wBody5", "LMK times your work quietly (sprints, Canvas quiz times, the extension) and shares only anonymous minutes per assignment with other LMK students in your courses — no names, no grades — so everyone's estimates get better.");
-  } else if (!gdReady()) {
-    set("wBody1", "Everything you do here saves privately on this device. Nothing is sent anywhere.");
-    const ws = document.getElementById("wSync"); if (ws) ws.style.display = "none";
+    set("wBody2", store.custom ? "You're looking at your uploaded calendar. The Chrome extension adds what's submitted and graded."
+      : SEED_EMPTY ? "Nothing's connected yet. Add the Chrome extension and open Canvas once, or drop your Canvas calendar feed in under the gear icon."
+      : "You're looking at " + SEED_LABEL + ", re-synced from Canvas every morning. The Chrome extension adds what's submitted and graded.");
+    show("wInstall", true); show("wSignin", false);
+    set("wBody3", "You're in through your claude.ai account, and everything saves privately to your own Google Drive. LMK shares only anonymous minutes per assignment with other students in your courses — no names, no grades — so everyone's estimates get better.");
+  } else if (IS_MOBILE) {
+    set("wHead2", "Set up once on a laptop.");
+    set("wBody2", "Add the LMK for Canvas extension to Chrome there and open Canvas once. Then sign in with Google here and your plan appears on this phone.");
+    show("wInstall", false); show("wSignin", gdReady());
   } else {
-    set("wBody1", "Everything saves privately on this device. Sign in with Google later and your plan follows you to your phone — saved to your own Google Drive, where only you can read it.");
+    show("wInstall", true); show("wSignin", false);
   }
+  if (MODE === "web" && !gdReady()) set("wBody3", "No account, no password. Everything you do here saves privately on this device. Nothing is sent anywhere.");
   document.getElementById("wName").value = (store.profile && store.profile.name) || "";
-  document.getElementById("wCal").textContent =
-    store.custom ? "You're looking at your uploaded calendar."
-    : SEED_EMPTY ? "Nothing's connected yet."
-    : "Right now you're looking at " + SEED_LABEL + ".";
   welcomeOverlay.classList.add("open");
 }
+document.getElementById("wOther").addEventListener("click", () => {
+  welcomeOverlay.classList.remove("open");
+  if (!store.onboarded) { store.onboarded = 1; store.profile = store.profile || {name: document.getElementById("wName").value.trim().slice(0, 24)}; save(); render(); }
+  document.getElementById("gearBtn").click();
+});
+document.getElementById("wSignin").addEventListener("click", () => {
+  const nm = document.getElementById("wName").value.trim().slice(0, 24);
+  store.profile = {name: nm}; store.onboarded = 1; save();
+  welcomeOverlay.classList.remove("open");
+  webSignIn();
+});
 document.getElementById("wGo").addEventListener("click", () => {
   const nm = document.getElementById("wName").value.trim().slice(0, 24);
   store.profile = {name: nm};
   store.onboarded = 1;
   save(); render();
   welcomeOverlay.classList.remove("open");
+  setTimeout(maybeHomeScreenHint, 1200);
 });
+
+/* ================= setup copy per mode =================
+   The setup sheet is literal HTML above the script; anything that differs by mode is set here. */
+(function setupCopy(){
+  const $ = id => document.getElementById(id);
+  $("setupInstall").href = LMK_CONFIG.storeUrl;
+  $("wInstall").href = LMK_CONFIG.storeUrl;
+  if (IS_MOBILE && MODE === "web") $("setupPhone").hidden = false;
+  $("setupSync").innerHTML = MODE === "artifact"
+    ? "<b>Cloud sync:</b> with the Google Drive connector added (claude.ai Settings → Connectors), your checkmarks, notes and added assignments save to a private <b>LMK-data.json</b> in your own Google Drive and follow you across devices. Nobody can see anyone else's data."
+    : gdReady()
+    ? "<b>Cloud sync:</b> sign in with Google (bottom of the page) and your checkmarks, notes and added assignments save to a private <b>LMK-data.json</b> in your own Google Drive and follow you to your phone. Not signed in? Everything still works, saved on this device."
+    : "<b>Saved on this device.</b> Nothing is sent anywhere.";
+  const rs = $("resetSample");
+  if (SEED_EMPTY) rs.hidden = true; else rs.textContent = "Back to " + SEED_LABEL;
+})();
 
 /* ================= boot ================= */
 loadData(); render();
@@ -2699,7 +2907,7 @@ let welcomed = false;
 function maybeWelcome(){
   if (welcomed) return; welcomed = true;
   const known = store.onboarded || (store.profile && store.profile.name) || Object.keys(store.done || {}).length > 3;
-  if (known) { if (!store.onboarded) { store.onboarded = 1; save(); } return; }
+  if (known) { if (!store.onboarded) { store.onboarded = 1; save(); } setTimeout(maybeHomeScreenHint, 2500); return; }
   openWelcome();
 }
 setTimeout(maybeWelcome, 9000);
@@ -2707,6 +2915,7 @@ setTimeout(maybeWelcome, 9000);
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
 setInterval(render, 60000);
 </script>
+
 
 
 
