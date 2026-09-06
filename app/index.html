@@ -475,6 +475,9 @@
   .checklist .done{color:var(--muted);text-decoration:line-through}
   footer.pagefoot{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
   footer.pagefoot a{color:var(--ink-2);text-decoration:underline dotted;text-underline-offset:3px}
+  #syncBadge{cursor:pointer}
+  #syncBadge.cta{border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:600;border-radius:999px;padding:6px 12px;box-shadow:var(--shadow)}
+  #syncBadge.cta:hover{border-color:var(--line-strong)}
   footer.pagefoot a:hover{color:var(--ink)}
 </style>
 
@@ -600,7 +603,8 @@
         <button class="minibtn" id="wOther">Other ways</button>
       </div></div></div>
     <div class="wstep"><span class="wnum">3</span><div><b>Private by design.</b>
-      <span class="whint" id="wBody3">No account, no password. Everything saves on this device; sign in with Google and it follows you to your phone through your own Drive. LMK times your work quietly so its estimates get honest — no names, no grades, ever.</span></div></div>
+      <span class="whint" id="wBody3">No account, no password. Everything saves on this device; sign in with Google and it follows you to your phone through your own Drive. LMK times your work quietly so its estimates get honest — no names, no grades, ever.</span>
+      <div class="wact" id="wAct3" hidden><button class="btn grad" id="wSignin3">Sign in with Google</button><span class="whint" style="font-size:12.5px">Already used LMK on another device? This brings it back.</span></div></div></div>
     <div class="row" style="margin-top:16px"><button class="btn primary" id="wGo">Let's go →</button></div>
   </div>
 </div>
@@ -1542,6 +1546,7 @@ function renderNow(root){
         <div class="actions">
           ${phone ? (gdReady() ? `<button class="btn grad" data-act="web-signin">Sign in with Google</button>` : "")
                   : `<a class="btn grad" href="${LMK_CONFIG.storeUrl}" target="_blank" rel="noopener">Add to Chrome →</a>`}
+          ${!phone && MODE === "web" && gdReady() ? `<button class="btn ghost" data-act="web-signin">Sign in with Google</button>` : ""}
           <button class="btn ghost" data-act="open-gear">Other ways</button>
         </div>
       </div>`;
@@ -2579,7 +2584,7 @@ const SYNC_FILE = "LMK-data.json";
 const drive = {mcp:null, server:null, fileId:null, ready:false, pushing:false, pending:false, timer:null};
 function syncBadge(txt, title){
   const el = document.getElementById("syncBadge");
-  if (el) { el.textContent = txt; el.title = title || ""; }
+  if (el) { el.textContent = txt; el.title = title || ""; el.classList.toggle("cta", /tap to/i.test(txt)); }
   const w = document.getElementById("wSync");
   if (w) w.textContent = txt.replace(/^☁ /, "");
 }
@@ -2924,10 +2929,11 @@ function openWelcome(){
   } else if (IS_MOBILE) {
     set("wHead2", "Set up once on a laptop.");
     set("wBody2", "Add the LMK for Canvas extension to Chrome there and open Canvas once. Then sign in with Google here and your plan appears on this phone.");
-    show("wInstall", false); show("wSignin", gdReady());
+    show("wInstall", false); show("wSignin", gdReady()); show("wAct3", false);
   } else {
-    show("wInstall", true); show("wSignin", false);
+    show("wInstall", true); show("wSignin", false); show("wAct3", gdReady());
   }
+  if (MODE === "artifact") show("wAct3", false);
   if (MODE === "web" && !gdReady()) set("wBody3", "No account, no password. Everything you do here saves privately on this device. Nothing is sent anywhere.");
   document.getElementById("wName").value = (store.profile && store.profile.name) || "";
   welcomeOverlay.classList.add("open");
@@ -2937,7 +2943,7 @@ document.getElementById("wOther").addEventListener("click", () => {
   if (!store.onboarded) { store.onboarded = 1; store.profile = store.profile || {name: document.getElementById("wName").value.trim().slice(0, 24)}; save(); render(); }
   document.getElementById("gearBtn").click();
 });
-document.getElementById("wSignin").addEventListener("click", () => {
+for (const id of ["wSignin", "wSignin3"]) document.getElementById(id).addEventListener("click", () => {
   const nm = document.getElementById("wName").value.trim().slice(0, 24);
   store.profile = {name: nm}; store.onboarded = 1; save();
   welcomeOverlay.classList.remove("open");
@@ -3196,6 +3202,7 @@ setTimeout(maybeWelcome, 9000);
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
 setInterval(render, 60000);
 </script>
+
 
 
 
