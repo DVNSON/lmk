@@ -410,7 +410,6 @@
     .chip{flex:none;padding:7px 13px}
     .hero .actions .btn{flex:1 1 calc(50% - 5px);min-width:0;justify-content:center;text-align:center;padding:10px 8px}
     .item .body{min-width:0}
-    .item .side .iconbtn[data-act="ai"]{display:none}
     .item.tri{flex-wrap:wrap}
     .item.tri .side{margin-left:auto}
     .streak #streakTxt{display:none}
@@ -434,6 +433,8 @@
     }
   }
   footer.pagefoot{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+  footer.pagefoot a{color:var(--ink-2);text-decoration:underline dotted;text-underline-offset:3px}
+  footer.pagefoot a:hover{color:var(--ink)}
 </style>
 
 <div class="wrap">
@@ -472,6 +473,7 @@
   <footer class="pagefoot">
     <span id="srcLabel"></span> <span style="color:var(--muted)" title="Anonymous: assignment id + minutes only. No names, no grades.">· learning from you + anonymous course stats</span>
     <span id="syncBadge">☁ Device-only</span>
+    <a id="feedbackLink" href="#" target="_blank" rel="noopener" title="Wrong estimate, misfiled assignment, anything — one line is plenty">Something off? Tell me</a>
   </footer>
 </div>
 
@@ -529,6 +531,7 @@
       <button class="minibtn" id="setupGuide">Welcome tour</button>
       <button class="minibtn" id="resetSample">Use sample semester</button>
       <button class="minibtn drop" id="clearProgress">Clear my checkmarks</button>
+      <a class="minibtn" id="setupFeedback" href="#" target="_blank" rel="noopener">Send feedback</a>
       <button class="minibtn" id="closeModal">Close</button>
     </div>
     <p class="privacy" id="setupSync"></p>
@@ -1272,7 +1275,6 @@ function itemRow(e, opts={}){
       </div>
     </div>
     <div class="side">
-      <a class="iconbtn" data-act="ai" href="${aiHref(e)}" target="_blank" rel="noopener" title="Study this with AI" aria-label="Study this with AI">${ICON_SPARK}</a>
       <button class="iconbtn ${store.starred[e.id]?"starred":""}" data-act="star" title="Flag as a big grade item" aria-label="Flag as big grade item">${ICON_STAR}</button>
       ${e.url ? `<a class="iconbtn" href="${e.url}" target="_blank" rel="noopener" title="Open link" aria-label="Open link">${ICON_LINK}</a>` : ""}
       ${e.id.startsWith("acustom-") ? `<button class="iconbtn" data-act="del" title="Delete this one" aria-label="Delete this assignment">${ICON_TRASH}</button>` : ""}
@@ -1379,7 +1381,6 @@ function planRow(c, today){
       </div>
     </div>
     <div class="side">
-      <a class="iconbtn" data-act="ai" href="${aiHref(e)}" target="_blank" rel="noopener" title="Study this with AI" aria-label="Study this with AI">${ICON_SPARK}</a>
       ${e.url ? `<a class="iconbtn" href="${e.url}" target="_blank" rel="noopener" title="Open link" aria-label="Open link">${ICON_LINK}</a>` : ""}
     </div>
   </div>`;
@@ -1714,7 +1715,6 @@ function renderSemester(root){
         <div class="body"><div class="t" style="font-weight:600">${esc(e.title)}</div>
         <div class="sub"><span class="cdot" style="background:${COLOR[e.course]}"></span><span class="ccode">${esc(e.course)}</span><span class="duelbl">${FMT_DAY.format(e.due)} · ${FMT_TIME.format(e.due)}</span></div></div>
         <button class="minibtn keep" data-act="examplan">Study plan</button>
-        <a class="iconbtn" data-act="ai" href="${aiHref(e)}" target="_blank" rel="noopener" title="Study this with AI" aria-label="Study this with AI">${ICON_SPARK}</a>
         ${e.url?`<a class="iconbtn" href="${e.url}" target="_blank" rel="noopener" aria-label="Open in Canvas">${ICON_LINK}</a>`:""}
       </div>`;
     }).join("") + `</div>`;
@@ -1804,10 +1804,23 @@ function renderHeader(){
 }
 /* The browser extension shows a morning notification with today's plan — no server involved.
    It only ever gets counts, minutes and one title per day, and only when something changed. */
+/* When does this student actually start? The earliest finish each day, over the last three weeks,
+   says more than any setting would. The morning note lands an hour before that, between 6 and 11. */
+function learnedWakeHour(){
+  const byDay = {}, cutoff = Date.now() - 21 * 864e5;
+  for (const id in store.done) {
+    const ts = +store.done[id]; if (!(ts > cutoff)) continue;
+    const t = new Date(ts), k = dayKey(t), h = t.getHours() + t.getMinutes() / 60;
+    if (byDay[k] == null || h < byDay[k]) byDay[k] = h;
+  }
+  const hs = Object.values(byDay).sort((a, b) => a - b);
+  if (hs.length < 5) return 8;
+  return Math.max(6, Math.min(11, Math.round(hs[Math.floor(hs.length / 2)] - 1)));
+}
 let lastPlanMsg = "";
 function postPlanToExtension(){
   try {
-    const today = startOfDay(now()), days = {};
+    const today = startOfDay(now()), days = {}, hour = learnedWakeHour();
     for (let i = 0; i < 4; i++) {
       const k = dayKey(addDays(today, i)), d = PLAN[k];
       if (!d) continue;
@@ -1815,10 +1828,10 @@ function postPlanToExtension(){
       days[k] = {n: d.items.length, mins: d.mins, cap: d.cap,
         first: first ? {title: first.e.title.slice(0, 80), course: first.e.course, mins: first.mins} : null};
     }
-    const key = JSON.stringify(days);
+    const key = JSON.stringify(days) + hour;
     if (key === lastPlanMsg) return;
     lastPlanMsg = key;
-    window.postMessage({lmk:"plan", at: Date.now(), days,
+    window.postMessage({lmk:"plan", at: Date.now(), days, hour,
       openUrl: MODE === "artifact" ? LMK_CONFIG.artifactUrl : location.origin + location.pathname}, "*");
   } catch(_){}
 }
@@ -2493,6 +2506,7 @@ const LMK_CONFIG = {
   storeUrl: "https://chromewebstore.google.com/search/LMK%20for%20Canvas",   // swap for the exact listing URL once the store publishes it
   appUrl: "https://dvnson.github.io/lmk/app/",
   artifactUrl: "https://claude.ai/code/artifact/931fab3e-a465-475b-b596-ef68915e6b9f",
+  feedbackUrl: "mailto:emieldieuvenson@gmail.com?subject=LMK%20feedback",   // same address as the site's Support link; swap for a form any time
 };
 /* A client id can also be dropped in from the browser console, which is how you try one out
    before baking it into the build:  localStorage.lmk_gcid = "….apps.googleusercontent.com"
@@ -2888,6 +2902,7 @@ document.getElementById("wGo").addEventListener("click", () => {
   const $ = id => document.getElementById(id);
   $("setupInstall").href = LMK_CONFIG.storeUrl;
   $("wInstall").href = LMK_CONFIG.storeUrl;
+  $("feedbackLink").href = LMK_CONFIG.feedbackUrl; $("setupFeedback").href = LMK_CONFIG.feedbackUrl;
   if (IS_MOBILE && MODE === "web") $("setupPhone").hidden = false;
   $("setupSync").innerHTML = MODE === "artifact"
     ? "<b>Cloud sync:</b> with the Google Drive connector added (claude.ai Settings → Connectors), your checkmarks, notes and added assignments save to a private <b>LMK-data.json</b> in your own Google Drive and follow you across devices. Nobody can see anyone else's data."
@@ -2915,6 +2930,8 @@ setTimeout(maybeWelcome, 9000);
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
 setInterval(render, 60000);
 </script>
+
+
 
 
 
