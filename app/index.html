@@ -37,6 +37,7 @@
     --blob1:rgba(224,72,154,.09);--blob2:rgba(42,120,214,.09);--blob3:rgba(247,165,33,.11);
     --shadow:0 1px 2px rgba(20,22,26,.06),0 6px 24px -8px rgba(20,22,26,.10);
     --card-hi:rgba(255,255,255,.65);
+    --chart-a:#2a78d6; --chart-b:#e0489a;
     color-scheme:light;
   }
   @media (prefers-color-scheme: dark){
@@ -52,6 +53,7 @@
     --blob1:rgba(213,81,129,.17);--blob2:rgba(57,135,229,.15);--blob3:rgba(201,133,0,.13);
     --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 24px -8px rgba(0,0,0,.5);
     --card-hi:rgba(255,255,255,.05);
+    --chart-a:#3987e5; --chart-b:#d55181;
       color-scheme:dark;
     }
   }
@@ -67,6 +69,7 @@
     --blob1:rgba(213,81,129,.17);--blob2:rgba(57,135,229,.15);--blob3:rgba(201,133,0,.13);
     --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 24px -8px rgba(0,0,0,.5);
     --card-hi:rgba(255,255,255,.05);
+    --chart-a:#3987e5; --chart-b:#d55181;
     color-scheme:dark;
   }
   *{box-sizing:border-box}
@@ -432,6 +435,44 @@
       @keyframes sheetup{from{transform:translateY(48px);opacity:.5}to{transform:none;opacity:1}}
     }
   }
+  /* ---------- announcement (set by the admin, seen by everyone) ---------- */
+  .announce{display:flex;align-items:center;gap:12px;margin:14px 0 -4px;padding:11px 14px;border-radius:12px;font-size:13.5px;
+    border:1px solid color-mix(in srgb,var(--c1) 40%,var(--line));background:color-mix(in srgb,var(--c1) 8%,var(--surface))}
+  .announce a{font-weight:600;margin-left:6px}
+  .announce .x{margin-left:auto;flex:none;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
+  .announce .x:hover{background:var(--surface-2);color:var(--ink)}
+  /* ---------- admin ---------- */
+  .adm-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:4px 0 14px}
+  .adm-head h1{margin:0;font:800 24px/1.1 "Bricolage Grotesque",sans-serif;letter-spacing:-.02em}
+  .adm-head .muted{color:var(--muted);font-size:12.5px}
+  .adm-head .sp{flex:1}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+  .tile{padding:14px 16px}
+  .tile .k{font:600 10.5px/1 "Spline Sans Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .tile .v{font:800 28px/1.1 "Bricolage Grotesque",sans-serif;letter-spacing:-.02em;margin:8px 0 4px;font-variant-numeric:tabular-nums}
+  .tile .s{font-size:12px;color:var(--ink-2)}
+  .adm-card{padding:16px 18px;margin-bottom:14px}
+  .adm-card h3{margin:0 0 4px;font:700 16px/1.2 "Bricolage Grotesque",sans-serif}
+  .adm-card .sub2{color:var(--muted);font-size:13px;margin:0 0 12px}
+  .chart{width:100%;height:auto;display:block}
+  .chart text{font:500 10.5px "Spline Sans Mono",monospace;fill:var(--muted)}
+  .chart .grid{stroke:var(--line);stroke-width:1}
+  .chart rect{cursor:default}
+  .legend{display:flex;gap:16px;font-size:12px;color:var(--ink-2);margin-top:8px;flex-wrap:wrap}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .adm-form{display:grid;gap:10px}
+  .adm-form input[type=text],.adm-form input[type=url],.adm-form input[type=date],.adm-form textarea{width:100%;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:9px 10px;font:inherit;font-size:14px}
+  .adm-form textarea{min-height:66px;resize:vertical;font-family:inherit}
+  .adm-form label.ck{display:flex;gap:8px;align-items:center;font-size:13.5px}
+  .adm-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .adm-links{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+  .adm-links a{display:block;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);font-size:13.5px;font-weight:600;text-decoration:none}
+  .adm-links a:hover{border-color:var(--line-strong)}
+  .adm-links a small{display:block;font-weight:400;color:var(--muted);font-size:12px;margin-top:2px}
+  .checklist label{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line);font-size:14px;cursor:pointer}
+  .checklist label:first-child{border-top:none}
+  .checklist input{margin-top:3px;flex:none}
+  .checklist .done{color:var(--muted);text-decoration:line-through}
   footer.pagefoot{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
   footer.pagefoot a{color:var(--ink-2);text-decoration:underline dotted;text-underline-offset:3px}
   footer.pagefoot a:hover{color:var(--ink)}
@@ -462,13 +503,16 @@
     <button role="tab" data-tab="now" aria-selected="true">Now</button>
     <button role="tab" data-tab="plan" aria-selected="false">Plan</button>
     <button role="tab" data-tab="semester" aria-selected="false">Semester</button>
+    <button role="tab" data-tab="admin" aria-selected="false" id="tabAdminTop" hidden>Admin</button>
   </nav>
 
+  <div class="announce" id="announce" hidden></div>
   <div class="chips" id="courseChips" aria-label="Filter by course"></div>
 
   <section class="view" id="view-now"></section>
   <section class="view" id="view-plan" hidden></section>
   <section class="view" id="view-semester" hidden></section>
+  <section class="view" id="view-admin" hidden></section>
 
   <footer class="pagefoot">
     <span id="srcLabel"></span> <span style="color:var(--muted)" title="Anonymous: assignment id + minutes only. No names, no grades.">· learning from you + anonymous course stats</span>
@@ -481,6 +525,7 @@
   <button role="tab" data-tab="now" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M13 2 4.1 13.2h6L11 22l8.9-11.2h-6z"/></svg>Now</button>
   <button role="tab" data-tab="plan" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>Plan</button>
   <button role="tab" data-tab="semester" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Semester</button>
+  <button role="tab" data-tab="admin" aria-selected="false" id="tabAdminBottom" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20a8 8 0 1 1 8-8"/><path d="M12 12l5-3"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>Admin</button>
   </nav>
 
 <div class="tooltip" id="tooltip"></div>
@@ -1841,8 +1886,9 @@ let animNext = true;   // stagger the entrance when a view opens or the filter c
 function render(){
   computeBundles(); computePlan();
   renderHeader(); renderChips();
-  const views = {now:renderNow, plan:renderPlan, semester:renderSemester};
-  ["now","plan","semester"].forEach(t=>{
+  const views = {now:renderNow, plan:renderPlan, semester:renderSemester, admin:renderAdmin};
+  document.getElementById("courseChips").hidden = activeTab === "admin";
+  ["now","plan","semester","admin"].forEach(t=>{
     const el = document.getElementById("view-"+t);
     el.hidden = t !== activeTab;
   });
@@ -1891,7 +1937,7 @@ function maybeHomeScreenHint(){
 /* ================= events ================= */
 function switchTab(e){
   const b = e.target.closest("[data-tab]"); if (!b) return;
-  const order = ["now","plan","semester"], from = order.indexOf(activeTab), to = order.indexOf(b.dataset.tab);
+  const order = ["now","plan","semester","admin"], from = order.indexOf(activeTab), to = order.indexOf(b.dataset.tab);
   activeTab = b.dataset.tab;
   document.querySelectorAll("nav.tabs [data-tab]").forEach(x=>x.setAttribute("aria-selected", x.dataset.tab === activeTab ? "true":"false"));
   document.getElementById("view-"+activeTab).style.setProperty("--dir", to > from ? 1 : to < from ? -1 : 0);
@@ -1900,7 +1946,7 @@ function switchTab(e){
 }
 /* Swipe sideways between views on a phone. Ignored when the gesture starts on something that scrolls sideways. */
 (function swipeTabs(){
-  const order = ["now","plan","semester"];
+  const order = () => ["now","plan","semester"].concat(document.getElementById("tabAdminBottom").hidden ? [] : ["admin"]);
   let x0 = 0, y0 = 0, t0 = 0, ok = false;
   document.addEventListener("touchstart", e => {
     const t = e.touches[0]; x0 = t.clientX; y0 = t.clientY; t0 = Date.now();
@@ -1910,9 +1956,9 @@ function switchTab(e){
     if (!ok) return;
     const t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0;
     if (Date.now() - t0 > 600 || Math.abs(dx) < 70 || Math.abs(dy) > 50) return;
-    const i = order.indexOf(activeTab), j = i + (dx < 0 ? 1 : -1);
-    if (j < 0 || j >= order.length) return;
-    const b = document.querySelector(`nav.bottombar [data-tab="${order[j]}"]`);
+    const o = order(), i = o.indexOf(activeTab), j = i + (dx < 0 ? 1 : -1);
+    if (j < 0 || j >= o.length) return;
+    const b = document.querySelector(`nav.bottombar [data-tab="${o[j]}"]`);
     if (b) b.click();
   }, {passive:true});
 })();
@@ -1992,6 +2038,12 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="open-gear") { const g = document.getElementById("gearBtn"); if (g) g.click(); }
   else if (a==="web-signin") { webSignIn(); }
   else if (a==="triage-more") { triageOpen = true; render(); }
+  else if (a==="ann-dismiss") { const el = document.getElementById("announce"); try { localStorage.setItem("lmk_ann_dismissed", el.dataset.sig || ""); } catch(_){} el.hidden = true; }
+  else if (a==="adm-refresh") { adminFetch(true); }
+  else if (a==="adm-logout") { adminForget(); }
+  else if (a==="adm-save-ann") { const g = id => document.getElementById(id); adminSave({announce: {text: g("admAnnText").value.trim().slice(0, 240), url: g("admAnnUrl").value.trim().slice(0, 300), until: g("admAnnUntil").value, on: g("admAnnOn").checked}}); }
+  else if (a==="adm-save-store") { adminSave({storeUrl: document.getElementById("admStore").value.trim().slice(0, 300)}); }
+  else if (a==="adm-copy-csv") { adminCopyCsv(); }
   else if (a==="cap-close") { showCap = false; render(); }
   else if (a==="cap-edit") { showCap = !showCap; render(); }
   else if (a==="cap-bump") { store.capOv = store.capOv || {}; store.capOv[dayKey(now())] = capHours(now()) + 1; save(); render(); toast("Today got an extra hour. Just today."); }
@@ -2937,6 +2989,174 @@ function maybeAskReview(){
     {label:"Rate it", fn: () => window.open(LMK_CONFIG.storeUrl, "_blank", "noopener")});
 }
 
+/* ================= admin =================
+   Unlocked on a device by opening LMK once with #admin=<STATS_KEY> in the address. The key is the
+   credential; the worker checks it on every request. Web mode only — the artifact cannot reach
+   the worker, and there is nothing about any student to see: the server holds counts and settings. */
+const ADMIN = {key:null, data:null, at:0, loading:false, err:""};
+const apiUrl = path => LMK_CONFIG.statsUrl.replace(/\/$/, "") + path;
+(function adminKeyFromHash(){
+  try {
+    const m = location.hash.match(/#admin=([A-Za-z0-9_\-]{16,})/);
+    if (m) { localStorage.setItem("lmk_admin_key", m[1]); history.replaceState(null, "", location.pathname + location.search); }
+    ADMIN.key = localStorage.getItem("lmk_admin_key");
+  } catch(_){}
+  const on = !!(ADMIN.key && MODE === "web" && LMK_CONFIG.statsUrl);
+  for (const id of ["tabAdminTop","tabAdminBottom"]) { const el = document.getElementById(id); if (el) el.hidden = !on; }
+})();
+function adminForget(){
+  try { localStorage.removeItem("lmk_admin_key"); } catch(_){}
+  ADMIN.key = null; ADMIN.data = null;
+  for (const id of ["tabAdminTop","tabAdminBottom"]) { const el = document.getElementById(id); if (el) el.hidden = true; }
+  activeTab = "now";
+  document.querySelectorAll("nav.tabs [data-tab]").forEach(x=>x.setAttribute("aria-selected", x.dataset.tab === "now" ? "true":"false"));
+  render();
+}
+async function adminFetch(force){
+  if (ADMIN.loading || !ADMIN.key) return;
+  if (!force && ADMIN.data && Date.now() - ADMIN.at < 60000) return;
+  ADMIN.loading = true; ADMIN.err = "";
+  try {
+    const r = await fetch(apiUrl("/admin?key=" + encodeURIComponent(ADMIN.key) + "&days=90"), {mode:"cors", credentials:"omit"});
+    if (r.status === 403) { ADMIN.err = "That admin key isn't accepted. Open LMK with a fresh admin link."; ADMIN.data = null; }
+    else if (!r.ok) ADMIN.err = "The worker answered " + r.status + ".";
+    else { ADMIN.data = await r.json(); ADMIN.at = Date.now(); }
+  } catch(e) { ADMIN.err = "Couldn't reach the worker."; }
+  ADMIN.loading = false;
+  if (activeTab === "admin") render();
+}
+async function adminSave(patch){
+  try {
+    const r = await fetch(apiUrl("/admin/settings?key=" + encodeURIComponent(ADMIN.key)), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"}, body: JSON.stringify(patch)});
+    if (!r.ok) throw new Error(r.status);
+    const j = await r.json(); if (ADMIN.data) ADMIN.data.settings = j.settings;
+    try { localStorage.removeItem("lmk_cfg"); } catch(_){}
+    toast("Saved. Everyone sees it within a minute.");
+  } catch(e) { toast("Save failed — the worker didn't accept it."); }
+  render();
+}
+function adminCopyCsv(){
+  const d = ADMIN.data; if (!d) return;
+  const lines = ["day,installs,first_syncs,opens"];
+  Object.keys(d.days || {}).sort().forEach(k => { const r = d.days[k]; lines.push(`${k},${r.install||0},${r.firstsync||0},${r.open||0}`); });
+  try { navigator.clipboard.writeText(lines.join("\n")); toast("CSV copied — " + (lines.length - 1) + " days."); } catch(_) { toast("Couldn't copy here."); }
+}
+const PHASE1 = [
+  ["friends", "Sit with ten friends while they install; write down every pause"],
+  ["reviews", "Fifteen honest store reviews from people who use it"],
+  ["chats", "One post in each of the seven class chats, the night before a due date"],
+  ["reddit", "The r/ASU post, the Sunday before September 20"],
+  ["club", "One two-minute demo at a club with a projector"],
+  ["ta", "One friendly TA asked for a mention"],
+  ["storeurl", "Real Chrome Web Store link in the app and on the site"],
+  ["sunday", "Read these numbers every Sunday and fix one thing"],
+  ["goal", "200 installs and 100 weekly actives"],
+];
+document.querySelector(".wrap").addEventListener("change", e => {
+  if (!e.target.matches("[data-check]")) return;
+  const list = {}; document.querySelectorAll("[data-check]").forEach(c => { list[c.dataset.check] = c.checked ? 1 : 0; });
+  adminSave({checklist: list});
+});
+function renderAdmin(root){
+  if (!ADMIN.key) { root.innerHTML = `<div class="empty">Admin unlocks when you open LMK once with your admin link.</div>`; return; }
+  if (!ADMIN.data && !ADMIN.err) { adminFetch(false); root.innerHTML = `<div class="empty">Reading the numbers…</div>`; return; }
+  if (!ADMIN.data) { root.innerHTML = `<div class="empty" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${esc(ADMIN.err)} <button class="minibtn" data-act="adm-refresh">Try again</button> <button class="minibtn drop" data-act="adm-logout">Forget admin key</button></div>`; return; }
+  const d = ADMIN.data, days = d.days || {}, S = d.settings || {}, tot = d.totals || {};
+  const today = dayKey(now());
+  const keys = []; for (let i = 29; i >= 0; i--) keys.push(dayKey(addDays(startOfDay(now()), -i)));
+  const get = (k, ev) => (days[k] && days[k][ev]) || 0;
+  const sum = (ev, n) => keys.slice(-n).reduce((t, k) => t + get(k, ev), 0);
+  const installs = tot.install || 0, syncs = tot.firstsync || 0;
+  const openToday = get(today, "open"), avg7 = Math.round(sum("open", 7) / 7 * 10) / 10, inst7 = sum("install", 7);
+  const conv = installs ? Math.round(syncs / installs * 100) : null;
+  let html = `<div class="adm-head"><h1>Mission control</h1><span class="muted">last 90 days · read ${new Date(ADMIN.at).toLocaleTimeString(undefined, {hour:"numeric", minute:"2-digit"})}</span><span class="sp"></span>
+    <button class="minibtn" data-act="adm-refresh">Refresh</button><button class="minibtn" data-act="adm-copy-csv">Copy CSV</button></div>`;
+  html += `<div class="tiles">
+    <div class="card tile"><div class="k">Opens today</div><div class="v">${openToday}</div><div class="s">devices that opened LMK</div></div>
+    <div class="card tile"><div class="k">Opens per day</div><div class="v">${avg7}</div><div class="s">average, last 7 days</div></div>
+    <div class="card tile"><div class="k">Installs</div><div class="v">${installs}</div><div class="s">${inst7} in the last 7 days</div></div>
+    <div class="card tile"><div class="k">First syncs</div><div class="v">${syncs}</div><div class="s">${conv === null ? "no installs yet" : conv + "% of installs reached Canvas"}</div></div>
+  </div>`;
+  // ---- chart: opens as bars, installs as a line; one scale, two series, legend + direct hover ----
+  const W = 640, H = 210, padL = 34, padR = 12, padT = 12, padB = 26;
+  const rawMax = Math.max(1, ...keys.map(k => Math.max(get(k, "open"), get(k, "install"))));
+  const step = rawMax <= 5 ? 1 : rawMax <= 20 ? 5 : rawMax <= 50 ? 10 : rawMax <= 200 ? 50 : 100;
+  const top = Math.ceil(rawMax / step) * step;
+  const x = i => padL + i * (W - padL - padR) / 30, slot = (W - padL - padR) / 30, bw = Math.max(4, slot - 3);
+  const y = v => padT + (H - padT - padB) * (1 - v / top);
+  let svg = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Daily opens and installs, last 30 days">`;
+  for (const v of [0, top / 2, top]) svg += `<line class="grid" x1="${padL}" x2="${W - padR}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text x="${padL - 6}" y="${(y(v) + 3.5).toFixed(1)}" text-anchor="end">${v}</text>`;
+  keys.forEach((k, i) => {
+    const o = get(k, "open"), h = Math.max(0, y(0) - y(o));
+    svg += `<rect x="${(x(i) + 1.5).toFixed(1)}" y="${(y(o)).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="var(--chart-a)" data-tip="${k}: ${o} open${o === 1 ? "" : "s"}, ${get(k, "install")} install${get(k, "install") === 1 ? "" : "s"}"/>`;
+    if (i % 7 === 1) svg += `<text x="${(x(i) + slot / 2).toFixed(1)}" y="${H - 8}" text-anchor="middle">${k.slice(5).replace("-", "/")}</text>`;
+  });
+  const pts = keys.map((k, i) => `${(x(i) + slot / 2).toFixed(1)},${y(get(k, "install")).toFixed(1)}`);
+  svg += `<polyline points="${pts.join(" ")}" fill="none" stroke="var(--chart-b)" stroke-width="2" stroke-linejoin="round"/>`;
+  keys.forEach((k, i) => { const v = get(k, "install"); if (v) svg += `<circle cx="${(x(i) + slot / 2).toFixed(1)}" cy="${y(v).toFixed(1)}" r="4" fill="var(--chart-b)" stroke="var(--surface)" stroke-width="2" data-tip="${k}: ${v} install${v === 1 ? "" : "s"}"/>`; });
+  svg += `</svg>`;
+  html += `<div class="card adm-card"><h3>Last 30 days</h3><p class="sub2">One device counts once a day. The first day after launch includes everyone who already had LMK.</p>${svg}
+    <div class="legend"><span><i style="background:var(--chart-a)"></i>Daily opens</span><span><i style="background:var(--chart-b)"></i>Installs</span></div></div>`;
+  // ---- announcement ----
+  const A = S.announce || {};
+  html += `<div class="card adm-card"><h3>Announcement</h3><p class="sub2">A slim banner every student sees above their plan until they dismiss it. Use it for "store link is live", "known issue with X", or a heavy-week heads-up. Plain text, one link at most.</p>
+    <div class="adm-form">
+      <textarea id="admAnnText" maxlength="240" placeholder="What everyone should know, in one or two sentences.">${esc(A.text || "")}</textarea>
+      <div class="adm-row"><input id="admAnnUrl" type="url" placeholder="Optional https link" value="${esc(A.url || "")}" style="flex:2 1 220px"><input id="admAnnUntil" type="date" value="${esc(A.until || "")}" title="Stops showing after this day" style="flex:1 1 140px"></div>
+      <div class="adm-row"><label class="ck"><input type="checkbox" id="admAnnOn" ${A.on ? "checked" : ""}> Show it to everyone</label><span class="sp" style="flex:1"></span><button class="btn primary" data-act="adm-save-ann">Save announcement</button></div>
+    </div></div>`;
+  // ---- store link ----
+  html += `<div class="card adm-card"><h3>Chrome Web Store link</h3><p class="sub2">Overrides the built-in link on every "Add to Chrome" button within a minute of saving, with no deploy. Only chromewebstore.google.com addresses are accepted. Built-in today: <span style="font-family:'Spline Sans Mono',monospace;font-size:12px">${esc(LMK_CONFIG.storeUrl)}</span></p>
+    <div class="adm-form"><div class="adm-row"><input id="admStore" type="url" value="${esc(S.storeUrl || "")}" placeholder="https://chromewebstore.google.com/detail/…" style="flex:1 1 280px"><button class="btn primary" data-act="adm-save-store">Save link</button></div></div></div>`;
+  // ---- checklist ----
+  const C = S.checklist || {};
+  html += `<div class="card adm-card"><h3>Phase 1 · two hundred at ASU</h3><p class="sub2">From the Playbook. Ticks save to the worker, so they follow you between devices.</p><div class="checklist">` +
+    PHASE1.map(([id, t]) => `<label><input type="checkbox" data-check="${id}" ${C[id] ? "checked" : ""}><span class="${C[id] ? "done" : ""}">${esc(t)}</span></label>`).join("") + `</div></div>`;
+  // ---- places ----
+  html += `<div class="card adm-card"><h3>Places</h3><div class="adm-links">
+    <a href="https://chrome.google.com/webstore/devconsole" target="_blank" rel="noopener">Chrome Web Store dashboard<small>review status, install count, ratings</small></a>
+    <a href="https://mail.google.com/mail/#search/subject%3A%22LMK%22" target="_blank" rel="noopener">Feedback inbox<small>Gmail, every message with LMK in the subject</small></a>
+    <a href="https://dash.cloudflare.com" target="_blank" rel="noopener">Cloudflare<small>the worker and its database</small></a>
+    <a href="https://github.com/DVNSON/lmk" target="_blank" rel="noopener">GitHub<small>the site and app source</small></a>
+    <a href="${esc(apiUrl("/stats?key=" + encodeURIComponent(ADMIN.key) + "&days=90"))}" target="_blank" rel="noopener">Raw numbers<small>the JSON behind this page</small></a>
+    <a href="https://claude.ai/code/artifact/65a2c224-d6ed-436a-baba-f81c23478b05" target="_blank" rel="noopener">The Playbook<small>phases, pricing, the weekly rhythm</small></a>
+    <a href="https://claude.ai/code/artifact/b4e9012c-9097-4f93-bd54-49a0082caf71" target="_blank" rel="noopener">Launch Kit<small>every post and message, ready to paste</small></a>
+  </div></div>`;
+  // ---- moderation, honestly ----
+  html += `<div class="card adm-card"><h3>Moderation</h3><p class="sub2" style="margin:0">Nothing to moderate yet, and that is by design: the server holds counts and these settings, never a student's assignments, grades or name. When shared course statistics arrive in Phase 2 they will be anonymous medians per assignment, and this is where outliers get pruned and a bad contribution gets dropped.</p></div>`;
+  // ---- system ----
+  html += `<div class="card adm-card"><h3>System</h3><p class="sub2">Worker <b>${esc(LMK_CONFIG.statsUrl.replace(/^https?:\/\//, ""))}</b> · this device is in <b>${MODE}</b> mode · admin key is stored on this device only.</p>
+    <div class="adm-row"><button class="minibtn drop" data-act="adm-logout">Forget admin key on this device</button></div></div>`;
+  root.innerHTML = html;
+}
+
+/* ================= remote config for everyone =================
+   One small GET, cached ten minutes: an announcement and the store link. The request carries
+   nothing about the student, and the app works exactly the same if it fails. */
+function applyStoreUrl(){ for (const id of ["setupInstall","wInstall"]) { const el = document.getElementById(id); if (el) el.href = LMK_CONFIG.storeUrl; } }
+function showAnnouncement(ann){
+  const el = document.getElementById("announce"); if (!el) return;
+  const today = dayKey(now());
+  if (!ann || !ann.on || !ann.text || (ann.until && ann.until < today)) { el.hidden = true; return; }
+  const sig = ann.text + "|" + (ann.url || "");
+  let seen = ""; try { seen = localStorage.getItem("lmk_ann_dismissed") || ""; } catch(_){}
+  if (seen === sig) { el.hidden = true; return; }
+  const link = ann.url && /^https:\/\//.test(ann.url) ? ` <a href="${esc(ann.url)}" target="_blank" rel="noopener">${esc(ann.url.replace(/^https:\/\//, "").slice(0, 40))}</a>` : "";
+  el.innerHTML = `<span>${esc(ann.text)}${link}</span><button class="x" data-act="ann-dismiss" aria-label="Dismiss">✕</button>`;
+  el.dataset.sig = sig; el.hidden = false;
+}
+async function loadRemoteConfig(){
+  if (MODE !== "web" || !LMK_CONFIG.statsUrl) return;
+  let cfg = null;
+  try { const c = JSON.parse(localStorage.getItem("lmk_cfg") || "null"); if (c && Date.now() - c.at < 10 * 60e3) cfg = c.v; } catch(_){}
+  if (!cfg) {
+    try { const r = await fetch(apiUrl("/config"), {mode:"cors", credentials:"omit"}); if (r.ok) { cfg = await r.json(); localStorage.setItem("lmk_cfg", JSON.stringify({at: Date.now(), v: cfg})); } } catch(_){}
+  }
+  if (!cfg) return;
+  if (cfg.storeUrl && /^https:\/\/chromewebstore\.google\.com\//.test(cfg.storeUrl)) { LMK_CONFIG.storeUrl = cfg.storeUrl; applyStoreUrl(); }
+  showAnnouncement(cfg.announce);
+}
+
 /* ================= setup copy per mode =================
    The setup sheet is literal HTML above the script; anything that differs by mode is set here. */
 (function setupCopy(){
@@ -2959,6 +3179,7 @@ function maybeAskReview(){
 loadData(); render();
 crowdInit();
 pingDaily();
+loadRemoteConfig();
 setTimeout(maybeAskReview, 25000);
 /* The welcome asks for a name. Only show it once we're sure this is a new person: after the first
    Drive sync had its chance (a phone whose browser storage was wiped gets its name back from Drive). */
