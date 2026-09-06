@@ -861,6 +861,7 @@ function absorbTracking(p){
   return changed;
 }
 function applyCanvasPayload(p, opts = {}){
+  const firstSync = !store.ext;
   if (!p || p.lmk !== "canvas" || !p.items || typeof p.items !== "object") return null;
   const tracked = absorbTracking(p);
   if (store.ext && store.ext.at === p.at && !opts.force) { if (tracked) { loadData(); render(); } return {same:true}; }
@@ -905,6 +906,7 @@ function applyCanvasPayload(p, opts = {}){
   if (!n) return null;
   store.ext = {at:p.at || Date.now(), host:p.host || "", items, courses:(p.courses && p.courses.length) ? p.courses : ((store.ext || {}).courses || []), groups:p.groups || (store.ext || {}).groups || {}};
   save(); loadData(); render();
+  if (firstSync) ping("firstsync");
   if (!opts.quiet) toast(`Canvas synced: ${n} assignments${newDone ? ` · ${newDone} marked done` : ""}${unDone ? ` · ${unDone} back to in-progress` : ""}${newGrades ? ` · ${newGrades} grades` : ""}${shelfAdd ? ` · ${shelfAdd} undated on the shelf` : ""}.`);
   return {n, newDone, newGrades, shelfAdd};
 }
@@ -2506,7 +2508,8 @@ const LMK_CONFIG = {
   storeUrl: "https://chromewebstore.google.com/search/LMK%20for%20Canvas",   // swap for the exact listing URL once the store publishes it
   appUrl: "https://dvnson.github.io/lmk/app/",
   artifactUrl: "https://claude.ai/code/artifact/931fab3e-a465-475b-b596-ef68915e6b9f",
-  feedbackUrl: "https://mail.google.com/mail/?view=cm&fs=1&to=emieldieuvenson%40gmail.com&su=LMK%20feedback",   // Gmail compose: works in the artifact and for every ASU (Gmail) student; swap for a form any time
+  feedbackUrl: "https://mail.google.com/mail/?view=cm&fs=1&to=emieldieuvenson%40gmail.com&su=LMK%20feedback",
+  statsUrl: "",   // the anonymous counter (see ~/lmk-backend). Empty = send nothing.   // Gmail compose: works in the artifact and for every ASU (Gmail) student; swap for a form any time
 };
 /* A client id can also be dropped in from the browser console, which is how you try one out
    before baking it into the build:  localStorage.lmk_gcid = "….apps.googleusercontent.com"
@@ -2547,6 +2550,7 @@ function mergeStores(a, b){
   m.onboarded = a.onboarded || b.onboarded || 0;
   m.streakDays = [...new Set([...(a.streakDays||[]), ...(b.streakDays||[])])];
   m.capacity = newer.capacity || older.capacity || null;
+  m.since = Math.min(a.since || Infinity, b.since || Infinity); if (!isFinite(m.since)) delete m.since;
   const byId = rows => { const map = new Map(); (rows||[]).forEach(r => map.set(r[4], r)); return map; };
   m.customRows = [...new Map([...byId(older.customRows), ...byId(newer.customRows)]).values()];
   const uById = list => { const map = new Map(); (list||[]).forEach(u => map.set(u.id, u)); return map; };
@@ -2896,6 +2900,43 @@ document.getElementById("wGo").addEventListener("click", () => {
   setTimeout(maybeHomeScreenHint, 1200);
 });
 
+/* ================= the day you started =================
+   Stamped once; merged as the earliest across devices. It backs the early-adopter promise. */
+(function stampSince(){
+  if (store.since) return;
+  const ts = Object.values(store.done || {}).map(Number).filter(v => v > 0);
+  store.since = Math.min(Date.now(), ...ts);
+  save();
+})();
+
+/* ================= anonymous counter =================
+   One "open" per device per day, one "install" ever, one "firstsync" ever — plain numbers to the
+   LMK worker, nothing that can name a person. Silent until LMK_CONFIG.statsUrl is set. */
+function ping(ev){
+  if (MODE !== "web" || !LMK_CONFIG.statsUrl) return;
+  try {
+    fetch(LMK_CONFIG.statsUrl.replace(/\/$/, "") + "/hit", {method:"POST", mode:"cors", credentials:"omit", keepalive:true,
+      headers:{"content-type":"text/plain"}, body: JSON.stringify({ev, d: dayKey(now())})}).catch(() => {});
+  } catch(_){}
+}
+function pingDaily(){
+  try {
+    const k = dayKey(now()), last = localStorage.getItem("lmk_ping_day");
+    if (!last) ping("install");
+    if (last !== k) { localStorage.setItem("lmk_ping_day", k); ping("open"); }
+  } catch(_){}
+}
+/* After ten finished things and five days, ask once for a store review. Laptops only — that is where the store is. */
+function maybeAskReview(){
+  if (MODE !== "web" || IS_MOBILE || !store.onboarded) return;
+  let seen = false; try { seen = localStorage.getItem("lmk_review_ask") === "1"; } catch(_){}
+  if (seen) return;
+  if (Object.keys(store.done || {}).length < 10 || !store.since || Date.now() - store.since < 5 * 864e5) return;
+  try { localStorage.setItem("lmk_review_ask", "1"); } catch(_){}
+  toast("Ten things done with LMK. A quick store review helps other students find it.",
+    {label:"Rate it", fn: () => window.open(LMK_CONFIG.storeUrl, "_blank", "noopener")});
+}
+
 /* ================= setup copy per mode =================
    The setup sheet is literal HTML above the script; anything that differs by mode is set here. */
 (function setupCopy(){
@@ -2911,11 +2952,14 @@ document.getElementById("wGo").addEventListener("click", () => {
     : "<b>Saved on this device.</b> Nothing is sent anywhere.";
   const rs = $("resetSample");
   if (SEED_EMPTY) rs.hidden = true; else rs.textContent = "Back to " + SEED_LABEL;
+  if (store.since) $("setupSync").innerHTML += ` <b>Early adopter</b> since ${new Date(store.since).toLocaleDateString(undefined, {month:"long", year:"numeric"})} — when LMK Plus exists, it is yours free for life.`;
 })();
 
 /* ================= boot ================= */
 loadData(); render();
 crowdInit();
+pingDaily();
+setTimeout(maybeAskReview, 25000);
 /* The welcome asks for a name. Only show it once we're sure this is a new person: after the first
    Drive sync had its chance (a phone whose browser storage was wiped gets its name back from Drive). */
 let welcomed = false;
@@ -2930,6 +2974,7 @@ setTimeout(maybeWelcome, 9000);
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
 setInterval(render, 60000);
 </script>
+
 
 
 
