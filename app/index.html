@@ -2966,6 +2966,7 @@ document.getElementById("wGo").addEventListener("click", () => {
    LMK worker, nothing that can name a person. Silent until LMK_CONFIG.statsUrl is set. */
 function ping(ev){
   if (MODE !== "web" || !LMK_CONFIG.statsUrl) return;
+  try { if (localStorage.getItem("lmk_admin_key")) return; } catch(_){}   // the admin's own devices never count
   try {
     fetch(LMK_CONFIG.statsUrl.replace(/\/$/, "") + "/hit", {method:"POST", mode:"cors", credentials:"omit", keepalive:true,
       headers:{"content-type":"text/plain"}, body: JSON.stringify({ev, d: dayKey(now())})}).catch(() => {});
@@ -3195,6 +3196,7 @@ setTimeout(maybeWelcome, 9000);
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
 setInterval(render, 60000);
 </script>
+
 
 
 
