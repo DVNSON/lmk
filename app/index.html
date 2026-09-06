@@ -2565,8 +2565,8 @@ const LMK_CONFIG = {
   storeUrl: "https://chromewebstore.google.com/search/LMK%20for%20Canvas",   // swap for the exact listing URL once the store publishes it
   appUrl: "https://lmktoday.app/app/",
   artifactUrl: "https://claude.ai/code/artifact/931fab3e-a465-475b-b596-ef68915e6b9f",
-  feedbackUrl: "https://mail.google.com/mail/?view=cm&fs=1&to=emieldieuvenson%40gmail.com&su=LMK%20feedback",
-  statsUrl: "https://lmk-api.emieldieuvenson.workers.dev",   // the anonymous counter (see ~/lmk-backend). Empty = send nothing.   // Gmail compose: works in the artifact and for every ASU (Gmail) student; swap for a form any time
+  feedbackUrl: "https://mail.google.com/mail/?view=cm&fs=1&to=hello%40lmktoday.app&su=LMK%20feedback",
+  statsUrl: "https://lmk-api.emieldieuvenson.workers.dev",   // the anonymous counter (see ~/lmk-backend). Empty = send nothing.   // Gmail compose to hello@lmktoday.app (Cloudflare Email Routing forwards to the founder); swap for a form any time
 };
 /* A client id can also be dropped in from the browser console, which is how you try one out
    before baking it into the build:  localStorage.lmk_gcid = "….apps.googleusercontent.com"
@@ -3202,6 +3202,7 @@ setTimeout(maybeWelcome, 9000);
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
 setInterval(render, 60000);
 </script>
+
 
 
 
