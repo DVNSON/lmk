@@ -1910,7 +1910,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v28.2";
+const APP_BUILD = "v28.3";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -3048,12 +3048,22 @@ document.getElementById("wGo").addEventListener("click", () => {
    LMK worker, nothing that can name a person. Silent until LMK_CONFIG.statsUrl is set. */
 function ping(ev){
   if (MODE !== "web" || !LMK_CONFIG.statsUrl) return;
+  if (!pingAllowed()) return;                                                // only real students on the real domain
   if (store.adminKey) return;                                                // the admin's own devices never count
   try { if (localStorage.getItem("lmk_admin_key")) return; } catch(_){}
   try {
     fetch(LMK_CONFIG.statsUrl.replace(/\/$/, "") + "/hit", {method:"POST", mode:"cors", credentials:"omit", keepalive:true,
       headers:{"content-type":"text/plain"}, body: JSON.stringify({ev, d: dayKey(now())})}).catch(() => {});
   } catch(_){}
+}
+/* Test renders and local copies never reach the counter: headless browsers flag themselves with
+   navigator.webdriver, and anything served from somewhere other than lmktoday.app is not a student. */
+function pingAllowed(){
+  try {
+    if (navigator.webdriver) return false;
+    if (!/(^|\.)lmktoday\.app$/.test(location.hostname)) return false;
+  } catch(_) { return false; }
+  return true;
 }
 function pingDaily(){
   try {
@@ -3188,7 +3198,7 @@ function renderAdmin(root){
   svg += `<polyline points="${pts.join(" ")}" fill="none" stroke="var(--chart-b)" stroke-width="2" stroke-linejoin="round"/>`;
   keys.forEach((k, i) => { const v = get(k, "install"); if (v) svg += `<circle cx="${(x(i) + slot / 2).toFixed(1)}" cy="${y(v).toFixed(1)}" r="4" fill="var(--chart-b)" stroke="var(--surface)" stroke-width="2" data-tip="${k}: ${v} install${v === 1 ? "" : "s"}"/>`; });
   svg += `</svg>`;
-  html += `<div class="card adm-card"><h3>Last 30 days</h3><p class="sub2">One device counts once a day. The first day after launch includes everyone who already had LMK.</p>${svg}
+  html += `<div class="card adm-card"><h3>Last 30 days</h3><p class="sub2">One device counts once a day. Your own devices, test renders and copies running anywhere but lmktoday.app are never counted, so a zero here means no one else has opened LMK yet.</p>${svg}
     <div class="legend"><span><i style="background:var(--chart-a)"></i>Daily opens</span><span><i style="background:var(--chart-b)"></i>Installs</span></div></div>`;
   // ---- announcement ----
   const A = S.announce || {};
@@ -3288,6 +3298,7 @@ setTimeout(maybeWelcome, 9000);
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
 setInterval(render, 60000);
 </script>
+
 
 
 
