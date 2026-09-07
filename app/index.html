@@ -189,6 +189,8 @@
   .gstrip::-webkit-scrollbar{display:none}
   .glabel{flex:none;align-self:center;font:600 10.5px "Spline Sans Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding-right:2px}
   .gnote{flex:none;align-self:center;font-size:11px;color:var(--muted);padding-left:2px;cursor:help;border-bottom:1px dotted var(--line-strong)}
+  @media (min-width:641px){ .gstrip{flex-wrap:wrap;overflow:visible;padding-bottom:10px} }
+  @media (hover:hover){ .radar{scrollbar-width:thin} .radar::-webkit-scrollbar{height:8px} .radar::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:99px} }
   .gpill{flex:none;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);
     border-radius:99px;padding:6px 11px 6px 9px;font:inherit;font-size:12.5px;color:var(--ink-2);cursor:pointer;transition:transform .12s,border-color .2s}
   .gpill:hover{transform:translateY(-1px);border-color:var(--line-strong)}
@@ -1897,7 +1899,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v27";
+const APP_BUILD = "v28";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -1927,6 +1929,7 @@ function render(){
   }
 }
 function renderInner(){
+  if (typeof adminApply === "function") adminApply();
   computeBundles(); computePlan();
   renderHeader(); renderChips();
   const views = {now:renderNow, plan:renderPlan, semester:renderSemester, admin:renderAdmin};
@@ -1987,6 +1990,14 @@ function switchTab(e){
   animNext = true;
   render();
 }
+/* A mouse wheel has no sideways gesture: over a strip that still overflows, vertical wheel scrolls it sideways. */
+document.addEventListener("wheel", e => {
+  const el = e.target.closest(".gstrip,.radar,.chips"); if (!el) return;
+  if (el.scrollWidth <= el.clientWidth + 2 || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+  const atEnd = e.deltaY > 0 && el.scrollLeft + el.clientWidth >= el.scrollWidth - 1, atStart = e.deltaY < 0 && el.scrollLeft <= 0;
+  if (atEnd || atStart) return;
+  el.scrollLeft += e.deltaY; e.preventDefault();
+}, {passive:false});
 /* Swipe sideways between views on a phone. Ignored when the gesture starts on something that scrolls sideways. */
 (function swipeTabs(){
   const order = () => ["now","plan","semester"].concat(document.getElementById("tabAdminBottom").hidden ? [] : ["admin"]);
@@ -2660,6 +2671,7 @@ function mergeStores(a, b){
   m.streakDays = [...new Set([...(a.streakDays||[]), ...(b.streakDays||[])])];
   m.capacity = newer.capacity || older.capacity || null;
   m.since = Math.min(a.since || Infinity, b.since || Infinity); if (!isFinite(m.since)) delete m.since;
+  m.adminKey = newer.adminKey !== undefined ? newer.adminKey : older.adminKey; if (!m.adminKey) delete m.adminKey;
   const byId = rows => { const map = new Map(); (rows||[]).forEach(r => map.set(r[4], r)); return map; };
   m.customRows = [...new Map([...byId(older.customRows), ...byId(newer.customRows)]).values()];
   const uById = list => { const map = new Map(); (list||[]).forEach(u => map.set(u.id, u)); return map; };
@@ -3024,7 +3036,8 @@ document.getElementById("wGo").addEventListener("click", () => {
    LMK worker, nothing that can name a person. Silent until LMK_CONFIG.statsUrl is set. */
 function ping(ev){
   if (MODE !== "web" || !LMK_CONFIG.statsUrl) return;
-  try { if (localStorage.getItem("lmk_admin_key")) return; } catch(_){}   // the admin's own devices never count
+  if (store.adminKey) return;                                                // the admin's own devices never count
+  try { if (localStorage.getItem("lmk_admin_key")) return; } catch(_){}
   try {
     fetch(LMK_CONFIG.statsUrl.replace(/\/$/, "") + "/hit", {method:"POST", mode:"cors", credentials:"omit", keepalive:true,
       headers:{"content-type":"text/plain"}, body: JSON.stringify({ev, d: dayKey(now())})}).catch(() => {});
@@ -3054,17 +3067,26 @@ function maybeAskReview(){
    the worker, and there is nothing about any student to see: the server holds counts and settings. */
 const ADMIN = {key:null, data:null, at:0, loading:false, err:""};
 const apiUrl = path => LMK_CONFIG.statsUrl.replace(/\/$/, "") + path;
+/* The key rides in the synced store, so every device signed in as the admin gets the tab. */
+function adminApply(){
+  let local = null; try { local = localStorage.getItem("lmk_admin_key"); } catch(_){}
+  const key = local || store.adminKey || null;
+  if (key && key !== store.adminKey) { store.adminKey = key; save(); }
+  if (key && key !== local) { try { localStorage.setItem("lmk_admin_key", key); } catch(_){} }
+  ADMIN.key = key;
+  const on = !!(key && MODE === "web" && LMK_CONFIG.statsUrl);
+  for (const id of ["tabAdminTop","tabAdminBottom"]) { const el = document.getElementById(id); if (el) el.hidden = !on; }
+}
 (function adminKeyFromHash(){
   try {
     const m = location.hash.match(/#admin=([A-Za-z0-9_\-]{16,})/);
     if (m) { localStorage.setItem("lmk_admin_key", m[1]); history.replaceState(null, "", location.pathname + location.search); }
-    ADMIN.key = localStorage.getItem("lmk_admin_key");
   } catch(_){}
-  const on = !!(ADMIN.key && MODE === "web" && LMK_CONFIG.statsUrl);
-  for (const id of ["tabAdminTop","tabAdminBottom"]) { const el = document.getElementById(id); if (el) el.hidden = !on; }
+  adminApply();
 })();
 function adminForget(){
   try { localStorage.removeItem("lmk_admin_key"); } catch(_){}
+  store.adminKey = ""; save();
   ADMIN.key = null; ADMIN.data = null;
   for (const id of ["tabAdminTop","tabAdminBottom"]) { const el = document.getElementById(id); if (el) el.hidden = true; }
   activeTab = "now";
@@ -3254,6 +3276,7 @@ setTimeout(maybeWelcome, 9000);
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
 setInterval(render, 60000);
 </script>
+
 
 
 
