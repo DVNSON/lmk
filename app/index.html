@@ -968,9 +968,16 @@ function applyCanvasPayload(p, opts = {}){
   if (!opts.quiet) toast(`Canvas synced: ${n} assignments${newDone ? ` · ${newDone} marked done` : ""}${unDone ? ` · ${unDone} back to in-progress` : ""}${newGrades ? ` · ${newGrades} grades` : ""}${shelfAdd ? ` · ${shelfAdd} undated on the shelf` : ""}.`);
   return {n, newDone, newGrades, shelfAdd};
 }
+/* The extension says hello when it is on the page — so "installed but never synced" gets its own guidance. */
+const EXT = {present:false, version:""};
+function applyExtPresence(){
+  const b = document.getElementById("setupInstall"); if (!b) return;
+  if (EXT.present) { b.textContent = "Extension installed ✓ · Open Canvas →"; b.href = LMK_CONFIG.canvasUrl; }
+}
 window.addEventListener("message", ev => {
   const d = ev.data;
   if (d && d.lmk === "canvas-payload" && d.payload) applyCanvasPayload(d.payload);
+  if (d && d.lmk === "ext-hello" && !EXT.present) { EXT.present = true; EXT.version = String(d.version || ""); applyExtPresence(); if (!store.ext) render(); }
 });
 let repairToast = 0;
 function loadData(){
@@ -1546,14 +1553,17 @@ function renderNow(root){
   } else {
     if (!EVENTS.length && !store.ext && !store.custom) {
       const phone = IS_MOBILE && MODE === "web";
+      const installed = EXT.present && !phone;
       html += `<div class="card hero" style="--hero-tint:color-mix(in srgb, var(--c1) 20%, transparent)">
-        <div class="kicker">First run</div>
-        <h1>${phone ? "Set up once on a laptop." : "Let's get your classes in."}</h1>
+        <div class="kicker">${installed ? "One step left" : "First run"}</div>
+        <h1>${phone ? "Set up once on a laptop." : installed ? "Extension installed. Now open Canvas once." : "Let's get your classes in."}</h1>
         <div class="why">${phone
           ? "Add the <b>LMK for Canvas</b> extension to Chrome on a laptop and open Canvas once. Then sign in with Google here and your plan appears on this phone."
+          : installed ? "Open Canvas like you normally would and your classes land here by themselves, usually within a few seconds. Not at ASU? Open your own school's Canvas — any instructure.com address works."
           : "Add the <b>LMK for Canvas</b> extension to Chrome, then open Canvas once like you normally would. Everything lands here by itself — about a minute."}</div>
         <div class="actions">
           ${phone ? (gdReady() ? `<button class="btn grad" data-act="web-signin">Sign in with Google</button>` : "")
+                  : installed ? `<a class="btn grad" href="${LMK_CONFIG.canvasUrl}" target="_blank" rel="noopener">Open Canvas →</a>`
                   : `<a class="btn grad" href="${LMK_CONFIG.storeUrl}" target="_blank" rel="noopener">Add to Chrome →</a>`}
           ${!phone && MODE === "web" && gdReady() ? `<button class="btn ghost" data-act="web-signin">Sign in with Google</button>` : ""}
           <button class="btn ghost" data-act="open-gear">Other ways</button>
@@ -1899,7 +1909,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v28";
+const APP_BUILD = "v28.1";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -2625,7 +2635,8 @@ document.getElementById("caSave").addEventListener("click", ()=>{
    sign-in (no Claude account needed), and the claude-only extras hide themselves. */
 const LMK_CONFIG = {
   googleClientId: "775343527321-m6m9082hu2uk2iuf1ibuj1f0m0i7pdad.apps.googleusercontent.com",   // web-mode Google sign-in (public by design)
-  storeUrl: "https://chromewebstore.google.com/detail/lmk-for-canvas/efjeldekjgbggjedpboafbblcegmmdam",   // the live listing (unlisted): approved 2026-09-07
+  storeUrl: "https://chromewebstore.google.com/detail/lmk-for-canvas/efjeldekjgbggjedpboafbblcegmmdam",
+  canvasUrl: "https://canvas.asu.edu/#lmk-sync",   // where "Open Canvas" goes before the first sync; the hash asks the extension to sync now   // the live listing (unlisted): approved 2026-09-07
   appUrl: "https://lmktoday.app/app/",
   artifactUrl: "https://claude.ai/code/artifact/931fab3e-a465-475b-b596-ef68915e6b9f",
   feedbackUrl: "https://mail.google.com/mail/?view=cm&fs=1&to=hello%40lmktoday.app&su=LMK%20feedback",
