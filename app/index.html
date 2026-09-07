@@ -31,7 +31,7 @@
     --line:#e3e5ea; --line-strong:#c9ccd3;
     --btn-bg:#14161a; --btn-ink:#ffffff;
     --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --critical:#d03b3b;
-    --good-text:#006300;
+    --good-text:#006300; --critical-text:#b12a2a; --warn-text:#8a5a00;
     --c1:#2a78d6; --c2:#eb6834; --c3:#1baf7a; --c4:#eda100; --c5:#e87ba4; --c6:#008300; --c7:#4a3aa7;
     --splash:linear-gradient(115deg,#ff5d52,#e0489a 48%,#f7a521);
     --blob1:rgba(224,72,154,.09);--blob2:rgba(42,120,214,.09);--blob3:rgba(247,165,33,.11);
@@ -47,7 +47,7 @@
       --line:#2a2d34; --line-strong:#3a3e47;
       --btn-bg:#f4f5f7; --btn-ink:#14161a;
       --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --critical:#d03b3b;
-      --good-text:#0ca30c;
+      --good-text:#0ca30c; --critical-text:#ff6b6b; --warn-text:#ffc94d;
       --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500; --c5:#d55181; --c6:#008300; --c7:#9085e9;
       --splash:linear-gradient(115deg,#ff6b5e,#e85fa2 48%,#ffb02e);
     --blob1:rgba(213,81,129,.17);--blob2:rgba(57,135,229,.15);--blob3:rgba(201,133,0,.13);
@@ -63,7 +63,7 @@
     --line:#2a2d34; --line-strong:#3a3e47;
     --btn-bg:#f4f5f7; --btn-ink:#14161a;
     --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --critical:#d03b3b;
-    --good-text:#0ca30c;
+    --good-text:#0ca30c; --critical-text:#ff6b6b; --warn-text:#ffc94d;
     --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500; --c5:#d55181; --c6:#008300; --c7:#9085e9;
     --splash:linear-gradient(115deg,#ff6b5e,#e85fa2 48%,#ffb02e);
     --blob1:rgba(213,81,129,.17);--blob2:rgba(57,135,229,.15);--blob3:rgba(201,133,0,.13);
@@ -141,7 +141,7 @@
   .btn.ghost{background:var(--surface)}
   .btn.ghost:hover{background:var(--surface-2)}
   .countchip{font:600 13px/1 "Spline Sans Mono",monospace;border-radius:8px;padding:6px 10px;border:1px solid var(--line);background:var(--surface-2)}
-  .countchip.hot{color:var(--critical);border-color:color-mix(in srgb,var(--critical) 40%,var(--line));background:color-mix(in srgb,var(--critical) 8%,var(--surface))}
+  .countchip.hot{color:var(--critical-text);border-color:color-mix(in srgb,var(--critical) 40%,var(--line));background:color-mix(in srgb,var(--critical) 8%,var(--surface))}
   .countchip.soon{color:var(--ink)}
 
   /* ---------- item rows ---------- */
@@ -163,7 +163,7 @@
   .ccode{font:600 11.5px/1 "Spline Sans Mono",monospace;letter-spacing:.03em;color:var(--ink-2)}
   .etag{border:1px solid var(--line);border-radius:5px;padding:1.5px 6px;font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
   .duelbl{font:500 12px/1 "Spline Sans Mono",monospace;white-space:nowrap;color:var(--ink-2)}
-  .duelbl.hot{color:var(--critical);font-weight:600}
+  .duelbl.hot{color:var(--critical-text);font-weight:600}
   .item .side{display:flex;align-items:center;gap:6px;flex:none}
   .iconbtn{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
   .iconbtn:hover{background:var(--surface-2);color:var(--ink)}
@@ -180,7 +180,7 @@
 
   /* ---------- catch-up banner ---------- */
   .triage{border:1px solid color-mix(in srgb,var(--critical) 35%,var(--line));background:color-mix(in srgb,var(--critical) 6%,var(--surface));border-radius:14px;padding:14px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
-  .triage .ic{color:var(--critical);flex:none}
+  .triage .ic{color:var(--critical-text);flex:none}
   .triage .msg{flex:1 1 200px;font-size:14px}
   .triage .msg b{font-weight:700}
   .tri-actions{display:flex;gap:8px}
@@ -198,11 +198,11 @@
   .gpill .gn{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
   .gpill .gl{font:700 11.5px "Bricolage Grotesque",sans-serif;padding:1px 5px;border-radius:5px;background:var(--surface-2);color:var(--ink-2)}
   .gpill.good .gl{background:color-mix(in srgb,var(--good) 16%,var(--surface-2));color:var(--good-text)}
-  .gpill.warn .gl{background:color-mix(in srgb,var(--warn) 20%,var(--surface-2));color:var(--warn)}
-  .gpill.critical .gl{background:color-mix(in srgb,var(--critical) 16%,var(--surface-2));color:var(--critical)}
+  .gpill.warn .gl{background:color-mix(in srgb,var(--warn) 20%,var(--surface-2));color:var(--warn-text)}
+  .gpill.critical .gl{background:color-mix(in srgb,var(--critical) 16%,var(--surface-2));color:var(--critical-text)}
   .gbig{margin-left:auto;font:700 13px "Bricolage Grotesque",sans-serif;font-variant-numeric:tabular-nums;color:var(--ink-2)}
   .gbig b{font-weight:800;color:var(--ink)}
-  .gbig.good b{color:var(--good-text)} .gbig.warn b{color:var(--warn)} .gbig.critical b{color:var(--critical)}
+  .gbig.good b{color:var(--good-text)} .gbig.warn b{color:var(--warn-text)} .gbig.critical b{color:var(--critical-text)}
   .budget{padding:14px 16px;display:flex;flex-direction:column;gap:9px;margin-bottom:10px}
   .budget .bar{height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line)}
   .budget .bar i{display:block;height:100%;border-radius:99px;background:var(--good);transition:width .5s ease}
@@ -237,7 +237,7 @@
   .wk.cur .cell::after{content:"";position:absolute;inset:-4px;border:2px solid var(--ink);border-radius:10px;pointer-events:none}
   .wk .lbl{font:500 10px/1.3 "Spline Sans Mono",monospace;color:var(--muted);text-align:center}
   .wk .n{font:600 11px/1 "Spline Sans Mono",monospace;color:var(--ink-2);text-align:center}
-  .wk.worst .lbl{color:var(--critical);font-weight:600}
+  .wk.worst .lbl{color:var(--critical-text);font-weight:600}
   .radar-key{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);padding:12px 16px 0;flex-wrap:wrap}
   .radar-key .sw{width:14px;height:10px;border-radius:3px;border:1px solid var(--line)}
   .wkdetail{margin-top:12px}
@@ -249,7 +249,7 @@
   .runway .exam:first-child{border-top:none}
   .exam .days{font:800 22px/1 "Bricolage Grotesque",sans-serif;min-width:64px;text-align:center}
   .exam .days small{display:block;font:600 9.5px/1.6 "Spline Sans Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-  .exam.imminent .days{color:var(--critical)}
+  .exam.imminent .days{color:var(--critical-text)}
   .exam .body{flex:1;min-width:0}
 
   /* ---------- course health ---------- */
@@ -259,7 +259,7 @@
   .hcard .pill{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.03em;border-radius:999px;padding:3px 9px;border:1px solid var(--line)}
   .pill.ok{color:var(--good-text);border-color:color-mix(in srgb,var(--good) 40%,var(--line))}
   .pill.watch{color:color-mix(in srgb,var(--warn) 70%,var(--ink));border-color:color-mix(in srgb,var(--warn) 50%,var(--line))}
-  .pill.risk{color:var(--critical);border-color:color-mix(in srgb,var(--critical) 45%,var(--line))}
+  .pill.risk{color:var(--critical-text);border-color:color-mix(in srgb,var(--critical) 45%,var(--line))}
   .bar{height:7px;border-radius:99px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden}
   .bar i{display:block;height:100%;border-radius:99px}
   .hcard .nums{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
@@ -299,7 +299,7 @@
   .modal .row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
   .parse-msg{font-size:13px;margin-top:10px}
   .parse-msg.ok{color:var(--good-text);font-weight:600}
-  .parse-msg.err{color:var(--critical);font-weight:600}
+  .parse-msg.err{color:var(--critical-text);font-weight:600}
   .modal .foot{border-top:1px solid var(--line);margin-top:18px;padding-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
   .privacy{font-size:11.5px;color:var(--muted);margin-top:14px;line-height:1.6}
   .wstep{display:flex;gap:13px;padding:13px 0;border-top:1px solid var(--line);font-size:13.5px;line-height:1.55}
@@ -441,6 +441,8 @@
   .announce a{font-weight:600;margin-left:6px}
   .announce .x{margin-left:auto;flex:none;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
   .announce .x:hover{background:var(--surface-2);color:var(--ink)}
+  .errcard{border-color:color-mix(in srgb,var(--critical) 45%,var(--line));background:color-mix(in srgb,var(--critical) 7%,var(--surface));flex-wrap:wrap}
+  .errcard .minibtn{text-decoration:none}
   /* ---------- admin ---------- */
   .adm-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:4px 0 14px}
   .adm-head h1{margin:0;font:800 24px/1.1 "Bricolage Grotesque",sans-serif;letter-spacing:-.02em}
@@ -483,6 +485,7 @@
 
 <div class="wrap">
   <header class="top">
+    <h1 class="srconly">LMK — your Canvas planner</h1>
     <div class="wordmark" aria-label="LMK — Let Me Know">
       <span class="lmkmark" aria-hidden="true">LMK</span>
       <span class="lmksub" id="lmkSub">let me know.</span>
@@ -502,20 +505,22 @@
     </button>
   </header>
 
+  <main id="views">
   <nav class="tabs topnav" role="tablist" aria-label="Views">
     <button role="tab" data-tab="now" aria-selected="true">Now</button>
     <button role="tab" data-tab="plan" aria-selected="false">Plan</button>
     <button role="tab" data-tab="semester" aria-selected="false">Semester</button>
     <button role="tab" data-tab="admin" aria-selected="false" id="tabAdminTop" hidden>Admin</button>
   </nav>
-
   <div class="announce" id="announce" hidden></div>
+  <div class="announce errcard" id="errcard" role="alert" hidden></div>
   <div class="chips" id="courseChips" aria-label="Filter by course"></div>
 
   <section class="view" id="view-now"></section>
   <section class="view" id="view-plan" hidden></section>
   <section class="view" id="view-semester" hidden></section>
   <section class="view" id="view-admin" hidden></section>
+  </main>
 
   <footer class="pagefoot">
     <span id="srcLabel"></span> <span style="color:var(--muted)" title="Anonymous: assignment id + minutes only. No names, no grades.">· learning from you + anonymous course stats</span>
@@ -580,6 +585,7 @@
       <button class="minibtn" id="resetSample">Use sample semester</button>
       <button class="minibtn drop" id="clearProgress">Clear my checkmarks</button>
       <a class="minibtn" id="setupFeedback" href="#" target="_blank" rel="noopener">Send feedback</a>
+      <button class="minibtn" id="exportData" title="Everything LMK knows about you, as one file">Download my data</button>
       <button class="minibtn" id="closeModal">Close</button>
     </div>
     <p class="privacy" id="setupSync"></p>
@@ -768,6 +774,7 @@ let EVENTS = [], COURSES = [], COLOR = {};
    flips Canvas's state to "graded" early — so the score+date rule wins over the state. */
 function extInProgress(x){
   if (!x || x.score == null || !(x.pts > 0) || x.score >= x.pts) return false;
+  if (x.subAt && !/external_tool/.test(x.st || "")) return false;   // an uploaded paper graded 8/10 early is done, not in progress
   const dueMs = Date.parse(x.due) || 0;
   return !dueMs || dueMs > Date.now();
 }
@@ -885,7 +892,7 @@ function crowdPush(){
 }
 function crowdKind(aid){ const c = CROWD[aid]; return c && c.kind && (c.kind === "inclass" || c.kind === "fyi") ? c.kind : ""; }
 function extKind(aid){ const x = ((store.ext || {}).items || {})[aid]; return x && x.k ? x.k : ""; }
-function isoToRaw(iso){ const m = (iso || "").match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/); return m ? m[1]+m[2]+m[3]+"T"+m[4]+m[5]+m[6]+"Z" : ""; }
+function isoToRaw(iso){ if (!isFinite(Date.parse(iso || ""))) return ""; const m = (iso || "").match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/); return m ? m[1]+m[2]+m[3]+"T"+m[4]+m[5]+m[6]+"Z" : ""; }
 function extRows(seen){
   const items = ((store.ext || {}).items || {});
   const out = [];
@@ -921,7 +928,7 @@ function applyCanvasPayload(p, opts = {}){
   for (const aid in p.items){
     const x = p.items[aid] || {}; if (!x.t) continue;
     n++;
-    items[aid] = {t:x.t, c:x.c, cid:x.cid, due:x.due || "", pts:x.pts, gt:x.gt, st:x.st, k:x.k || "", grp:x.grp == null ? "" : String(x.grp), sub:x.sub || "", subAt:x.subAt || "", score:x.score == null ? null : x.score, missing:!!x.missing, late:!!x.late, url:x.url || "", desc:x.due ? "" : (x.desc || "")};
+    items[aid] = {t:x.t, c:x.c, cid:x.cid, due:x.due || "", pts:x.pts, gt:x.gt, st:x.st, k:x.excused ? "fyi" : (x.k || ""), grp:x.grp == null ? "" : String(x.grp), sub:x.sub || "", subAt:x.subAt || "", score:x.score == null ? null : x.score, missing:!!x.missing, late:!!x.late, url:x.url || "", desc:x.due ? "" : (x.desc || "")};
     const id = "a" + aid;
     // External-tool work (MyEducator, Edfinity, Connect…) pushes a running score back to Canvas
     // while you're still working, which flips the state to "graded" early. Treat that as
@@ -952,7 +959,7 @@ function applyCanvasPayload(p, opts = {}){
       store.undated = store.undated.filter(u => u.id !== sid);   // it got a date (or got done) — off the shelf
     }
   }
-  if (!n) return null;
+  if (!n) { if (!opts.quiet) toast("Canvas answered, but no active courses came back. Are you signed in to the right Canvas account?"); return null; }
   store.ext = {at:p.at || Date.now(), host:p.host || "", items, courses:(p.courses && p.courses.length) ? p.courses : ((store.ext || {}).courses || []), groups:p.groups || (store.ext || {}).groups || {}};
   save(); loadData(); render();
   if (firstSync) ping("firstsync");
@@ -1320,8 +1327,8 @@ function itemRow(e, opts={}){
       <div class="t ${(e.desc || (store.itemNotes||{})[e.id]) ? "hasinfo" : ""}" data-act="detail" role="button" tabindex="0" title="Details & notes">${esc(e.title)}</div>
       <div class="sub">
         <span class="cdot" style="background:${COLOR[e.course]}"></span><span class="ccode">${esc(e.course)}</span>
-        ${e.kind === "inclass" ? `<span class="etag" style="text-transform:none">🏫 In class</span>` : e.kind === "fyi" ? `<span class="etag" style="text-transform:none">ℹ️ Not graded</span>` : `<span class="etag">${EFFORT[e.effort].label}</span>${minsTag(e)}`}${e.ext && e.ext.missing && !done ? `<span class="etag" style="color:var(--critical);border-color:color-mix(in srgb,var(--critical) 45%,var(--line))">missing</span>` : ""}${e.id.startsWith("acustom-") ? `<span class="etag" style="color:var(--good-text);border-color:color-mix(in srgb,var(--good) 45%,var(--line))">mine</span>` : ""}${done ? ((store.grades||{})[e.id] && store.grades[e.id].max > 0 ? `<span class="etag" style="color:var(--good-text);border-color:color-mix(in srgb,var(--good) 45%,var(--line))">${Math.round(store.grades[e.id].got / store.grades[e.id].max * 100)}%</span>` : `<span class="etag" data-act="detail" role="button" tabindex="0" style="cursor:pointer">+ grade</span>`) : ""}
-        ${(() => { const pr = extProgress(e); return pr == null ? "" : `<span class="etag" style="text-transform:none;color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--line))">in progress · ${pr}%</span>`; })()}
+        ${e.kind === "inclass" ? `<span class="etag" style="text-transform:none">🏫 In class</span>` : e.kind === "fyi" ? `<span class="etag" style="text-transform:none">ℹ️ Not graded</span>` : `<span class="etag">${EFFORT[e.effort].label}</span>${minsTag(e)}`}${e.ext && e.ext.missing && !done ? `<span class="etag" style="color:var(--critical-text);border-color:color-mix(in srgb,var(--critical) 45%,var(--line))">missing</span>` : ""}${e.id.startsWith("acustom-") ? `<span class="etag" style="color:var(--good-text);border-color:color-mix(in srgb,var(--good) 45%,var(--line))">mine</span>` : ""}${done ? ((store.grades||{})[e.id] && store.grades[e.id].max > 0 ? `<span class="etag" style="color:var(--good-text);border-color:color-mix(in srgb,var(--good) 45%,var(--line))">${Math.round(store.grades[e.id].got / store.grades[e.id].max * 100)}%</span>` : `<span class="etag" data-act="detail" role="button" tabindex="0" style="cursor:pointer">+ grade</span>`) : ""}
+        ${(() => { const pr = extProgress(e); return pr == null ? "" : `<span class="etag" style="text-transform:none;color:var(--warn-text);border-color:color-mix(in srgb,var(--warn) 45%,var(--line))">in progress · ${pr}%</span>`; })()}
         ${opts.timeOnly ? `<span class="duelbl ${d.hot?"hot":""}">due ${FMT_TIME.format(e.due)}</span>` : opts.hideDue ? "" : `<span class="duelbl ${d.hot?"hot":""}">${d.txt}</span>`}
       </div>
     </div>
@@ -1887,8 +1894,39 @@ function postPlanToExtension(){
       openUrl: MODE === "artifact" ? LMK_CONFIG.artifactUrl : location.origin + location.pathname}, "*");
   } catch(_){}
 }
+/* ================= safety net =================
+   A thrown error must never leave a blank page. The last good content stays, a small card says what
+   happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
+const APP_BUILD = "v27";
+let lastErr = null;
+function reportErr(e, where){
+  try {
+    const msg = String((e && (e.message || e)) || "unknown").slice(0, 300);
+    const stack = String((e && e.stack) || "").split("\n").slice(1, 4).map(x => x.trim()).join(" | ").slice(0, 500);
+    lastErr = {where, msg, stack, at: new Date().toISOString()};
+    console.error("LMK", where, e);
+    const el = document.getElementById("errcard"); if (!el) return;
+    const body = `LMK ${APP_BUILD} · ${MODE} · ${where}\n${msg}\n${stack}\n${navigator.userAgent}\nassignments: ${typeof EVENTS !== "undefined" && EVENTS ? EVENTS.length : "?"}`;
+    const href = LMK_CONFIG.feedbackUrl + "&body=" + encodeURIComponent(body);
+    el.innerHTML = `<b>Something went wrong.</b><span>The rest of LMK still works, and nothing you did was lost. Reloading usually fixes it.</span>
+      <button class="minibtn" data-act="err-reload">Reload</button><a class="minibtn" href="${esc(href)}" target="_blank" rel="noopener">Send a report</a>
+      <button class="x" data-act="err-dismiss" aria-label="Dismiss">✕</button>`;
+    el.hidden = false;
+  } catch(_){}
+}
+window.addEventListener("error", ev => reportErr(ev.error || ev.message, "window"));
+window.addEventListener("unhandledrejection", ev => { try { lastErr = {where:"promise", msg:String(ev.reason && (ev.reason.message || ev.reason)).slice(0, 300)}; console.warn("LMK promise", ev.reason); } catch(_){} });
+
 let animNext = true;   // stagger the entrance when a view opens or the filter changes — not on the quiet refresh
 function render(){
+  try { renderInner(); }
+  catch(e) {
+    reportErr(e, "render:" + activeTab);
+    const root = document.getElementById("view-" + activeTab);
+    if (root && !root.innerHTML.trim()) root.innerHTML = `<div class="empty">This view hit an error. Try another tab, or reload.</div>`;
+  }
+}
+function renderInner(){
   computeBundles(); computePlan();
   renderHeader(); renderChips();
   const views = {now:renderNow, plan:renderPlan, semester:renderSemester, admin:renderAdmin};
@@ -1991,7 +2029,9 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="star" && id) toggleStar(id);
   else if (a==="skip" && id) { skipped.add(id); render(); }
   else if (a==="keep" && id) { store.triaged[id]=1; store.starred[id]=1; save(); render(); }
-  else if (a==="drop" && id) { store.dropped[id]=1; save(); render(); }
+  else if (a==="drop" && id) { store.dropped[id]=1; save(); render(); toast("Let go. It won't come back into the plan.", {label:"Undo", fn: () => { delete store.dropped[id]; save(); render(); }}); }
+  else if (a==="err-reload") { location.reload(); }
+  else if (a==="err-dismiss") { const el = document.getElementById("errcard"); if (el) el.hidden = true; }
   else if (a==="del" && id) { store.customRows = (store.customRows||[]).filter(r => "a"+r[4] !== id); store.deleted = store.deleted || {}; store.deleted["custom:" + id.slice(1)] = Date.now(); delete store.done[id]; delete store.starred[id]; delete store.dropped[id]; save(); loadData(); render(); }
   else if (a==="ai") {
     markStart(id);
@@ -2153,6 +2193,18 @@ document.getElementById("resetSample").addEventListener("click", ()=>{
   document.getElementById("parseMsg").className="parse-msg ok";
   document.getElementById("parseMsg").textContent="Back on the sample semester.";
 });
+document.getElementById("exportData").addEventListener("click", ()=>{
+  const json = JSON.stringify(store, null, 2), name = "LMK-data.json";
+  try {
+    if (MODE === "web") {
+      const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([json], {type:"application/json"})); a.download = name;
+      document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+      toast("Downloaded LMK-data.json — everything LMK knows about you, in one file.");
+    } else {
+      navigator.clipboard.writeText(json).then(() => toast("Copied your data as text — paste it into any file to keep it."), () => toast("Couldn't copy here."));
+    }
+  } catch(_) { toast("Couldn't export here."); }
+});
 document.getElementById("clearProgress").addEventListener("click", ()=>{
   store.done={}; store.dropped={}; store.starred={}; store.triaged={}; store.streakDays=[];
   save(); render();
@@ -2232,12 +2284,12 @@ function openDetail(id){
     </div>
     <div style="display:flex;align-items:center;gap:9px;margin:0 0 8px;font-size:13.5px;flex-wrap:wrap">
       <b>Size & start:</b>
-      <select id="ddEffort" style="border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:7px 9px;font:inherit;font-size:13px">${["quick","medium","big"].map(v => `<option value="${v}" ${e.effort === v ? "selected" : ""}>${EFFORT[v].label} · ~${EFFORT[v].mins}m</option>`).join("")}</select>
-      <select id="ddLead" style="border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:7px 9px;font:inherit;font-size:13px">${[1,2,3,4,5,7].map(v => `<option value="${v}" ${leadFor(e) === v ? "selected" : ""}>start ${v}d before</option>`).join("")}</select>
+      <select id="ddEffort" aria-label="Size" style="border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:7px 9px;font:inherit;font-size:13px">${["quick","medium","big"].map(v => `<option value="${v}" ${e.effort === v ? "selected" : ""}>${EFFORT[v].label} · ~${EFFORT[v].mins}m</option>`).join("")}</select>
+      <select id="ddLead" aria-label="Start how many days before" style="border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:7px 9px;font:inherit;font-size:13px">${[1,2,3,4,5,7].map(v => `<option value="${v}" ${leadFor(e) === v ? "selected" : ""}>start ${v}d before</option>`).join("")}</select>
     </div>
     <div style="display:flex;align-items:center;gap:9px;margin:0 0 8px;font-size:13.5px;flex-wrap:wrap">
       <b>Type:</b>
-      <select id="ddKind" style="border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:7px 9px;font:inherit;font-size:13px">${Object.keys(KIND).map(k => `<option value="${k}" ${e.kind === k ? "selected" : ""}>${KIND[k].icon} ${KIND[k].label}</option>`).join("")}</select>
+      <select id="ddKind" aria-label="Type" style="border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:7px 9px;font:inherit;font-size:13px">${Object.keys(KIND).map(k => `<option value="${k}" ${e.kind === k ? "selected" : ""}>${KIND[k].icon} ${KIND[k].label}</option>`).join("")}</select>
       <span style="font-size:12px;color:var(--muted)">${e.kind === "inclass" ? "Show-up item: no start reminder, never nags." : "Pick “In class” for things done during lecture."}</span>
     </div>
     ${e.aiWhy ? `<p class="privacy" style="margin:0 0 10px">🧠 <b>LMK's read:</b> ${esc(e.aiWhy)} — sized ${EFFORT[e.effort].label}, start ${leadFor(e)}d before it's due. Adjust above if it's wrong.</p>` : ""}
