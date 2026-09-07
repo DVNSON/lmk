@@ -550,6 +550,7 @@
       <p class="sub2">Add it to Chrome, then open Canvas once like you normally would. Come back to LMK and refresh; the first refresh or two can still be empty while it syncs, and that's normal. LMK learns every assignment, what's already submitted, your scores, and which items are in-class or not graded. It re-syncs whenever you're in Canvas.</p>
       <div class="row" style="margin-top:4px"><a class="btn grad" id="setupInstall" href="#" target="_blank" rel="noopener">Add to Chrome →</a></div>
       <p class="sub2" id="setupPhone" style="margin:10px 0 0;font-size:12.5px" hidden>On a phone? Set up on a laptop once, then sign in with Google (bottom of the page) and your plan appears here.</p>
+      <div class="adm-row" id="setupDrive" style="margin:12px 0 0;font-size:13px;color:var(--ink-2)" hidden></div>
     </div>
 
     <div class="setupway">
@@ -969,7 +970,37 @@ function applyCanvasPayload(p, opts = {}){
   return {n, newDone, newGrades, shelfAdd};
 }
 /* The extension says hello when it is on the page — so "installed but never synced" gets its own guidance. */
-const EXT = {present:false, version:""};
+const EXT = {present:false, version:"", drive:{state:"off"}};
+/* ---- the extension can save each Canvas sync to the student's Drive itself ----
+   That is what keeps a phone fresh when no laptop tab has LMK open. The page only ever asks the
+   extension to connect or disconnect; the extension holds the Google token, never the page. */
+function driveOfferPossible(){ return MODE === "web" && !IS_MOBILE && EXT.present; }
+function driveConnect(){ toast("Opening Google…"); try { window.postMessage({lmk:"drive-connect"}, "*"); } catch(_){} }
+function driveDisconnect(){ try { window.postMessage({lmk:"drive-disconnect"}, "*"); } catch(_){} }
+function renderDriveOffer(){
+  const el = document.getElementById("setupDrive"); if (!el) return;
+  if (!driveOfferPossible()) { el.hidden = true; return; }
+  const st = EXT.drive || {state:"off"};
+  let html = "";
+  if (!drive.ready) html = `<span>Sign in with Google (bottom of the page) and the extension can also save each Canvas sync to your Drive, so your phone stays fresh even when this tab is closed.</span>`;
+  else if (st.state === "on") html = `<span>✓ The extension saves each Canvas sync to your Drive${st.pushedAt ? " · last " + new Date(st.pushedAt).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) : ""}. Your phone picks it up by itself.</span><button class="minibtn drop" data-act="drive-off">Turn off</button>`;
+  else if (st.state === "needs-signin") html = `<span>The extension needs a fresh Google sign-in to keep saving your Canvas sync to your Drive.${/could not be loaded|redirect/i.test(st.err || "") && st.redirect ? ` <span style="color:var(--muted)">(Developer note: Google refused the extension's address. Add <span style="font-family:'Spline Sans Mono',monospace;font-size:12px">${esc(st.redirect)}</span> to the OAuth client's redirect URIs.)</span>` : ""}</span><button class="minibtn" data-act="drive-on">Sign in</button>`;
+  else html = `<span><b>Keep your phone fresh.</b> Let the extension save each Canvas sync to your Drive, even when LMK isn't open here. One Google window, same account.</span><button class="minibtn" data-act="drive-on">Turn on</button>`;
+  el.innerHTML = html; el.hidden = false;
+}
+document.getElementById("setupDrive").addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  if (b.dataset.act === "drive-on") driveConnect();
+  if (b.dataset.act === "drive-off") driveDisconnect();
+});
+/* Once, right after a laptop sign-in with the extension present: a single toast, never a nag. */
+function maybeOfferDrive(){
+  if (!driveOfferPossible() || !drive.ready || (EXT.drive || {}).state !== "off") return;
+  let seen = false; try { seen = localStorage.getItem("lmk_drive_offer") === "1"; } catch(_){}
+  if (seen) return;
+  try { localStorage.setItem("lmk_drive_offer", "1"); } catch(_){}
+  toast("Want your phone to stay fresh even when this tab is closed?", {label:"Turn on", fn: driveConnect});
+}
 function applyExtPresence(){
   const b = document.getElementById("setupInstall"); if (!b) return;
   if (EXT.present) { b.textContent = "Extension installed ✓ · Open Canvas →"; b.href = LMK_CONFIG.canvasUrl; }
@@ -988,7 +1019,12 @@ function nudgeExtension(){
 window.addEventListener("message", ev => {
   const d = ev.data;
   if (d && d.lmk === "canvas-payload" && d.payload) applyCanvasPayload(d.payload);
-  if (d && d.lmk === "ext-hello" && !EXT.present) { EXT.present = true; EXT.version = String(d.version || ""); applyExtPresence(); if (!store.ext) render(); }
+  if (d && d.lmk === "ext-hello" && !EXT.present) { EXT.present = true; EXT.version = String(d.version || ""); applyExtPresence(); renderDriveOffer(); if (!store.ext) render(); }
+  if (d && d.lmk === "drive-status" && d.drive) {
+    const was = (EXT.drive || {}).state; EXT.drive = d.drive; renderDriveOffer();
+    if (was !== "on" && d.drive.state === "on") toast("Done. The extension now saves each Canvas sync to your Drive, and your phone picks it up.");
+    else if (was !== d.drive.state && d.drive.state === "needs-signin") toast("Google sign-in didn't finish. Nothing changed; try again from the gear menu.");
+  }
 });
 let repairToast = 0;
 function loadData(){
@@ -1922,7 +1958,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v28.4";
+const APP_BUILD = "v29.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -2170,6 +2206,7 @@ document.addEventListener("mousemove", e=>{
 const overlay = document.getElementById("overlay");
 document.getElementById("gearBtn").addEventListener("click", ()=>{
   document.getElementById("courseList2").innerHTML = COURSES.map(c=>`<option value="${esc(c)}">`).join("");
+  renderDriveOffer();
   overlay.classList.add("open");
 });
 document.getElementById("closeModal").addEventListener("click", ()=>overlay.classList.remove("open"));
@@ -2768,7 +2805,31 @@ async function gdFetch(url, opts = {}){
   if (r.status === 401) { gd.token = null; const t2 = await gdToken(false); return fetch(url, Object.assign({}, opts, {headers: Object.assign({Authorization: "Bearer " + t2}, opts.headers || {})})); }
   return r;
 }
+/* The extension's own file. Applied only when it is newer than the sync this device already holds,
+   through the same applyCanvasPayload every other route uses — same evidence rules, same shelf. */
+const CANVAS_FILE = "LMK-canvas.json";
+function applyDriveCanvas(p){
+  if (!p || p.lmk !== "canvas" || !p.items || typeof p.items !== "object") return false;
+  if (store.ext && (store.ext.at || 0) >= (p.at || 0)) return false;
+  const r = applyCanvasPayload(p, {quiet:true});
+  return !!(r && !r.same);
+}
+async function gdriveCanvasPull(){
+  try {
+    const q = encodeURIComponent("name='" + CANVAS_FILE + "' and trashed=false");
+    const r = await gdFetch("https://www.googleapis.com/drive/v3/files?q=" + q + "&fields=files(id,modifiedTime)&orderBy=modifiedTime desc");
+    if (!r.ok) return;
+    const f = ((await r.json()).files || [])[0];
+    if (!f || f.modifiedTime === gd.canvasSeen) return;
+    gd.canvasSeen = f.modifiedTime;
+    const d = await gdFetch("https://www.googleapis.com/drive/v3/files/" + f.id + "?alt=media");
+    if (!d.ok) return;
+    let p = null; try { p = await d.json(); } catch(_){}
+    if (applyDriveCanvas(p)) syncBadge("☁ Canvas sync picked up from your Drive · " + new Date().toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}));
+  } catch(_){}
+}
 async function gdrivePull(){
+  await gdriveCanvasPull();
   const q = encodeURIComponent("name='" + SYNC_FILE + "'");
   const r = await gdFetch("https://www.googleapis.com/drive/v3/files?q=" + q + "&fields=files(id,modifiedTime)&orderBy=modifiedTime desc");
   if (!r.ok) throw new Error("list " + r.status);
@@ -2838,6 +2899,7 @@ async function initWebSync(){
     if (drive.everRead && store.onboarded) welcomeOverlay.classList.remove("open");
     scheduleDrivePush();
     syncBadge("☁ Synced to your Google Drive", "Saved as LMK-data.json in your Drive. Only you and LMK can read it.");
+    renderDriveOffer(); setTimeout(maybeOfferDrive, 4000);
   } catch(_) {
     syncBadge("☁ Sync across devices — tap to sign in with Google");
   }
@@ -2853,12 +2915,31 @@ async function webSignIn(){
     await gdrivePush();
     loadData(); render();
     toast("Synced. Open LMK on your phone and sign in with the same Google account.");
+    renderDriveOffer(); setTimeout(maybeOfferDrive, 5000);
   } catch(err) {
     syncBadge("☁ Sync across devices — tap to sign in with Google");
     toast("Google sign-in didn't finish. Nothing was lost — your work is saved on this device.");
   }
 }
+async function driveCanvasPull(){
+  if (Date.now() - (drive.canvasCheckedAt || 0) < 30 * 60e3) return;
+  drive.canvasCheckedAt = Date.now();
+  try {
+    const res = await drive.mcp.callTool(drive.server, "search_files",
+      {query: `title = '${CANVAS_FILE}' and owner = 'me'`, pageSize: 3, excludeContentSnippets: true}, {cache: false});
+    const files = (res.payload && res.payload.files) || [];
+    if (!files.length) return;
+    files.sort((x, y) => (y.modifiedTime || y.createdTime || "").localeCompare(x.modifiedTime || x.createdTime || ""));
+    const stamp = files[0].modifiedTime || files[0].createdTime || files[0].id;
+    if (stamp === drive.canvasSeen) return;
+    drive.canvasSeen = stamp;
+    const dl = await drive.mcp.callTool(drive.server, "download_file_content", {fileId: files[0].id}, {cache: false});
+    let p = null; try { p = JSON.parse(b64decode(dl.payload && dl.payload.content || "")); } catch(_){}
+    applyDriveCanvas(p);
+  } catch(_){}
+}
 async function drivePull(){
+  await driveCanvasPull();
   const res = await drive.mcp.callTool(drive.server, "search_files",
     {query: `title = '${SYNC_FILE}' and owner = 'me'`, pageSize: 10, excludeContentSnippets: true}, {cache: false});
   const files = (res.payload && res.payload.files) || [];
@@ -3284,7 +3365,7 @@ async function loadRemoteConfig(){
   $("setupSync").innerHTML = MODE === "artifact"
     ? "<b>Cloud sync:</b> with the Google Drive connector added (claude.ai Settings → Connectors), your checkmarks, notes and added assignments save to a private <b>LMK-data.json</b> in your own Google Drive and follow you across devices. Nobody can see anyone else's data."
     : gdReady()
-    ? "<b>Cloud sync:</b> sign in with Google (bottom of the page) and your checkmarks, notes and added assignments save to a private <b>LMK-data.json</b> in your own Google Drive and follow you to your phone. Not signed in? Everything still works, saved on this device."
+    ? "<b>Cloud sync:</b> sign in with Google (bottom of the page) and your checkmarks, notes and added assignments save to a private <b>LMK-data.json</b> in your own Google Drive and follow you to your phone. With the extension's Drive saving on, each Canvas sync lands there too as <b>LMK-canvas.json</b>. Not signed in? Everything still works, saved on this device."
     : "<b>Saved on this device.</b> Nothing is sent anywhere.";
   const rs = $("resetSample");
   if (SEED_EMPTY) rs.hidden = true; else rs.textContent = "Back to " + SEED_LABEL;
