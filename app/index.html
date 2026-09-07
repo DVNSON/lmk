@@ -547,7 +547,7 @@
 
     <div class="setupway" id="setupExt">
       <h3 class="h4">Chrome extension</h3>
-      <p class="sub2">Add it to Chrome, then open Canvas once like you normally would. LMK learns every assignment, what's already submitted, your scores, and which items are in-class or not graded. It re-syncs whenever you're in Canvas.</p>
+      <p class="sub2">Add it to Chrome, then open Canvas once like you normally would. Come back to LMK and refresh; the first refresh or two can still be empty while it syncs, and that's normal. LMK learns every assignment, what's already submitted, your scores, and which items are in-class or not graded. It re-syncs whenever you're in Canvas.</p>
       <div class="row" style="margin-top:4px"><a class="btn grad" id="setupInstall" href="#" target="_blank" rel="noopener">Add to Chrome →</a></div>
       <p class="sub2" id="setupPhone" style="margin:10px 0 0;font-size:12.5px" hidden>On a phone? Set up on a laptop once, then sign in with Google (bottom of the page) and your plan appears here.</p>
     </div>
@@ -604,7 +604,7 @@
     <div class="wstep"><span class="wnum">1</span><div><b>What should LMK call you?</b>
       <input id="wName" placeholder="First name" autocomplete="off"></div></div>
     <div class="wstep"><span class="wnum">2</span><div><b id="wHead2">Get your classes in.</b>
-      <span class="whint" id="wBody2">Add the LMK for Canvas extension to Chrome, then open Canvas once. Everything lands here by itself.</span>
+      <span class="whint" id="wBody2">Add the LMK for Canvas extension to Chrome, then open Canvas once like you normally would. Come back here and your classes appear. Still empty? That's normal for the first minute: refresh this page a couple of times.</span>
       <div class="wact">
         <a class="btn grad" id="wInstall" href="#" target="_blank" rel="noopener">Add to Chrome →</a>
         <button class="btn grad" id="wSignin" hidden>Sign in with Google</button>
@@ -973,6 +973,17 @@ const EXT = {present:false, version:""};
 function applyExtPresence(){
   const b = document.getElementById("setupInstall"); if (!b) return;
   if (EXT.present) { b.textContent = "Extension installed ✓ · Open Canvas →"; b.href = LMK_CONFIG.canvasUrl; }
+}
+/* While the first-run card is waiting on Canvas, ask the extension every few seconds for whatever it
+   has. The extension answers a "canvas-ping" with its latest payload, so the sync the student just
+   did in the Canvas tab shows up here without a manual refresh. Stops itself once classes arrive. */
+let nudgeTimer = 0;
+function nudgeExtension(){
+  if (nudgeTimer) return;
+  nudgeTimer = setInterval(() => {
+    if (store.ext || !EXT.present) { clearInterval(nudgeTimer); nudgeTimer = 0; return; }
+    try { window.postMessage({lmk:"canvas-ping"}, "*"); } catch(_){}
+  }, 4000);
 }
 window.addEventListener("message", ev => {
   const d = ev.data;
@@ -1558,19 +1569,20 @@ function renderNow(root){
         <div class="kicker">${installed ? "One step left" : "First run"}</div>
         <h1>${phone ? "Set up once on a laptop." : installed ? "Extension installed. Now open Canvas once." : "Let's get your classes in."}</h1>
         <div class="why">${phone
-          ? "Add the <b>LMK for Canvas</b> extension to Chrome on a laptop and open Canvas once. Then sign in with Google here and your plan appears on this phone."
-          : installed ? "Open Canvas like you normally would and your classes land here by themselves, usually within a few seconds. Not at ASU? Open your own school's Canvas — any instructure.com address works."
-          : "Add the <b>LMK for Canvas</b> extension to Chrome, then open Canvas once like you normally would. Everything lands here by itself — about a minute."}</div>
+          ? "Add the <b>LMK for Canvas</b> extension to Chrome on a laptop and open Canvas once. Then sign in with Google here and your plan appears on this phone. Still empty after signing in? Reload this page once or twice; the first sync takes a minute."
+          : installed ? "Open Canvas like you normally would, then come back to this tab. Your classes land here by themselves, usually within a few seconds; if it still looks empty, refresh this page a couple of times. Not at ASU? Open your own school's Canvas — any instructure.com address works."
+          : "Three steps, about a minute: <b>1.</b> Add the <b>LMK for Canvas</b> extension to Chrome. <b>2.</b> Open Canvas once like you normally would. <b>3.</b> Come back here and refresh. LMK stays empty until you've opened Canvas, and the first refresh or two can still show nothing while it syncs. That's normal."}</div>
         <div class="actions">
           ${phone ? (gdReady() ? `<button class="btn grad" data-act="web-signin">Sign in with Google</button>` : "")
                   : installed ? `<a class="btn grad" href="${LMK_CONFIG.canvasUrl}" target="_blank" rel="noopener">Open Canvas →</a>`
                   : `<a class="btn grad" href="${LMK_CONFIG.storeUrl}" target="_blank" rel="noopener">Add to Chrome →</a>`}
           ${!phone && !installed ? `<a class="btn ghost" href="${LMK_CONFIG.canvasUrl}" target="_blank" rel="noopener" title="Already added the extension? This is the only other step.">Already added it? Open Canvas →</a>` : ""}
+          ${!phone ? `<button class="btn ghost" data-act="reload" title="Opened Canvas already? This checks again.">Refresh</button>` : ""}
           ${!phone && MODE === "web" && gdReady() ? `<button class="btn ghost" data-act="web-signin">Sign in with Google</button>` : ""}
           <button class="btn ghost" data-act="open-gear">Other ways</button>
         </div>
       </div>`;
-      root.innerHTML = html; return;
+      root.innerHTML = html; if (installed) nudgeExtension(); return;
     }
     html += `<div class="card hero clear" style="--hero-tint:color-mix(in srgb, var(--good) 18%, transparent)"><div class="kicker">Next up</div><h1>All clear. Actually clear.</h1><div class="why">Every assignment in view is done or scheduled ahead. Go touch grass — you earned it.</div></div>`;
   }
@@ -1910,7 +1922,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v28.3";
+const APP_BUILD = "v28.4";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -2102,6 +2114,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
     store.capacity = Object.assign({}, CAP_DEFAULT, store.capacity || {}); store.capacity[act.dataset.kind] = +act.dataset.v; save(); render();
   }
   else if (a==="gbreak") openGradeDetail(act.dataset.course);
+  else if (a==="reload") { location.reload(); }
   else if (a==="open-gear") { const g = document.getElementById("gearBtn"); if (g) g.click(); }
   else if (a==="web-signin") { webSignIn(); }
   else if (a==="triage-more") { triageOpen = true; render(); }
@@ -3004,7 +3017,7 @@ function openWelcome(){
     set("wBody3", "You're in through your claude.ai account, and everything saves privately to your own Google Drive. LMK shares only anonymous minutes per assignment with other students in your courses — no names, no grades — so everyone's estimates get better.");
   } else if (IS_MOBILE) {
     set("wHead2", "Set up once on a laptop.");
-    set("wBody2", "Add the LMK for Canvas extension to Chrome there and open Canvas once. Then sign in with Google here and your plan appears on this phone.");
+    set("wBody2", "Add the LMK for Canvas extension to Chrome there and open Canvas once. Then sign in with Google here and your plan appears on this phone. Still empty after signing in? Reload this page once or twice; the first sync takes a minute.");
     show("wInstall", false); show("wSignin", gdReady()); show("wAct3", false);
   } else {
     show("wInstall", true); show("wSignin", false); show("wAct3", gdReady());
