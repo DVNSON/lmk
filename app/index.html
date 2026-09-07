@@ -1565,6 +1565,7 @@ function renderNow(root){
           ${phone ? (gdReady() ? `<button class="btn grad" data-act="web-signin">Sign in with Google</button>` : "")
                   : installed ? `<a class="btn grad" href="${LMK_CONFIG.canvasUrl}" target="_blank" rel="noopener">Open Canvas →</a>`
                   : `<a class="btn grad" href="${LMK_CONFIG.storeUrl}" target="_blank" rel="noopener">Add to Chrome →</a>`}
+          ${!phone && !installed ? `<a class="btn ghost" href="${LMK_CONFIG.canvasUrl}" target="_blank" rel="noopener" title="Already added the extension? This is the only other step.">Already added it? Open Canvas →</a>` : ""}
           ${!phone && MODE === "web" && gdReady() ? `<button class="btn ghost" data-act="web-signin">Sign in with Google</button>` : ""}
           <button class="btn ghost" data-act="open-gear">Other ways</button>
         </div>
@@ -1909,7 +1910,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v28.1";
+const APP_BUILD = "v28.2";
 let lastErr = null;
 function reportErr(e, where){
   try {
