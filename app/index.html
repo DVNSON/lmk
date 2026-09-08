@@ -566,6 +566,11 @@
       <div class="adm-row" id="setupCloud" style="margin:12px 0 0;font-size:13px;color:var(--ink-2)" hidden></div>
     </div>
 
+    <div class="setupway" id="plusWay" hidden>
+      <h3 class="h4">LMK Plus</h3>
+      <div class="adm-row" id="plusStatus" style="font-size:13px;color:var(--ink-2)"></div>
+    </div>
+
     <details class="setupway" id="cloudTokenWay" hidden>
       <summary class="h4">Or connect Canvas with an access token</summary>
       <p class="sub2">For a phone with no laptop around: in Canvas open Account → Settings → <b>New Access Token</b>, copy it, and paste it here. LMK's server then reads your Canvas for you and this phone stays fresh by itself. Delete the token in Canvas any time to stop.</p>
@@ -1507,10 +1512,49 @@ const AI_TARGETS = [
   {id:"gemini",  name:"Gemini",  url: () => "https://gemini.google.com/app", copyFirst: true},
 ];
 const aiOverlay = document.getElementById("aiOverlay");
+/* ---- LMK Plus ----
+   The offer (link, portal, price) comes from /config; the student's own standing from /plus/status.
+   Paying happens on Stripe with the random sync id attached; the worker learns about it from Stripe,
+   never from this page, so nothing here can grant Plus. */
+const PLUS = {offer:null, me:null, at:0};
+function plusPossible(){ return MODE === "web" && !!LMK_CONFIG.statsUrl && cloudPossible() && !!(store.cloud && store.cloud.sid && store.cloud.secret); }
+function plusLink(){ const l = PLUS.offer && PLUS.offer.link; return l && /^https:\/\/buy\.stripe\.com\//.test(l) ? l + (l.includes("?") ? "&" : "?") + "client_reference_id=" + encodeURIComponent(store.cloud.sid) : ""; }
+async function plusRefresh(force){
+  if (!plusPossible()) return;
+  if (!force && Date.now() - PLUS.at < 5 * 60e3) return;
+  PLUS.at = Date.now();
+  try {
+    const r = await fetch(apiUrl("/plus/status"), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"}, body: JSON.stringify({sid: store.cloud.sid, secret: store.cloud.secret})});
+    if (r.ok) { const j = await r.json(); if (j.ok) { PLUS.me = j; if (!PLUS.offer && j.link !== undefined) PLUS.offer = {link: j.link, portal: j.portal, price: j.price}; } }
+  } catch(_){}
+  renderPlus();
+}
+function renderPlus(){
+  const way = document.getElementById("plusWay"), el = document.getElementById("plusStatus"); if (!way || !el) return;
+  const offer = PLUS.offer || {}, me = PLUS.me;
+  if (!plusPossible() || (!offer.link && !(me && me.plus))) { way.hidden = true; return; }
+  const weekly = offer.weekly || (me && me.weekly) || 40, price = offer.price || (me && me.price) || "";
+  let html;
+  if (me && me.plus && me.early && !me.paid) html = `<span>✓ <b>Plus is yours free, for as long as LMK exists.</b> You were here before it existed. That means ${weekly} tutor messages a week and whatever comes next.</span>`;
+  else if (me && me.plus) html = `<span>✓ <b>You're on Plus.</b> ${weekly} tutor messages a week${me.credits ? ", plus " + me.credits + " credits" : ""}.${me.until ? " Renews " + FMT_DAY.format(new Date(me.until - 3 * 864e5)) + "." : ""}</span>${offer.portal ? `<a class="minibtn" href="${esc(offer.portal)}" target="_blank" rel="noopener">Manage billing</a>` : ""}`;
+  else if (me && me.status === "canceled") html = `<span>Your Plus subscription ended. The free version keeps everything else.</span>${plusLink() ? `<a class="btn grad" href="${esc(plusLink())}" target="_blank" rel="noopener">Get Plus again · ${esc(price)}</a>` : ""}`;
+  else html = `<span><b>LMK Plus</b> · ${esc(price)}. ${weekly} tutor messages a week instead of ${offer.freeWeekly != null ? offer.freeWeekly : "a few"}, and first access to what's next. Cancel any time; nothing about you is stored but a random id.</span>${plusLink() ? `<a class="btn grad" href="${esc(plusLink())}" target="_blank" rel="noopener">Get Plus</a>` : ""}`;
+  el.innerHTML = html; way.hidden = false;
+}
+/* Back from Stripe: the link's success page sends the student to #plus=ok; ask the worker a few times, since the webhook can lag a moment. */
+(function plusReturn(){
+  try {
+    if (!/#plus=ok/.test(location.hash)) return;
+    history.replaceState(null, "", location.pathname + location.search);
+    let tries = 0;
+    const poll = async () => { tries++; await plusRefresh(true); if (PLUS.me && PLUS.me.plus) { toast("Welcome to Plus. Thank you for backing LMK."); TUTOR.state = "unknown"; return; } if (tries < 6) setTimeout(poll, 3000); else toast("Payment received? Plus shows up here within a minute or two."); };
+    setTimeout(poll, 1500);
+  } catch(_){}
+})();
 /* ---- the tutor inside LMK ----
    The worker holds the key and the allowance; the page sends only this assignment's context and the
    conversation. Threads live on this device (localStorage), never in the synced store. */
-const TUTOR = {threads:{}, busy:false, left:null, weekly:null, state:"unknown"};
+const TUTOR = {threads:{}, busy:false, left:null, weekly:null, state:"unknown", plus:false, credits:0};
 function tutorPossible(){ return MODE === "web" && !!LMK_CONFIG.statsUrl && cloudPossible() && !!(store.cloud && store.cloud.sid && store.cloud.secret); }
 function tutorThread(id){
   if (!TUTOR.threads[id]) { try { TUTOR.threads[id] = JSON.parse(localStorage.getItem("lmk_tutor_" + id) || "[]"); } catch(_) { TUTOR.threads[id] = []; } }
@@ -1533,9 +1577,10 @@ function tutorRenderThread(id){
 }
 function tutorNote(){
   const el = document.getElementById("aiNote"); if (!el) return;
+  const plusBtn = !TUTOR.plus && plusLink() ? ` <a class="minibtn" href="${esc(plusLink())}" target="_blank" rel="noopener">Get Plus · ${String((PLUS.offer && PLUS.offer.weekly) || 40)} a week</a>` : "";
   if (TUTOR.state === "off") el.textContent = "The tutor is resting right now. Your own AI below still works.";
-  else if (TUTOR.state === "allowance") el.textContent = `You've used this week's ${TUTOR.weekly || ""} free messages. Resets Monday; your own AI below is unlimited.`;
-  else if (TUTOR.left != null) el.textContent = `${TUTOR.left} of ${TUTOR.weekly} free messages left this week · nothing here is graded or saved to your account.`;
+  else if (TUTOR.state === "allowance") el.innerHTML = `You've used this week's ${TUTOR.weekly || ""} ${TUTOR.plus ? "" : "free "}messages. Resets Monday; your own AI below is unlimited.${plusBtn}`;
+  else if (TUTOR.left != null) el.innerHTML = `${TUTOR.left} of ${TUTOR.weekly} ${TUTOR.plus ? "Plus" : "free"} messages left this week${TUTOR.credits ? " · " + TUTOR.credits + " credits after that" : ""} · nothing here is graded or saved to your account.`;
   else el.textContent = "A few free messages a week · nothing here is graded or saved to your account.";
 }
 async function tutorBalance(){
@@ -1543,7 +1588,7 @@ async function tutorBalance(){
   try {
     const r = await fetch(apiUrl("/tutor"), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"}, body: JSON.stringify({sid: store.cloud.sid, secret: store.cloud.secret, balance: true})});
     const j = await r.json();
-    if (j.ok) { TUTOR.left = j.left; TUTOR.weekly = j.weekly; TUTOR.state = j.on ? (j.left > 0 ? "ok" : "allowance") : "off"; }
+    if (j.ok) { TUTOR.left = j.left; TUTOR.weekly = j.weekly; TUTOR.plus = !!j.plus; TUTOR.credits = j.credits || 0; TUTOR.state = j.on ? ((j.left > 0 || TUTOR.credits > 0) ? "ok" : "allowance") : "off"; }
   } catch(_){}
   tutorNote();
 }
@@ -1565,7 +1610,7 @@ async function tutorSend(id){
       bubble.textContent = j.error === "allowance" ? "That's this week's free messages used up. The buttons below open your own AI with the same prompt, no limit." : j.error === "network" ? "A lot of people on this network are using the tutor right now. Try again later, or use your own AI below." : r.status === 503 ? "The tutor is resting right now. Your own AI below still works." : "The tutor couldn't answer just now. Try again in a moment.";
       tutorNote(); return;
     }
-    TUTOR.left = +r.headers.get("x-lmk-left"); TUTOR.weekly = +r.headers.get("x-lmk-weekly"); TUTOR.state = "ok"; tutorNote();
+    TUTOR.left = +r.headers.get("x-lmk-left"); TUTOR.weekly = +r.headers.get("x-lmk-weekly"); TUTOR.plus = r.headers.get("x-lmk-plus") === "1"; TUTOR.credits = +(r.headers.get("x-lmk-credits") || 0); TUTOR.state = "ok"; tutorNote();
     bubble.classList.remove("thinking"); bubble.textContent = "";
     const reader = r.body.getReader(), dec = new TextDecoder(); let out = "";
     for (;;) { const {value, done} = await reader.read(); if (done) break; out += dec.decode(value, {stream:true}); bubble.textContent = out; box.scrollTop = box.scrollHeight; }
@@ -2243,7 +2288,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v31.1";
+const APP_BUILD = "v32.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -2441,6 +2486,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="adm-save-store") { adminSave({storeUrl: document.getElementById("admStore").value.trim().slice(0, 300)}); }
   else if (a==="adm-copy-csv") { adminCopyCsv(); }
   else if (a==="adm-pause") { adminSave({cloudPaused: !!act.checked}); }
+  else if (a==="adm-save-plus") { const g = id => document.getElementById(id); adminSave({plusLink: g("admPlusLink").value.trim().slice(0, 300), plusPortal: g("admPlusPortal").value.trim().slice(0, 300), plusPrice: g("admPlusPrice").value.trim().slice(0, 24), plusLaunch: g("admPlusLaunch").value, tutorPlusWeekly: Math.max(0, +g("admPlusWeekly").value || 0)}); }
   else if (a==="adm-save-tutor") { const g = id => document.getElementById(id); adminSave({tutorOn: g("admTutorOn").checked, tutorWeekly: Math.max(0, +g("admTutorWeekly").value || 0), tutorDaily: Math.max(0, +g("admTutorDaily").value || 0), tutorModel: g("admTutorModel").value}); }
   else if (a==="adm-lookup") { adminLookup(); }
   else if (a==="adm-student") { adminStudent(act.dataset.sid, act.dataset.do); }
@@ -2490,7 +2536,7 @@ document.addEventListener("mousemove", e=>{
 const overlay = document.getElementById("overlay");
 document.getElementById("gearBtn").addEventListener("click", ()=>{
   document.getElementById("courseList2").innerHTML = COURSES.map(c=>`<option value="${esc(c)}">`).join("");
-  renderDriveOffer(); renderBgStatus(); renderCloudStatus();
+  renderDriveOffer(); renderBgStatus(); renderCloudStatus(); renderPlus(); plusRefresh(false);
   overlay.classList.add("open");
 });
 document.getElementById("closeModal").addEventListener("click", ()=>overlay.classList.remove("open"));
@@ -3674,6 +3720,16 @@ function renderAdmin(root){
       probs.map(p => `<tr style="border-top:1px solid var(--line)"><td style="padding:7px 8px;font-family:'Spline Sans Mono',monospace">${esc(p.sid.slice(0, 8))}</td><td>${esc(p.host)}</td><td>${p.courses}</td><td>${ago(p.synced_at)}</td><td>${!p.active ? "paused" : p.err ? `<span style="color:var(--critical-text)">${esc(p.err)}</span>` : "stale"}</td>
         <td style="white-space:nowrap;text-align:right">${p.active ? `<button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="retry">Retry</button> <button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="pause">Pause</button>` : `<button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="resume">Resume</button>`} <button class="minibtn drop" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="forget">Forget</button></td></tr>`).join("") + `</tbody></table></div>` : `<p class="sub2" style="margin:0">No stale, paused or failing students right now.</p>`}
   </div>`;
+  // ---- Plus: the money side, in one place ----
+  const PL = d.plus || {};
+  html += `<div class="card adm-card"><h3>LMK Plus</h3><p class="sub2">${PL.webhook ? "" : "<b>Webhook secret not set:</b> run <span style=\"font-family:'Spline Sans Mono',monospace\">npx wrangler secret put STRIPE_WEBHOOK_SECRET</span> or payments can't be recognised. "}<b>${PL.active || 0}</b> active subscriber${PL.active === 1 ? "" : "s"} · ${PL.ever || 0} ever · ${PL.creditsOutstanding || 0} credits outstanding. Payments happen on Stripe with the student's random id attached; only Stripe's webhook can grant Plus. Ids seen before the launch date get Plus free for life, as the terms promise.</p>
+    <div class="adm-form">
+      <div class="adm-row"><input id="admPlusLink" type="url" placeholder="Stripe Payment Link (https://buy.stripe.com/…)" value="${esc(PL.plusLink || "")}" style="flex:2 1 260px"><input id="admPlusPortal" type="url" placeholder="Customer portal link (https://billing.stripe.com/…)" value="${esc(PL.plusPortal || "")}" style="flex:2 1 260px"></div>
+      <div class="adm-row"><label class="ck">Shown price <input id="admPlusPrice" type="text" maxlength="24" value="${esc(PL.plusPrice || "$4/month")}" style="width:110px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:6px 8px;font:inherit"></label>
+        <label class="ck">Launch date <input id="admPlusLaunch" type="date" value="${esc(PL.plusLaunch || "")}" title="Everyone whose id the worker saw before this day is Plus for life"></label>
+        <label class="ck">Plus tutor messages per week <input id="admPlusWeekly" type="number" min="0" max="1000" value="${+PL.tutorPlusWeekly || 40}" style="width:80px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:6px 8px;font:inherit"></label>
+        <span class="sp" style="flex:1"></span><button class="btn primary" data-act="adm-save-plus">Save Plus settings</button></div>
+    </div></div>`;
   // ---- the tutor: spend switches, in one place ----
   const TU = d.tutor || {};
   html += `<div class="card adm-card"><h3>Tutor</h3><p class="sub2">${TU.configured ? "Claude answers inside the app. " : "<b>Not configured:</b> set the ANTHROPIC_API_KEY secret on the worker and this turns on. "}${T.tutor_msg || 0} messages today${tot.tutor_msg ? ` · ${tot.tutor_msg} in the last 90 days` : ""}. Every message is roughly 2¢ on Opus 5 and 0.7¢ on Sonnet 5; the ceilings below are the only things that can spend money, so set the Anthropic console's monthly limit to match.</p>
@@ -3746,6 +3802,7 @@ async function loadRemoteConfig(){
   }
   if (!cfg) return;
   if (cfg.storeUrl && /^https:\/\/chromewebstore\.google\.com\//.test(cfg.storeUrl)) { LMK_CONFIG.storeUrl = cfg.storeUrl; applyStoreUrl(); }
+  if (cfg.plus && typeof cfg.plus === "object") { PLUS.offer = cfg.plus; renderPlus(); }
   showAnnouncement(cfg.announce);
 }
 
@@ -3794,7 +3851,7 @@ function maybeWelcome(){
   openWelcome();
 }
 setTimeout(maybeWelcome, 9000);
-(MODE === "web" ? initWebSync() : initSync()).catch(() => {}).finally(() => { maybeWelcome(); if (store.onboarded) cloudEnsure(); cloudPull("boot"); });
+(MODE === "web" ? initWebSync() : initSync()).catch(() => {}).finally(() => { maybeWelcome(); if (store.onboarded) cloudEnsure(); cloudPull("boot"); plusRefresh(false); });
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") cloudPull("visible"); });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
 setInterval(() => { render(); cloudPull("tick"); }, 60000);
