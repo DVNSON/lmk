@@ -437,6 +437,17 @@
       @keyframes sheetup{from{transform:translateY(48px);opacity:.5}to{transform:none;opacity:1}}
     }
   }
+  /* ---------- tutor chat ---------- */
+  .chat{display:flex;flex-direction:column;gap:8px;max-height:44vh;overflow-y:auto;padding:4px 2px;margin:10px 0 8px}
+  .msg{max-width:88%;padding:9px 12px;border-radius:14px;font-size:14px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+  .msg.me{align-self:flex-end;background:var(--btn-bg);color:var(--btn-ink);border-bottom-right-radius:4px}
+  .msg.ai{align-self:flex-start;background:var(--surface-2);border:1px solid var(--line);border-bottom-left-radius:4px}
+  .msg.ai.thinking::after{content:"…";animation:dots 1.2s steps(3,end) infinite}
+  @keyframes dots{0%{content:"."}33%{content:".."}66%{content:"..."}}
+  .chatbar{display:flex;gap:8px;align-items:flex-end}
+  .chatbar textarea{flex:1;min-height:44px;max-height:120px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);padding:10px 12px;font:inherit;font-size:14px;resize:none}
+  .chatbar .btn{flex:none}
+  .chatnote{font-size:11.5px;color:var(--muted);margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
   /* ---------- announcement (set by the admin, seen by everyone) ---------- */
   .announce{display:flex;align-items:center;gap:12px;margin:14px 0 -4px;padding:11px 14px;border-radius:12px;font-size:13.5px;
     border:1px solid color-mix(in srgb,var(--c1) 40%,var(--line));background:color-mix(in srgb,var(--c1) 8%,var(--surface))}
@@ -1496,25 +1507,109 @@ const AI_TARGETS = [
   {id:"gemini",  name:"Gemini",  url: () => "https://gemini.google.com/app", copyFirst: true},
 ];
 const aiOverlay = document.getElementById("aiOverlay");
+/* ---- the tutor inside LMK ----
+   The worker holds the key and the allowance; the page sends only this assignment's context and the
+   conversation. Threads live on this device (localStorage), never in the synced store. */
+const TUTOR = {threads:{}, busy:false, left:null, weekly:null, state:"unknown"};
+function tutorPossible(){ return MODE === "web" && !!LMK_CONFIG.statsUrl && cloudPossible() && !!(store.cloud && store.cloud.sid && store.cloud.secret); }
+function tutorThread(id){
+  if (!TUTOR.threads[id]) { try { TUTOR.threads[id] = JSON.parse(localStorage.getItem("lmk_tutor_" + id) || "[]"); } catch(_) { TUTOR.threads[id] = []; } }
+  return TUTOR.threads[id];
+}
+function tutorSave(id){ try { localStorage.setItem("lmk_tutor_" + id, JSON.stringify(tutorThread(id).slice(-12))); } catch(_){} }
+function tutorCtx(e){
+  const days = Math.max(0, Math.floor((startOfDay(e.due) - startOfDay(now())) / 864e5));
+  const dueSoFar = EVENTS.filter(x => x.course === e.course && x.due < now() && x.kind !== "fyi"), doneIn = dueSoFar.filter(x => store.done[x.id]).length;
+  return {title: e.title, course: e.course, kind: e.exam ? "exam" : (e.kind || "assignment"), due: FMT_DAY.format(e.due) + " · " + FMT_TIME.format(e.due) + (days === 0 ? " (today)" : ` (${days} day${days === 1 ? "" : "s"} from now)`),
+    standing: dueSoFar.length >= 3 ? `finished ${doneIn} of the ${dueSoFar.length} things due so far in this class` : "",
+    desc: e.desc || "", notes: (store.itemNotes || {})[e.id] || "", syllabus: (store.courseNotes || {})[e.course] || ""};
+}
+function tutorRenderThread(id){
+  const box = document.getElementById("aiChat"); if (!box) return;
+  const t = tutorThread(id);
+  box.innerHTML = t.length ? t.map(m => `<div class="msg ${m.role === "user" ? "me" : "ai"}">${esc(m.content)}</div>`).join("")
+    : `<div class="msg ai">Hi. I know this ${esc(tutorCtx(EVENTS.find(x => x.id === id) || {title:"", course:""}).kind)} and what it asks. What are you stuck on, or where do you want to start?</div>`;
+  box.scrollTop = box.scrollHeight;
+}
+function tutorNote(){
+  const el = document.getElementById("aiNote"); if (!el) return;
+  if (TUTOR.state === "off") el.textContent = "The tutor is resting right now. Your own AI below still works.";
+  else if (TUTOR.state === "allowance") el.textContent = `You've used this week's ${TUTOR.weekly || ""} free messages. Resets Monday; your own AI below is unlimited.`;
+  else if (TUTOR.left != null) el.textContent = `${TUTOR.left} of ${TUTOR.weekly} free messages left this week · nothing here is graded or saved to your account.`;
+  else el.textContent = "A few free messages a week · nothing here is graded or saved to your account.";
+}
+async function tutorBalance(){
+  if (!tutorPossible()) return;
+  try {
+    const r = await fetch(apiUrl("/tutor"), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"}, body: JSON.stringify({sid: store.cloud.sid, secret: store.cloud.secret, balance: true})});
+    const j = await r.json();
+    if (j.ok) { TUTOR.left = j.left; TUTOR.weekly = j.weekly; TUTOR.state = j.on ? (j.left > 0 ? "ok" : "allowance") : "off"; }
+  } catch(_){}
+  tutorNote();
+}
+async function tutorSend(id){
+  const ta = document.getElementById("aiInput"); if (!ta || TUTOR.busy) return;
+  const text = ta.value.trim(); if (!text) return;
+  const e = EVENTS.find(x => x.id === id); if (!e) return;
+  const t = tutorThread(id); t.push({role:"user", content:text}); ta.value = ""; tutorSave(id); tutorRenderThread(id);
+  const box = document.getElementById("aiChat"); const bubble = document.createElement("div"); bubble.className = "msg ai thinking"; box.appendChild(bubble); box.scrollTop = box.scrollHeight;
+  TUTOR.busy = true; document.getElementById("aiSend").disabled = true;
+  try {
+    const r = await fetch(apiUrl("/tutor"), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"},
+      body: JSON.stringify({sid: store.cloud.sid, secret: store.cloud.secret, ctx: tutorCtx(e), messages: t.slice(-12)})});
+    if (!r.ok) {
+      let j = {}; try { j = await r.json(); } catch(_){}
+      t.pop(); ta.value = text;
+      TUTOR.state = j.error === "allowance" ? "allowance" : (r.status === 503 ? "off" : TUTOR.state); if (j.error === "allowance") TUTOR.left = 0;
+      bubble.classList.remove("thinking");
+      bubble.textContent = j.error === "allowance" ? "That's this week's free messages used up. The buttons below open your own AI with the same prompt, no limit." : j.error === "network" ? "A lot of people on this network are using the tutor right now. Try again later, or use your own AI below." : r.status === 503 ? "The tutor is resting right now. Your own AI below still works." : "The tutor couldn't answer just now. Try again in a moment.";
+      tutorNote(); return;
+    }
+    TUTOR.left = +r.headers.get("x-lmk-left"); TUTOR.weekly = +r.headers.get("x-lmk-weekly"); TUTOR.state = "ok"; tutorNote();
+    bubble.classList.remove("thinking"); bubble.textContent = "";
+    const reader = r.body.getReader(), dec = new TextDecoder(); let out = "";
+    for (;;) { const {value, done} = await reader.read(); if (done) break; out += dec.decode(value, {stream:true}); bubble.textContent = out; box.scrollTop = box.scrollHeight; }
+    out = (out + dec.decode()).trim(); bubble.textContent = out;
+    t.push({role:"assistant", content: out}); tutorSave(id);
+  } catch(_) {
+    bubble.classList.remove("thinking"); bubble.textContent = "Lost the connection. Your message is still in the box; send it again.";
+    t.pop(); ta.value = text;
+  } finally { TUTOR.busy = false; const b = document.getElementById("aiSend"); if (b) b.disabled = false; }
+}
 function openStudy(id){
   const e = EVENTS.find(x => x.id === id); if (!e) return;
   let pref = ""; try { pref = localStorage.getItem("lmk_ai_pref") || ""; } catch(_){}
   let wanted = false; try { wanted = localStorage.getItem("lmk_tutor_want") === "1"; } catch(_){}
   const prompt = studyPrompt(e);
   const order = AI_TARGETS.slice().sort((a, b) => (b.id === pref) - (a.id === pref));
+  const inApp = tutorPossible() && TUTOR.state !== "off";
   document.getElementById("aiModal").innerHTML = `
     <h3 id="aiTitle">Study with AI</h3>
-    <p class="sub2">${esc(e.title)} · ${esc(e.course)}. The prompt below already knows this ${e.exam ? "exam" : "assignment"}; pick where you want to study.</p>
+    <p class="sub2">${esc(e.title)} · ${esc(e.course)}.${inApp ? " Ask the tutor here; it already knows this " + (e.exam ? "exam" : "assignment") + "." : " The prompt below already knows this " + (e.exam ? "exam" : "assignment") + "; pick where you want to study."}</p>
+    ${inApp ? `<div class="chat" id="aiChat" aria-live="polite"></div>
+    <div class="chatbar"><textarea id="aiInput" rows="1" placeholder="Ask anything about it…" aria-label="Your message to the tutor"></textarea><button class="btn primary" id="aiSend">Send</button></div>
+    <div class="chatnote"><span id="aiNote"></span><button class="minibtn" id="aiClear" title="Start this conversation over">Start over</button></div>
+    <p class="sub2" style="margin:14px 0 6px">Or open it in your own AI, with the same prompt:</p>` : ""}
     <div class="row" style="margin-top:0">
       ${order.map(t => `<a class="btn ${t.id === pref || (!pref && t.id === "claude") ? "primary" : "ghost"}" data-ai="${t.id}" href="${esc(t.url(prompt))}" target="_blank" rel="noopener">${t.name}${t.id === pref ? " · your usual" : ""}</a>`).join("")}
       <button class="btn ghost" data-ai="copy">Copy prompt</button>
     </div>
     <textarea id="aiPrompt" aria-label="The prompt LMK prepared; edit it if you like" style="margin-top:14px;min-height:150px;font:13px/1.5 'Public Sans',system-ui,sans-serif">${esc(prompt)}</textarea>
     <p class="privacy" style="margin-top:8px">Edit the prompt first if you want to add what you've tried. Gemini can't take a prompt from a link, so it's copied for you to paste. LMK sends nothing anywhere; you're opening your own AI.</p>
-    <div class="foot"><span class="privacy" style="margin:0">Want the tutor right here inside LMK, no other app? <button class="minibtn" id="aiWant">${wanted ? "Noted ✓" : "Tell me"}</button></span><button class="minibtn" id="aiClose">Close</button></div>`;
+    <div class="foot"><span class="privacy" style="margin:0">${inApp ? "The tutor coaches; it won't do the graded work for you." : `Want the tutor right here inside LMK, no other app? <button class="minibtn" id="aiWant">${wanted ? "Noted ✓" : "Tell me"}</button>`}</span><button class="minibtn" id="aiClose">Close</button></div>`;
   aiOverlay.classList.add("open");
+  if (inApp) {
+    tutorRenderThread(id); tutorNote(); tutorBalance();
+    const ta = document.getElementById("aiInput");
+    document.getElementById("aiSend").onclick = () => tutorSend(id);
+    ta.addEventListener("keydown", ev => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); tutorSend(id); } });
+    ta.addEventListener("input", () => { ta.style.height = "auto"; ta.style.height = Math.min(120, ta.scrollHeight) + "px"; });
+    document.getElementById("aiClear").onclick = () => { TUTOR.threads[id] = []; tutorSave(id); tutorRenderThread(id); };
+    setTimeout(() => ta.focus(), 50);
+  }
   document.getElementById("aiClose").onclick = () => aiOverlay.classList.remove("open");
-  document.getElementById("aiWant").onclick = () => {
+  const wantBtn = document.getElementById("aiWant");
+  if (wantBtn) wantBtn.onclick = () => {
     if (!wanted) { wanted = true; try { localStorage.setItem("lmk_tutor_want", "1"); } catch(_){} ping("tutor_want"); }
     document.getElementById("aiWant").textContent = "Noted ✓";
     toast("Noted. You'll be the first to know when it's here.");
@@ -2148,7 +2243,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v30.2";
+const APP_BUILD = "v31.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -2346,6 +2441,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="adm-save-store") { adminSave({storeUrl: document.getElementById("admStore").value.trim().slice(0, 300)}); }
   else if (a==="adm-copy-csv") { adminCopyCsv(); }
   else if (a==="adm-pause") { adminSave({cloudPaused: !!act.checked}); }
+  else if (a==="adm-save-tutor") { const g = id => document.getElementById(id); adminSave({tutorOn: g("admTutorOn").checked, tutorWeekly: Math.max(0, +g("admTutorWeekly").value || 0), tutorDaily: Math.max(0, +g("admTutorDaily").value || 0), tutorModel: g("admTutorModel").value}); }
   else if (a==="adm-lookup") { adminLookup(); }
   else if (a==="adm-student") { adminStudent(act.dataset.sid, act.dataset.do); }
   else if (a==="cap-close") { showCap = false; render(); }
@@ -2600,8 +2696,6 @@ function openDetail(id){
     store.itemNotes = store.itemNotes || {};
     if (ta.value.trim()) store.itemNotes[id] = ta.value.trim(); else delete store.itemNotes[id];
     save();
-    const eNow = EVENTS.find(x => x.id === id);
-    if (eNow) document.getElementById("ddStudy").href = aiHref(eNow);
   });
 }
 function openCourseNotes(course){
@@ -2623,6 +2717,8 @@ function openCourseNotes(course){
   });
 }
 detailOverlay.addEventListener("click", e => {
+  const ai = e.target.closest('[data-act="ai"]');
+  if (ai) { const id = ai.dataset.id; detailOverlay.classList.remove("open"); markStart(id); openStudy(id); return; }
   if (e.target === detailOverlay || e.target.id === "ddClose") {
     if (detailCtx && detailCtx.kind === "course") pushSyllabusDoc(detailCtx.course);
     detailOverlay.classList.remove("open"); render();
@@ -3576,6 +3672,16 @@ function renderAdmin(root){
       probs.map(p => `<tr style="border-top:1px solid var(--line)"><td style="padding:7px 8px;font-family:'Spline Sans Mono',monospace">${esc(p.sid.slice(0, 8))}</td><td>${esc(p.host)}</td><td>${p.courses}</td><td>${ago(p.synced_at)}</td><td>${!p.active ? "paused" : p.err ? `<span style="color:var(--critical-text)">${esc(p.err)}</span>` : "stale"}</td>
         <td style="white-space:nowrap;text-align:right">${p.active ? `<button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="retry">Retry</button> <button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="pause">Pause</button>` : `<button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="resume">Resume</button>`} <button class="minibtn drop" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="forget">Forget</button></td></tr>`).join("") + `</tbody></table></div>` : `<p class="sub2" style="margin:0">No stale, paused or failing students right now.</p>`}
   </div>`;
+  // ---- the tutor: spend switches, in one place ----
+  const TU = d.tutor || {};
+  html += `<div class="card adm-card"><h3>Tutor</h3><p class="sub2">${TU.configured ? "Claude answers inside the app. " : "<b>Not configured:</b> set the ANTHROPIC_API_KEY secret on the worker and this turns on. "}${T.tutor_msg || 0} messages today${tot.tutor_msg ? ` · ${tot.tutor_msg} in the last 90 days` : ""}. Every message is roughly 2¢ on Opus 5 and 0.7¢ on Sonnet 5; the ceilings below are the only things that can spend money, so set the Anthropic console's monthly limit to match.</p>
+    <div class="adm-form">
+      <div class="adm-row"><label class="ck"><input type="checkbox" id="admTutorOn" ${TU.tutorOn ? "checked" : ""}> Tutor on</label>
+        <label class="ck">Free messages per student per week <input type="number" id="admTutorWeekly" min="0" max="500" value="${+TU.tutorWeekly || 0}" style="width:80px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:6px 8px;font:inherit"></label>
+        <label class="ck">Messages per day, everyone <input type="number" id="admTutorDaily" min="0" max="100000" value="${+TU.tutorDaily || 0}" style="width:90px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:6px 8px;font:inherit"></label>
+        <label class="ck">Model <select id="admTutorModel" style="border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:6px 8px;font:inherit"><option value="claude-opus-5" ${TU.tutorModel === "claude-opus-5" ? "selected" : ""}>Claude Opus 5 (best, ~2¢)</option><option value="claude-sonnet-5" ${TU.tutorModel === "claude-sonnet-5" ? "selected" : ""}>Claude Sonnet 5 (~0.7¢)</option></select></label>
+        <span class="sp" style="flex:1"></span><button class="btn primary" data-act="adm-save-tutor">Save tutor settings</button></div>
+    </div></div>`;
   // ---- what breaks in the app ----
   const errs = d.errs || [];
   html += `<div class="card adm-card"><h3>App errors · last 7 days</h3><p class="sub2">What reportErr caught on real devices: a build and a message, nothing else. ${T.err ? T.err + " today." : "None today."}</p>

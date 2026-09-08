@@ -39,6 +39,9 @@
   </ul>
   <p>Students on a phone with no laptop can paste a token they made themselves; the rest is identical.</p>
 
+  <h2>The tutor</h2>
+  <p>"Study with AI" inside LMK sends your question, the conversation so far, and this one assignment's context (its title, course, due date, the instructions from Canvas, and any notes you typed for it) to LMK's server, which passes them to Anthropic's Claude and streams the answer back. Anthropic does not use API traffic to train its models. LMK sends <b>no name, no email, no grades, and no other assignments</b>; the request is tied to the same random sync id as everything else. Each student has a small weekly allowance of messages so the feature can stay free; the count lives on the server next to that random id. The buttons that open Claude, ChatGPT or Gemini in their own apps send nothing through LMK at all.</p>
+
   <h2>What the extension reads</h2>
   <ul>
     <li><b>Your Canvas course and assignment data</b>: course names, assignment titles, due dates, points, submission state, scores, and the time Canvas recorded on your quiz attempts. It reads this through Canvas's own API using the login session already in your browser. It never sees or stores your password.</li>
