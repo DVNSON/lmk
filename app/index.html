@@ -552,7 +552,18 @@
       <p class="sub2" id="setupPhone" style="margin:10px 0 0;font-size:12.5px" hidden>On a phone? Set up on a laptop once, then sign in with Google (bottom of the page) and your plan appears here.</p>
       <p class="sub2" id="setupBg" style="margin:10px 0 0;font-size:12.5px" hidden></p>
       <div class="adm-row" id="setupDrive" style="margin:12px 0 0;font-size:13px;color:var(--ink-2)" hidden></div>
+      <div class="adm-row" id="setupCloud" style="margin:12px 0 0;font-size:13px;color:var(--ink-2)" hidden></div>
     </div>
+
+    <details class="setupway" id="cloudTokenWay" hidden>
+      <summary class="h4">Or connect Canvas with an access token</summary>
+      <p class="sub2">For a phone with no laptop around: in Canvas open Account → Settings → <b>New Access Token</b>, copy it, and paste it here. LMK's server then reads your Canvas for you and this phone stays fresh by itself. Delete the token in Canvas any time to stop.</p>
+      <div class="fgrid">
+        <label class="field">Your Canvas address<input id="ctHost" placeholder="canvas.asu.edu" autocomplete="off"></label>
+        <label class="field">Access token<input id="ctToken" placeholder="paste it here" autocomplete="off"></label>
+      </div>
+      <div class="row"><button class="btn primary" id="ctSave">Connect</button><span class="parse-msg" id="ctMsg" role="status"></span></div>
+    </details>
 
     <div class="setupway">
       <h3 class="h4">Or paste a page</h3>
@@ -971,7 +982,7 @@ function applyCanvasPayload(p, opts = {}){
   return {n, newDone, newGrades, shelfAdd};
 }
 /* The extension says hello when it is on the page — so "installed but never synced" gets its own guidance. */
-const EXT = {present:false, version:"", drive:{state:"off"}, resync:null, at:0};
+const EXT = {present:false, version:"", drive:{state:"off"}, resync:null, at:0, cloud:null};
 /* What the extension's own background sync has been doing. Shown under the gear so "it never
    refreshed" has an answer: when it last ran, whether Canvas let it in, and how many items came back. */
 function renderBgStatus(){
@@ -984,6 +995,121 @@ function renderBgStatus(){
   else txt = `Background sync: tried ${ago(r.at)} and couldn't read Canvas (${esc(r.err || "unknown")}). Open any Canvas page once and it picks back up.`;
   el.textContent = ""; el.innerHTML = txt; el.hidden = false;
 }
+/* ================= "Sync from anywhere" =================
+   The worker reads Canvas for the student (see ~/lmk-backend/sync.js) so a phone is fresh with the
+   laptop closed. This device makes a random sync id + secret once; they ride in the synced store
+   so every device shares them. The extension mints the Canvas token and registers; phones just
+   pull. Nothing here names the student. */
+const CLOUD = {registered:null, at:0, syncedAt:0, err:"", busy:false, lastPull:0, lastRefresh:0};
+function cloudPossible(){ return !!(LMK_CONFIG.cloudSync && LMK_CONFIG.statsUrl); }
+function cloudOn(){ return cloudPossible() && !!(store.cloud && store.cloud.on && store.cloud.sid && store.cloud.secret); }
+function randHex(n){ const u = new Uint8Array(n); crypto.getRandomValues(u); return [...u].map(b => b.toString(16).padStart(2, "0")).join(""); }
+function randB64(n){ const u = new Uint8Array(n); crypto.getRandomValues(u); return btoa(String.fromCharCode(...u)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
+function cloudBearer(){ return store.cloud.sid + "." + store.cloud.secret; }
+function cloudFetch(path, opts, bearer){
+  return fetch(apiUrl(path), Object.assign({mode:"cors", credentials:"omit"}, opts || {}, {headers: Object.assign({Authorization: "Bearer " + (bearer || cloudBearer()), "content-type": "text/plain"}, (opts && opts.headers) || {})}));
+}
+function cloudEnsure(){
+  if (!cloudPossible() || !store.onboarded) return;
+  if (!store.cloud || !store.cloud.sid || !store.cloud.secret) { store.cloud = {sid: randHex(16), secret: randB64(32), on: true, at: Date.now()}; save(); }
+  // a merge can swap in another device's id; the id this device registered before is then unneeded
+  let prev = null; try { prev = JSON.parse(localStorage.getItem("lmk_cloud_prev") || "null"); } catch(_){}
+  if (prev && prev.sid && prev.sid !== store.cloud.sid && MODE === "web") cloudFetch("/sync/forget", {method:"POST", body:"{}"}, prev.sid + "." + prev.secret).catch(() => {});
+  try { localStorage.setItem("lmk_cloud_prev", JSON.stringify({sid: store.cloud.sid, secret: store.cloud.secret})); } catch(_){}
+  postCloudSet();
+}
+function postCloudSet(){
+  if (!store.cloud || !store.cloud.sid) return;
+  try { window.postMessage({lmk:"cloud-set", cloud:{wanted: !!store.cloud.on, sid: store.cloud.sid, secret: store.cloud.secret, apiUrl: LMK_CONFIG.statsUrl}}, "*"); } catch(_){}
+}
+async function cloudPull(reason){
+  if (MODE !== "web" || !cloudOn() || CLOUD.busy) return;
+  if (reason !== "force" && Date.now() - CLOUD.lastPull < 4 * 60e3) return;
+  CLOUD.busy = true; CLOUD.lastPull = Date.now();
+  try {
+    const r = await cloudFetch("/sync/pull");
+    if (r.status === 401) { CLOUD.registered = false; return; }
+    if (!r.ok) return;
+    const j = await r.json();
+    CLOUD.registered = true; CLOUD.at = j.at || 0; CLOUD.syncedAt = j.syncedAt || 0; CLOUD.err = j.err || "";
+    if (j.payload) applyDriveCanvas(j.payload);
+    // the worker's copy is old (or missing): ask it to read Canvas now, a few courses per step
+    if (!j.err && (!j.payload || Date.now() - (j.at || 0) > 20 * 60e3) && (reason === "force" || Date.now() - CLOUD.lastRefresh > 10 * 60e3)) {
+      CLOUD.lastRefresh = Date.now();
+      for (let i = 0; i < 6; i++) {
+        const s = await cloudFetch("/sync/refresh", {method:"POST", body:"{}"}); if (!s.ok) break;
+        const k = await s.json(); if (!k.ok) { if (k.error) CLOUD.err = k.error; break; } if (k.done) break;
+      }
+      const r2 = await cloudFetch("/sync/pull");
+      if (r2.ok) { const j2 = await r2.json(); CLOUD.at = j2.at || 0; CLOUD.syncedAt = j2.syncedAt || 0; CLOUD.err = j2.err || ""; if (j2.payload) applyDriveCanvas(j2.payload); }
+    }
+  } catch(_){} finally { CLOUD.busy = false; renderCloudStatus(); }
+}
+/* The phone-only path: a token the student made in Canvas, registered straight from this page. */
+async function cloudRegisterToken(host, token){
+  const msg = document.getElementById("ctMsg");
+  const say = (t, ok) => { if (msg) { msg.textContent = t; msg.className = "parse-msg " + (ok ? "ok" : "err"); } };
+  host = (host || "").trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "").toLowerCase(); token = (token || "").trim();
+  if (!/^[a-z0-9][a-z0-9.-]{2,80}\.[a-z]{2,}$/.test(host)) return say("That doesn't look like a Canvas address (try canvas.asu.edu).", false);
+  if (token.length < 20) return say("Paste the whole token.", false);
+  if (!store.onboarded) { store.onboarded = 1; }
+  if (!store.cloud || !store.cloud.sid) { store.cloud = {sid: randHex(16), secret: randB64(32), on: true, at: Date.now()}; }
+  store.cloud.on = true; save();
+  say("Checking with Canvas…", true);
+  try {
+    const r = await fetch(apiUrl("/sync/register"), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"}, body: JSON.stringify({sid: store.cloud.sid, secret: store.cloud.secret, host, token})});
+    const j = await r.json();
+    if (!j.ok) return say(j.error || "Canvas didn't accept that token.", false);
+    say(`Connected: ${j.courses} course${j.courses === 1 ? "" : "s"}. Reading your assignments now…`, true);
+    const el = document.getElementById("ctToken"); if (el) el.value = "";
+    CLOUD.registered = true; cloudEnsure();
+    await cloudPull("force");
+    say("Done. This phone now stays fresh by itself.", true);
+  } catch(_) { say("Couldn't reach LMK's server. Try again in a minute.", false); }
+}
+function cloudTurnOn(){ if (!store.cloud) cloudEnsure(); if (store.cloud) { store.cloud.on = true; save(); postCloudSet(); } renderCloudStatus(); cloudPull("force"); }
+function cloudTurnOff(){
+  if (!store.cloud) return;
+  const bearer = cloudBearer();
+  store.cloud.on = false; save();
+  try { window.postMessage({lmk:"cloud-forget"}, "*"); } catch(_){}
+  if (MODE === "web") cloudFetch("/sync/forget", {method:"POST", body:"{}"}, bearer).catch(() => {});
+  CLOUD.registered = false; renderCloudStatus();
+  toast("Sync from anywhere is off. LMK's server forgot your Canvas sync.");
+}
+function cloudPairLink(){ return LMK_CONFIG.appUrl.replace(/\/$/, "") + "/#pair=" + store.cloud.sid + "." + store.cloud.secret; }
+function renderCloudStatus(){
+  const el = document.getElementById("setupCloud"), way = document.getElementById("cloudTokenWay"); if (!el) return;
+  if (!cloudPossible()) { el.hidden = true; if (way) way.hidden = true; return; }
+  const ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 1440 ? Math.round(m / 60) + " h ago" : Math.round(m / 1440) + " d ago"; };
+  const ec = EXT.cloud || {};
+  let html;
+  if (!cloudOn()) html = `<span><b>Sync from anywhere</b> is off. Turn it on and LMK's server keeps your Canvas sync fresh, so your phone is up to date while your laptop is closed.</span><button class="minibtn" data-act="cloud-on">Turn on</button>`;
+  else if (EXT.present && !IS_MOBILE) {
+    if (ec.registered && ec.sid === store.cloud.sid) html = `<span>✓ <b>Sync from anywhere</b> is on. Your phone stays fresh while this laptop is closed.${CLOUD.at ? " Last read " + ago(CLOUD.at) + "." : ""}</span><button class="minibtn" data-act="cloud-pair" title="Copies a link; open it on your phone once">Open on your phone</button><button class="minibtn drop" data-act="cloud-off">Turn off</button>`;
+    else if (ec.err) html = `<span><b>Sync from anywhere</b> couldn't start: ${esc(ec.err)}. Everything else works as before; the phone stays fresh through your Drive when this laptop is on.</span><button class="minibtn drop" data-act="cloud-off">Turn off</button>`;
+    else html = `<span><b>Sync from anywhere</b> is connecting. Open any Canvas page once and the extension finishes it (it makes an "LMK" access token in your own Canvas account).</span><a class="minibtn" href="${esc(LMK_CONFIG.canvasUrl)}" target="_blank" rel="noopener">Open Canvas</a><button class="minibtn drop" data-act="cloud-off">Turn off</button>`;
+  } else {
+    if (CLOUD.registered) html = `<span>✓ <b>Sync from anywhere</b> is on.${CLOUD.at ? " Last read " + ago(CLOUD.at) + "." : ""}${CLOUD.err ? " " + esc(CLOUD.err) + "." : ""}</span><button class="minibtn" data-act="cloud-now">Refresh now</button><button class="minibtn drop" data-act="cloud-off">Turn off</button>`;
+    else if (CLOUD.registered === false) html = `<span><b>Sync from anywhere</b> isn't connected yet. Open LMK on a laptop with the extension once, or connect with a Canvas access token below.</span>`;
+    else html = `<span><b>Sync from anywhere</b> is on.</span><button class="minibtn" data-act="cloud-now">Refresh now</button>`;
+  }
+  el.innerHTML = html; el.hidden = false;
+  if (way) way.hidden = !(MODE === "web" && !EXT.present && !(cloudOn() && CLOUD.registered));
+}
+document.getElementById("setupCloud").addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const a = b.dataset.act;
+  if (a === "cloud-on") cloudTurnOn();
+  else if (a === "cloud-off") cloudTurnOff();
+  else if (a === "cloud-now") { toast("Asking LMK's server to read Canvas…"); CLOUD.lastPull = 0; CLOUD.lastRefresh = 0; cloudPull("force"); }
+  else if (a === "cloud-pair") {
+    const link = cloudPairLink();
+    const done = () => toast("Link copied. Text it to yourself and open it on your phone once.");
+    try { navigator.clipboard.writeText(link).then(done, () => window.prompt("Open this on your phone once:", link)); } catch(_) { window.prompt("Open this on your phone once:", link); }
+  }
+});
+document.getElementById("ctSave").addEventListener("click", () => cloudRegisterToken(document.getElementById("ctHost").value, document.getElementById("ctToken").value));
 /* ---- the extension can save each Canvas sync to the student's Drive itself ----
    That is what keeps a phone fresh when no laptop tab has LMK open. The page only ever asks the
    extension to connect or disconnect; the extension holds the Google token, never the page. */
@@ -1032,7 +1158,8 @@ function nudgeExtension(){
 window.addEventListener("message", ev => {
   const d = ev.data;
   if (d && d.lmk === "canvas-payload" && d.payload) applyCanvasPayload(d.payload);
-  if (d && d.lmk === "ext-hello" && !EXT.present) { EXT.present = true; EXT.version = String(d.version || ""); applyExtPresence(); renderDriveOffer(); if (!store.ext) render(); }
+  if (d && d.lmk === "ext-hello" && !EXT.present) { EXT.present = true; EXT.version = String(d.version || ""); applyExtPresence(); renderDriveOffer(); if (store.onboarded) cloudEnsure(); renderCloudStatus(); if (!store.ext) render(); }
+  if (d && d.lmk === "cloud-status" && d.cloud) { EXT.cloud = d.cloud; renderCloudStatus(); }
   if (d && d.lmk === "resync-status") { EXT.resync = d.resync || null; if (d.at) EXT.at = d.at; renderBgStatus(); }
   if (d && d.lmk === "drive-status" && d.drive) {
     const was = (EXT.drive || {}).state; EXT.drive = d.drive; renderDriveOffer();
@@ -1974,7 +2101,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v29.3";
+const APP_BUILD = "v30.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -2222,7 +2349,7 @@ document.addEventListener("mousemove", e=>{
 const overlay = document.getElementById("overlay");
 document.getElementById("gearBtn").addEventListener("click", ()=>{
   document.getElementById("courseList2").innerHTML = COURSES.map(c=>`<option value="${esc(c)}">`).join("");
-  renderDriveOffer(); renderBgStatus();
+  renderDriveOffer(); renderBgStatus(); renderCloudStatus();
   overlay.classList.add("open");
 });
 document.getElementById("closeModal").addEventListener("click", ()=>overlay.classList.remove("open"));
@@ -2707,6 +2834,7 @@ const LMK_CONFIG = {
   appUrl: "https://lmktoday.app/app/",
   artifactUrl: "https://claude.ai/code/artifact/931fab3e-a465-475b-b596-ef68915e6b9f",
   feedbackUrl: "https://mail.google.com/mail/?view=cm&fs=1&to=hello%40lmktoday.app&su=LMK%20feedback",
+  cloudSync: true,                                            // "Sync from anywhere": the worker reads Canvas for the student (see ~/lmk-backend/sync.js)
   statsUrl: "https://lmk-api.emieldieuvenson.workers.dev",   // the anonymous counter (see ~/lmk-backend). Empty = send nothing.   // Gmail compose to hello@lmktoday.app (Cloudflare Email Routing forwards to the founder); swap for a form any time
 };
 /* A client id can also be dropped in from the browser console, which is how you try one out
@@ -2750,6 +2878,9 @@ function mergeStores(a, b){
   m.capacity = newer.capacity || older.capacity || null;
   m.since = Math.min(a.since || Infinity, b.since || Infinity); if (!isFinite(m.since)) delete m.since;
   m.adminKey = newer.adminKey !== undefined ? newer.adminKey : older.adminKey; if (!m.adminKey) delete m.adminKey;
+  if (a.cloud && b.cloud) { const first = (a.cloud.at || 0) <= (b.cloud.at || 0) ? a.cloud : b.cloud; m.cloud = Object.assign({}, first, {on: newer.cloud ? !!newer.cloud.on : !!first.on}); }
+  else m.cloud = a.cloud || b.cloud || null;
+  if (!m.cloud) delete m.cloud;
   const byId = rows => { const map = new Map(); (rows||[]).forEach(r => map.set(r[4], r)); return map; };
   m.customRows = [...new Map([...byId(older.customRows), ...byId(newer.customRows)]).values()];
   const uById = list => { const map = new Map(); (list||[]).forEach(u => map.set(u.id, u)); return map; };
@@ -3159,6 +3290,7 @@ function openWelcome(){
   }
   if (MODE === "artifact") show("wAct3", false);
   if (MODE === "web" && !gdReady()) set("wBody3", "No account, no password. Everything you do here saves privately on this device. Nothing is sent anywhere.");
+  else if (MODE === "web" && !IS_MOBILE && cloudPossible()) set("wBody3", "No account, no password. Everything saves on this device; sign in with Google and it follows you to your phone through your own Drive. With the extension, LMK also keeps an encrypted copy of your Canvas sync on its server so your phone stays fresh while your laptop is closed (off any time under the gear). LMK times your work quietly so its estimates get honest, and never sees names or grades.");
   document.getElementById("wName").value = (store.profile && store.profile.name) || "";
   welcomeOverlay.classList.add("open");
 }
@@ -3178,6 +3310,7 @@ document.getElementById("wGo").addEventListener("click", () => {
   store.profile = {name: nm};
   store.onboarded = 1;
   save(); render();
+  cloudEnsure();
   welcomeOverlay.classList.remove("open");
   setTimeout(maybeHomeScreenHint, 1200);
 });
@@ -3332,6 +3465,7 @@ function renderAdmin(root){
     <div class="card tile"><div class="k">Opens today</div><div class="v">${openToday}</div><div class="s">devices that opened LMK</div></div>
     <div class="card tile"><div class="k">Opens per day</div><div class="v">${avg7}</div><div class="s">average, last 7 days</div></div>
     <div class="card tile"><div class="k">Installs</div><div class="v">${installs}</div><div class="s">${inst7} in the last 7 days</div></div>
+    <div class="card tile"><div class="k">Sync from anywhere</div><div class="v">${(d.cloud && d.cloud.students) || 0}</div><div class="s">${d.cloud ? `${d.cloud.syncedToday || 0} read today · ${d.cloud.errors || 0} need attention` : "not deployed yet"}</div></div>
     <div class="card tile"><div class="k">First syncs</div><div class="v">${syncs}</div><div class="s">${conv === null ? "no installs yet" : conv + "% of installs reached Canvas"}</div></div>
   </div>`;
   // ---- chart: opens as bars, installs as a line; one scale, two series, legend + direct hover ----
@@ -3432,6 +3566,17 @@ async function loadRemoteConfig(){
   if (store.since) $("setupSync").innerHTML += ` <b>Early adopter</b> since ${new Date(store.since).toLocaleDateString(undefined, {month:"long", year:"numeric"})} — when LMK Plus exists, it is yours free for life.`;
 })();
 
+/* A laptop's "Open on your phone" link: the same sync id and secret, so this phone pulls the same Canvas sync. */
+(function pairFromHash(){
+  try {
+    const m = location.hash.match(/#pair=([a-f0-9]{16,64})\.([A-Za-z0-9_-]{32,128})/);
+    if (!m) return;
+    store.cloud = {sid: m[1], secret: m[2], on: true, at: Date.now() - 1};
+    if (!store.onboarded) store.onboarded = 1;
+    save(); history.replaceState(null, "", location.pathname + location.search);
+    setTimeout(() => toast("Paired with your laptop. This phone now stays fresh by itself."), 1200);
+  } catch(_){}
+})();
 /* ================= boot ================= */
 loadData(); render();
 crowdInit();
@@ -3448,9 +3593,10 @@ function maybeWelcome(){
   openWelcome();
 }
 setTimeout(maybeWelcome, 9000);
-(MODE === "web" ? initWebSync() : initSync()).catch(() => {}).finally(maybeWelcome);
+(MODE === "web" ? initWebSync() : initSync()).catch(() => {}).finally(() => { maybeWelcome(); if (store.onboarded) cloudEnsure(); cloudPull("boot"); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") cloudPull("visible"); });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
-setInterval(render, 60000);
+setInterval(() => { render(); cloudPull("tick"); }, 60000);
 </script>
 
 

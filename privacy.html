@@ -25,9 +25,19 @@
 <div class="wrap">
   <span class="brand"></span>
   <h1>LMK for Canvas — Privacy Policy</h1>
-  <div class="sub">Effective September 6, 2026 · Applies to the LMK app and the "LMK for Canvas" browser extension</div>
+  <div class="sub">Effective September 8, 2026 · Applies to the LMK app and the "LMK for Canvas" browser extension</div>
 
   <p>LMK for Canvas is a browser extension that reads your own Canvas assignments and feeds them into LMK, your personal assignment planner. This page explains exactly what it reads, where that data goes, and what it never does.</p>
+
+  <h2>Sync from anywhere</h2>
+  <p>So your phone stays current while your laptop is closed, LMK can read your Canvas for you from its own server. It is on by default once you use the extension, and it works like this:</p>
+  <ul>
+    <li>The extension creates an <b>access token in your own Canvas account</b> (the same thing you could make under Account → Settings → New Access Token). Canvas lists it under Approved Integrations as "LMK"; you can delete it there at any time, and it expires on its own after six months.</li>
+    <li>Our server stores that token <b>encrypted</b> (with a key that lives only in the server's secret store, never in the database), plus the same assignment rows the extension collects: titles, due dates, submission state, scores. It stores <b>no name, no email, no Canvas user id</b>. Each student is a random sync id.</li>
+    <li>Every couple of minutes the server reads a few courses for the student whose data is oldest, and it reads yours when you open LMK and its copy is stale.</li>
+    <li><b>Turn off</b> under the gear deletes the token and every row from our server and, on your next Canvas visit, removes the token from Canvas too.</li>
+  </ul>
+  <p>Students on a phone with no laptop can paste a token they made themselves; the rest is identical.</p>
 
   <h2>What the extension reads</h2>
   <ul>
