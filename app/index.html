@@ -639,6 +639,7 @@
 </div>
 <div class="overlay" id="detailOverlay" role="dialog" aria-modal="true" aria-labelledby="ddTitle"><div class="modal" id="detailModal"></div></div>
 <div class="overlay" id="planOverlay" role="dialog" aria-modal="true" aria-labelledby="ppTitle"><div class="modal" id="planModal"></div></div>
+<div class="overlay" id="aiOverlay" role="dialog" aria-modal="true" aria-labelledby="aiTitle"><div class="modal" id="aiModal" style="max-width:600px"></div></div>
 <div class="overlay" id="addOverlay" role="dialog" aria-modal="true" aria-labelledby="addTitle">
   <div class="modal">
     <h3 id="addTitle">Add your own assignment</h3>
@@ -1460,7 +1461,10 @@ function weekPrepPrompt(course, n, seg){
 function studyPrompt(e){
   const days = Math.max(0, Math.floor((startOfDay(e.due) - startOfDay(now())) / 864e5));
   const when = days === 0 ? "due today" : days === 1 ? "due tomorrow" : `due ${FMT_DAY.format(e.due)}, ${days} days from now`;
-  const head = `I'm a college student in ${e.course}. Be my tutor for this assignment: "${e.title}" (${when}). `;
+  const kindWord = e.kind === "quiz" ? "quiz" : e.kind === "discussion" ? "discussion post" : e.exam ? "exam" : "assignment";
+  const inCourse = EVENTS.filter(x => x.course === e.course), doneIn = inCourse.filter(x => store.done[x.id]).length;
+  const standing = inCourse.length > 3 ? ` So far I've finished ${doneIn} of ${inCourse.length} things in this class.` : "";
+  const head = `I'm a college student in ${e.course}. Be my tutor for this ${kindWord}: "${e.title}" (${when}).${standing} Keep replies short and ask before you explain; I'm often on my phone. `;
   let body;
   if (e.exam) body = "Build a realistic study plan for the days I have left, then run an active-recall session: quiz me on the listed chapters one question at a time, wait for my answer before revealing anything, correct me kindly, and keep a running list of my weak spots. Finish by turning my weak spots into a one-page cheat sheet.";
   else if (e.effort === "quick") body = "Quiz me first to find my gaps, one question at a time — make me answer before you explain anything. End with the 5 ideas most likely to show up on it.";
@@ -1483,6 +1487,49 @@ function studyPrompt(e){
   return p;
 }
 const aiHref = e => "https://claude.ai/new?q=" + encodeURIComponent(studyPrompt(e));
+/* ---- Study with AI: one sheet, the AI the student already uses, a prompt that knows the assignment ----
+   Nothing is sent anywhere by LMK: the student opens their own Claude, ChatGPT or Gemini with the prompt.
+   "Tell me" is a single anonymous count (one per device) so the admin knows how many want the tutor inside. */
+const AI_TARGETS = [
+  {id:"claude",  name:"Claude",  url: p => "https://claude.ai/new?q=" + encodeURIComponent(p)},
+  {id:"chatgpt", name:"ChatGPT", url: p => "https://chatgpt.com/?q=" + encodeURIComponent(p)},
+  {id:"gemini",  name:"Gemini",  url: () => "https://gemini.google.com/app", copyFirst: true},
+];
+const aiOverlay = document.getElementById("aiOverlay");
+function openStudy(id){
+  const e = EVENTS.find(x => x.id === id); if (!e) return;
+  let pref = ""; try { pref = localStorage.getItem("lmk_ai_pref") || ""; } catch(_){}
+  let wanted = false; try { wanted = localStorage.getItem("lmk_tutor_want") === "1"; } catch(_){}
+  const prompt = studyPrompt(e);
+  const order = AI_TARGETS.slice().sort((a, b) => (b.id === pref) - (a.id === pref));
+  document.getElementById("aiModal").innerHTML = `
+    <h3 id="aiTitle">Study with AI</h3>
+    <p class="sub2">${esc(e.title)} · ${esc(e.course)}. The prompt below already knows this ${e.exam ? "exam" : "assignment"}; pick where you want to study.</p>
+    <div class="row" style="margin-top:0">
+      ${order.map(t => `<a class="btn ${t.id === pref || (!pref && t.id === "claude") ? "primary" : "ghost"}" data-ai="${t.id}" href="${esc(t.url(prompt))}" target="_blank" rel="noopener">${t.name}${t.id === pref ? " · your usual" : ""}</a>`).join("")}
+      <button class="btn ghost" data-ai="copy">Copy prompt</button>
+    </div>
+    <textarea id="aiPrompt" aria-label="The prompt LMK prepared; edit it if you like" style="margin-top:14px;min-height:150px;font:13px/1.5 'Public Sans',system-ui,sans-serif">${esc(prompt)}</textarea>
+    <p class="privacy" style="margin-top:8px">Edit the prompt first if you want to add what you've tried. Gemini can't take a prompt from a link, so it's copied for you to paste. LMK sends nothing anywhere; you're opening your own AI.</p>
+    <div class="foot"><span class="privacy" style="margin:0">Want the tutor right here inside LMK, no other app? <button class="minibtn" id="aiWant">${wanted ? "Noted ✓" : "Tell me"}</button></span><button class="minibtn" id="aiClose">Close</button></div>`;
+  aiOverlay.classList.add("open");
+  document.getElementById("aiClose").onclick = () => aiOverlay.classList.remove("open");
+  document.getElementById("aiWant").onclick = () => {
+    if (!wanted) { wanted = true; try { localStorage.setItem("lmk_tutor_want", "1"); } catch(_){} ping("tutor_want"); }
+    document.getElementById("aiWant").textContent = "Noted ✓";
+    toast("Noted. You'll be the first to know when it's here.");
+  };
+  document.getElementById("aiModal").querySelectorAll("[data-ai]").forEach(b => b.addEventListener("click", ev => {
+    const text = document.getElementById("aiPrompt").value.trim() || prompt;
+    const t = AI_TARGETS.find(x => x.id === b.dataset.ai);
+    if (!t) { ev.preventDefault(); try { navigator.clipboard.writeText(text).then(() => toast("Prompt copied. Paste it into any AI."), () => toast("Couldn't copy here; select the text and copy it.")); } catch(_) { toast("Couldn't copy here; select the text and copy it."); } return; }
+    try { localStorage.setItem("lmk_ai_pref", t.id); } catch(_){}
+    if (t.copyFirst) { try { navigator.clipboard.writeText(text).catch(() => {}); } catch(_){} toast("Prompt copied. Paste it into Gemini."); }
+    else b.href = t.url(text);
+    setTimeout(() => aiOverlay.classList.remove("open"), 300);
+  }));
+}
+aiOverlay.addEventListener("click", e => { if (e.target === aiOverlay) aiOverlay.classList.remove("open"); });
 let toastTimer = null;
 function toast(msg, action){
   const t = document.getElementById("toast");
@@ -1735,7 +1782,7 @@ function renderNow(root){
       <div class="actions">
         <button class="btn primary" data-act="done-submit" data-id="${e.id}">${e.url ? "Done ✓ — submit in Canvas ↗" : "Done — next ✓"}</button>
         ${e.url?`<a class="btn ghost" href="${e.url}" target="_blank" rel="noopener">Open in Canvas ${"↗"}</a>`:""}
-        <a class="btn ghost" data-act="ai" data-id="${e.id}" href="${aiHref(e)}" target="_blank" rel="noopener">✦ Study with AI</a>
+        <button class="btn ghost" data-act="ai" data-id="${e.id}">✦ Study with AI</button>
         ${sprint ? `<span class="countchip soon" id="sprintClock">25:00</span><button class="btn ghost" data-act="sprint-stop">End sprint</button>` : `<button class="btn ghost" data-act="sprint" data-id="${e.id}">▶ 25-min sprint</button>`}
         <button class="btn ghost" data-act="skip" data-id="${e.id}">Not now — skip</button>
       </div>
@@ -2101,7 +2148,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v30.1";
+const APP_BUILD = "v30.2";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -2247,13 +2294,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="err-reload") { location.reload(); }
   else if (a==="err-dismiss") { const el = document.getElementById("errcard"); if (el) el.hidden = true; }
   else if (a==="del" && id) { store.customRows = (store.customRows||[]).filter(r => "a"+r[4] !== id); store.deleted = store.deleted || {}; store.deleted["custom:" + id.slice(1)] = Date.now(); delete store.done[id]; delete store.starred[id]; delete store.dropped[id]; save(); loadData(); render(); }
-  else if (a==="ai") {
-    markStart(id);
-    const ev = EVENTS.find(x => x.id === id);
-    if (ev) { try { navigator.clipboard.writeText(studyPrompt(ev)).catch(() => {}); } catch(_){}
-      toast("Opening your tutor prompt in Claude — also copied, if you’d rather paste it elsewhere."); }
-    return; // let the link open normally
-  }
+  else if (a==="ai") { markStart(id); openStudy(id); }
   else if (a==="detail") { const r = act.closest("[data-id]"); if (r) openDetail(r.dataset.id); }
   else if (a==="coursenotes") openCourseNotes(act.dataset.course);
   else if (a==="sprint") startSprint(id);
@@ -2358,7 +2399,7 @@ document.getElementById("gearBtn").addEventListener("click", ()=>{
 });
 document.getElementById("closeModal").addEventListener("click", ()=>overlay.classList.remove("open"));
 overlay.addEventListener("click", e=>{ if (e.target===overlay) overlay.classList.remove("open"); });
-document.addEventListener("keydown", e=>{ if (e.key==="Escape") { overlay.classList.remove("open"); ["addOverlay","planOverlay","detailOverlay","findOverlay","celebrateOverlay"].forEach(x=>document.getElementById(x).classList.remove("open")); } });
+document.addEventListener("keydown", e=>{ if (e.key==="Escape") { overlay.classList.remove("open"); ["addOverlay","planOverlay","detailOverlay","findOverlay","celebrateOverlay","aiOverlay"].forEach(x=>document.getElementById(x).classList.remove("open")); } });
 
 const dz = document.getElementById("dropZone"), fi = document.getElementById("fileInput");
 dz.addEventListener("click", ()=>fi.click());
@@ -2520,7 +2561,7 @@ function openDetail(id){
       <textarea id="ddNotes" style="min-height:76px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:9px 10px;font:inherit;font-size:13.5px;resize:vertical">${esc(notes)}</textarea>
     </label>
     <div class="row" style="margin-top:14px">
-      <a class="btn primary" id="ddStudy" data-act="ai" data-id="${e.id}" href="${aiHref(e)}" target="_blank" rel="noopener">✦ Study with AI</a>
+      <button class="btn primary" id="ddStudy" data-act="ai" data-id="${e.id}">✦ Study with AI</button>
       ${e.url?`<a class="btn ghost" href="${e.url}" target="_blank" rel="noopener">Open in Canvas ↗</a>`:""}
       <button class="btn ghost" id="ddClose">Close</button>
     </div>
@@ -3494,6 +3535,7 @@ function renderAdmin(root){
     <div class="card tile"><div class="k">Installs</div><div class="v">${installs}</div><div class="s">${inst7} in the last 7 days</div></div>
     <div class="card tile"><div class="k">Sync from anywhere</div><div class="v">${CL.active || 0}<span style="font-size:14px;color:var(--muted)"> / ${CL.students || 0}</span></div><div class="s">${d.cloud ? `${CL.syncedToday || 0} read in 24 h · ${CL.errors || 0} need attention` : "not deployed yet"}</div></div>
     <div class="card tile"><div class="k">Free plan today</div><div class="v">${reqToday.toLocaleString()}</div><div class="s">of 100,000 worker requests · ${T.cron_step || 0} cron steps</div></div>
+    <div class="card tile"><div class="k">Want the tutor</div><div class="v">${tot.tutor_want || 0}</div><div class="s">${sum("tutor_want", 7)} in the last 7 days · one tap per device</div></div>
     <div class="card tile"><div class="k">First syncs</div><div class="v">${syncs}</div><div class="s">${conv === null ? "no installs yet" : conv + "% of installs reached Canvas"}</div></div>
   </div>`;
   // ---- health: is the machine running, and is anything piling up ----
