@@ -600,7 +600,7 @@
   <div class="modal" style="max-width:530px">
     <div style="display:flex;align-items:center;gap:13px;margin-bottom:14px">
       <span class="lmkmark" aria-hidden="true" style="font-size:25px;padding:10px 14px 11px">LMK</span>
-      <div><h3 id="wTitle" style="margin:0">Let Me Know</h3><p class="sub2" style="margin:2px 0 0">Know what to do today. Nothing more.</p></div>
+      <div><h2 id="wTitle" style="margin:0;font:700 20px/1.2 'Bricolage Grotesque',sans-serif">Let Me Know</h2><p class="sub2" style="margin:2px 0 0">Know what to do today. Nothing more.</p></div>
     </div>
     <div class="wstep"><span class="wnum">1</span><div><b>What should LMK call you?</b>
       <input id="wName" placeholder="First name" autocomplete="off"></div></div>
@@ -1061,6 +1061,8 @@ function visible(e){
 const open = e => visible(e) && !store.done[e.id];
 
 function dueLabel(e){
+  // finished work is never "overdue": say when it was done, calmly
+  if (store.done[e.id]) { const at = new Date(store.done[e.id]); return {txt: isFinite(at) ? `done ${FMT_DAY.format(at)}` : "done", hot:false}; }
   const n = now(), ms = e.due - n;
   const days = Math.floor((startOfDay(e.due) - startOfDay(n)) / 864e5);
   const t = FMT_TIME.format(e.due);
@@ -1385,7 +1387,7 @@ function itemRow(e, opts={}){
         <span class="cdot" style="background:${COLOR[e.course]}"></span><span class="ccode">${esc(e.course)}</span>
         ${e.kind === "inclass" ? `<span class="etag" style="text-transform:none">🏫 In class</span>` : e.kind === "fyi" ? `<span class="etag" style="text-transform:none">ℹ️ Not graded</span>` : `<span class="etag">${EFFORT[e.effort].label}</span>${minsTag(e)}`}${e.ext && e.ext.missing && !done ? `<span class="etag" style="color:var(--critical-text);border-color:color-mix(in srgb,var(--critical) 45%,var(--line))">missing</span>` : ""}${e.id.startsWith("acustom-") ? `<span class="etag" style="color:var(--good-text);border-color:color-mix(in srgb,var(--good) 45%,var(--line))">mine</span>` : ""}${done ? ((store.grades||{})[e.id] && store.grades[e.id].max > 0 ? `<span class="etag" style="color:var(--good-text);border-color:color-mix(in srgb,var(--good) 45%,var(--line))">${Math.round(store.grades[e.id].got / store.grades[e.id].max * 100)}%</span>` : `<span class="etag" data-act="detail" role="button" tabindex="0" style="cursor:pointer">+ grade</span>`) : ""}
         ${(() => { const pr = extProgress(e); return pr == null ? "" : `<span class="etag" style="text-transform:none;color:var(--warn-text);border-color:color-mix(in srgb,var(--warn) 45%,var(--line))">in progress · ${pr}%</span>`; })()}
-        ${opts.timeOnly ? `<span class="duelbl ${d.hot?"hot":""}">due ${FMT_TIME.format(e.due)}</span>` : opts.hideDue ? "" : `<span class="duelbl ${d.hot?"hot":""}">${d.txt}</span>`}
+        ${opts.timeOnly && !done ? `<span class="duelbl ${d.hot?"hot":""}">due ${FMT_TIME.format(e.due)}</span>` : opts.hideDue ? "" : `<span class="duelbl ${d.hot?"hot":""}">${d.txt}</span>`}
       </div>
     </div>
     <div class="side">
@@ -1958,7 +1960,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v29.0";
+const APP_BUILD = "v29.1";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -2106,7 +2108,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="ai") {
     markStart(id);
     const ev = EVENTS.find(x => x.id === id);
-    if (ev) { try { navigator.clipboard.writeText(studyPrompt(ev)); } catch(_){}
+    if (ev) { try { navigator.clipboard.writeText(studyPrompt(ev)).catch(() => {}); } catch(_){}
       toast("Opening your tutor prompt in Claude — also copied, if you’d rather paste it elsewhere."); }
     return; // let the link open normally
   }
@@ -3236,7 +3238,7 @@ function adminCopyCsv(){
   const d = ADMIN.data; if (!d) return;
   const lines = ["day,installs,first_syncs,opens"];
   Object.keys(d.days || {}).sort().forEach(k => { const r = d.days[k]; lines.push(`${k},${r.install||0},${r.firstsync||0},${r.open||0}`); });
-  try { navigator.clipboard.writeText(lines.join("\n")); toast("CSV copied — " + (lines.length - 1) + " days."); } catch(_) { toast("Couldn't copy here."); }
+  try { navigator.clipboard.writeText(lines.join("\n")).then(() => toast("CSV copied — " + (lines.length - 1) + " days."), () => toast("Couldn't copy here.")); } catch(_) { toast("Couldn't copy here."); }
 }
 const PHASE1 = [
   ["friends", "Sit with ten friends while they install; write down every pause"],
