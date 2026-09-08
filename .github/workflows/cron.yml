@@ -1,0 +1,20 @@
+# LMK's background sync tick. Cloudflare's own cron trigger never fires for the worker, so this job
+# calls a keyed route every five minutes instead. The key unlocks nothing but that route.
+name: LMK sync tick
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+permissions: {}
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Tick
+        env:
+          KEY: ${{ secrets.LMK_CRON_KEY }}
+        run: |
+          code=$(curl -sS -m 60 -o /tmp/out.json -w "%{http_code}" -X POST "https://lmk-api.emieldieuvenson.workers.dev/cron?key=$KEY")
+          echo "status $code"; cat /tmp/out.json; echo
+          test "$code" = "200"
