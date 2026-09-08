@@ -550,6 +550,7 @@
       <p class="sub2">Add it to Chrome, then open Canvas once like you normally would. Come back to LMK and refresh; the first refresh or two can still be empty while it syncs, and that's normal. LMK learns every assignment, what's already submitted, your scores, and which items are in-class or not graded. It re-syncs whenever you're in Canvas.</p>
       <div class="row" style="margin-top:4px"><a class="btn grad" id="setupInstall" href="#" target="_blank" rel="noopener">Add to Chrome →</a></div>
       <p class="sub2" id="setupPhone" style="margin:10px 0 0;font-size:12.5px" hidden>On a phone? Set up on a laptop once, then sign in with Google (bottom of the page) and your plan appears here.</p>
+      <p class="sub2" id="setupBg" style="margin:10px 0 0;font-size:12.5px" hidden></p>
       <div class="adm-row" id="setupDrive" style="margin:12px 0 0;font-size:13px;color:var(--ink-2)" hidden></div>
     </div>
 
@@ -970,7 +971,19 @@ function applyCanvasPayload(p, opts = {}){
   return {n, newDone, newGrades, shelfAdd};
 }
 /* The extension says hello when it is on the page — so "installed but never synced" gets its own guidance. */
-const EXT = {present:false, version:"", drive:{state:"off"}};
+const EXT = {present:false, version:"", drive:{state:"off"}, resync:null, at:0};
+/* What the extension's own background sync has been doing. Shown under the gear so "it never
+   refreshed" has an answer: when it last ran, whether Canvas let it in, and how many items came back. */
+function renderBgStatus(){
+  const el = document.getElementById("setupBg"); if (!el) return;
+  if (!EXT.present || MODE !== "web" && MODE !== "artifact") { el.hidden = true; return; }
+  const r = EXT.resync, ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 1440 ? Math.round(m / 60) + " h ago" : Math.round(m / 1440) + " d ago"; };
+  let txt;
+  if (!r) txt = "Background sync: hasn't run yet. It runs every 30 minutes while Chrome is open, using your Canvas login.";
+  else if (r.ok) txt = `Background sync: ran ${ago(r.at)} ✓ ${r.n} assignments. It runs every 30 minutes while Chrome is open.`;
+  else txt = `Background sync: tried ${ago(r.at)} and couldn't read Canvas (${esc(r.err || "unknown")}). Open any Canvas page once and it picks back up.`;
+  el.textContent = ""; el.innerHTML = txt; el.hidden = false;
+}
 /* ---- the extension can save each Canvas sync to the student's Drive itself ----
    That is what keeps a phone fresh when no laptop tab has LMK open. The page only ever asks the
    extension to connect or disconnect; the extension holds the Google token, never the page. */
@@ -1020,6 +1033,7 @@ window.addEventListener("message", ev => {
   const d = ev.data;
   if (d && d.lmk === "canvas-payload" && d.payload) applyCanvasPayload(d.payload);
   if (d && d.lmk === "ext-hello" && !EXT.present) { EXT.present = true; EXT.version = String(d.version || ""); applyExtPresence(); renderDriveOffer(); if (!store.ext) render(); }
+  if (d && d.lmk === "resync-status") { EXT.resync = d.resync || null; if (d.at) EXT.at = d.at; renderBgStatus(); }
   if (d && d.lmk === "drive-status" && d.drive) {
     const was = (EXT.drive || {}).state; EXT.drive = d.drive; renderDriveOffer();
     if (was !== "on" && d.drive.state === "on") toast("Done. The extension now saves each Canvas sync to your Drive, and your phone picks it up.");
@@ -1960,7 +1974,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v29.2";
+const APP_BUILD = "v29.3";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -2208,7 +2222,7 @@ document.addEventListener("mousemove", e=>{
 const overlay = document.getElementById("overlay");
 document.getElementById("gearBtn").addEventListener("click", ()=>{
   document.getElementById("courseList2").innerHTML = COURSES.map(c=>`<option value="${esc(c)}">`).join("");
-  renderDriveOffer();
+  renderDriveOffer(); renderBgStatus();
   overlay.classList.add("open");
 });
 document.getElementById("closeModal").addEventListener("click", ()=>overlay.classList.remove("open"));
@@ -2772,7 +2786,15 @@ function scheduleDrivePush(){
    Uses the `drive.file` scope: LMK can only ever see the one file it created (LMK-data.json),
    never the rest of the student's Drive. That scope is non-sensitive, so there is no Google
    verification, no "unverified app" warning, and no 100-user cap. */
-const gd = {token:null, exp:0, fileId:null, tc:null, busy:false, pending:false};
+const gd = {token:null, exp:0, fileId:null, tc:null, busy:false, pending:false, gesture:0, resuming:false};
+/* Browsers only let Google's sign-in window open during a tap. So: remember the last token for its
+   hour, and when a silent refresh is needed outside a tap, wait for the next tap instead of failing. */
+document.addEventListener("pointerdown", () => { gd.gesture = Date.now(); }, {capture:true, passive:true});
+document.addEventListener("keydown", () => { gd.gesture = Date.now(); }, {capture:true, passive:true});
+function gdInGesture(){ return Date.now() - gd.gesture < 4000; }
+function gdCacheLoad(){ try { const c = JSON.parse(localStorage.getItem("lmk_gtok") || "null"); if (c && c.t && Date.now() < c.exp - 60000) { gd.token = c.t; gd.exp = c.exp; } } catch(_){} }
+function gdCacheSave(){ try { localStorage.setItem("lmk_gtok", JSON.stringify({t: gd.token, exp: gd.exp})); } catch(_){} }
+function gdCacheClear(){ gd.token = null; gd.exp = 0; try { localStorage.removeItem("lmk_gtok"); } catch(_){} }
 function gdReady(){ return MODE === "web" && !!gClientId(); }
 function loadGIS(){
   return new Promise((res, rej) => {
@@ -2785,7 +2807,9 @@ function loadGIS(){
 }
 function gdToken(interactive){
   return new Promise((res, rej) => {
+    if (!gd.token) gdCacheLoad();
     if (gd.token && Date.now() < gd.exp - 60000) return res(gd.token);
+    if (!interactive && !gdInGesture()) return rej(Object.assign(new Error("needs a tap"), {needsGesture:true}));
     if (!gd.tc) {
       gd.tc = window.google.accounts.oauth2.initTokenClient({
         client_id: gClientId(),
@@ -2794,7 +2818,7 @@ function gdToken(interactive){
       });
     }
     gd.tc.callback = r => {
-      if (r && r.access_token) { gd.token = r.access_token; gd.exp = Date.now() + (r.expires_in || 3600) * 1000; try { localStorage.setItem("lmk_gsignin", "1"); } catch(_){} res(gd.token); }
+      if (r && r.access_token) { gd.token = r.access_token; gd.exp = Date.now() + (r.expires_in || 3600) * 1000; gdCacheSave(); try { localStorage.setItem("lmk_gsignin", "1"); } catch(_){} res(gd.token); }
       else rej(new Error((r && r.error) || "no token"));
     };
     gd.tc.error_callback = e => rej(new Error((e && e.type) || "oauth failed"));
@@ -2804,7 +2828,7 @@ function gdToken(interactive){
 async function gdFetch(url, opts = {}){
   const t = await gdToken(false);
   const r = await fetch(url, Object.assign({}, opts, {headers: Object.assign({Authorization: "Bearer " + t}, opts.headers || {})}));
-  if (r.status === 401) { gd.token = null; const t2 = await gdToken(false); return fetch(url, Object.assign({}, opts, {headers: Object.assign({Authorization: "Bearer " + t2}, opts.headers || {})})); }
+  if (r.status === 401) { gdCacheClear(); const t2 = await gdToken(false); return fetch(url, Object.assign({}, opts, {headers: Object.assign({Authorization: "Bearer " + t2}, opts.headers || {})})); }
   return r;
 }
 /* The extension's own file. Applied only when it is newer than the sync this device already holds,
@@ -2902,9 +2926,36 @@ async function initWebSync(){
     scheduleDrivePush();
     syncBadge("☁ Synced to your Google Drive", "Saved as LMK-data.json in your Drive. Only you and LMK can read it.");
     renderDriveOffer(); setTimeout(maybeOfferDrive, 4000);
-  } catch(_) {
+  } catch(err) {
+    if (err && err.needsGesture) { armGestureSync(); return; }
     syncBadge("☁ Sync across devices — tap to sign in with Google");
   }
+}
+/* The next tap anywhere finishes the sign-in silently (Google already knows this device), then syncs. */
+let gestureArmed = false;
+function armGestureSync(){
+  if (gestureArmed) return; gestureArmed = true;
+  syncBadge("☁ Tap anywhere to sync with your Drive", "Your browser only lets Google confirm you during a tap. One tap, then it's automatic.");
+  const go = () => {
+    document.removeEventListener("pointerup", go, true); document.removeEventListener("keyup", go, true);
+    gestureArmed = false; gd.gesture = Date.now(); resumeWebSync();
+  };
+  document.addEventListener("pointerup", go, true); document.addEventListener("keyup", go, true);
+}
+async function resumeWebSync(){
+  if (gd.resuming || drive.ready) return; gd.resuming = true;
+  try {
+    await gdToken(false);
+    syncBadge("☁ Connecting to your Drive…");
+    await gdrivePull(); drive.lastPull = Date.now();
+    drive.ready = true;
+    if (drive.everRead && store.onboarded) welcomeOverlay.classList.remove("open");
+    scheduleDrivePush(); loadData(); render();
+    syncBadge("☁ Synced to your Google Drive", "Saved as LMK-data.json in your Drive. Only you and LMK can read it.");
+    renderDriveOffer();
+  } catch(_) {
+    syncBadge("☁ Sync across devices — tap to sign in with Google");
+  } finally { gd.resuming = false; }
 }
 async function webSignIn(){
   if (!gdReady()) { toast("Cross-device sync isn't configured for this copy of LMK yet."); return; }
@@ -3080,6 +3131,7 @@ document.getElementById("syncBadge").title = "Tap to sync now";
 document.getElementById("syncBadge").addEventListener("click", () => {
   if (MODE === "web") {
     if (drive.ready) { clearTimeout(drive.timer); drive.lastPull = 0; toast("Syncing with your Drive…"); gdrivePush(); }
+    else if (gd.resuming) { /* the tap that opened this already started the sync */ }
     else webSignIn();
     return;
   }
@@ -3192,7 +3244,7 @@ function adminApply(){
   if (key && key !== store.adminKey) { store.adminKey = key; save(); }
   if (key && key !== local) { try { localStorage.setItem("lmk_admin_key", key); } catch(_){} }
   ADMIN.key = key;
-  const on = !!(key && MODE === "web" && LMK_CONFIG.statsUrl);
+  const on = !!(key && LMK_CONFIG.statsUrl);   // in the artifact the tab is a door to the web dashboard
   for (const id of ["tabAdminTop","tabAdminBottom"]) { const el = document.getElementById(id); if (el) el.hidden = !on; }
 }
 (function adminKeyFromHash(){
@@ -3258,6 +3310,12 @@ document.querySelector(".wrap").addEventListener("change", e => {
 });
 function renderAdmin(root){
   if (!ADMIN.key) { root.innerHTML = `<div class="empty">Admin unlocks when you open LMK once with your admin link.</div>`; return; }
+  if (MODE !== "web") {
+    const href = LMK_CONFIG.appUrl.replace(/\/$/, "") + "/#admin=" + encodeURIComponent(ADMIN.key);
+    root.innerHTML = `<div class="card adm-card"><h3>Mission control lives on lmktoday.app</h3><p class="sub2">This copy runs inside claude.ai, whose sandbox can't reach the LMK worker. Your admin key travels with your Google account, so the dashboard is one click away.</p>
+      <div class="adm-row"><a class="btn primary" href="${esc(href)}" target="_blank" rel="noopener">Open Mission control →</a></div></div>`;
+    return;
+  }
   if (!ADMIN.data && !ADMIN.err) { adminFetch(false); root.innerHTML = `<div class="empty">Reading the numbers…</div>`; return; }
   if (!ADMIN.data) { root.innerHTML = `<div class="empty" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${esc(ADMIN.err)} <button class="minibtn" data-act="adm-refresh">Try again</button> <button class="minibtn drop" data-act="adm-logout">Forget admin key</button></div>`; return; }
   const d = ADMIN.data, days = d.days || {}, S = d.settings || {}, tot = d.totals || {};
