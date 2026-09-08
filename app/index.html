@@ -135,7 +135,7 @@
   .hero .why{font-size:13.5px;color:var(--ink-2)}
   .hero .why b{color:var(--ink)}
   .hero .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
-  .btn{border-radius:10px;padding:10px 16px;font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line)}
+  .btn{border-radius:10px;padding:10px 16px;font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);text-decoration:none}
   .btn.primary{background:var(--btn-bg);color:var(--btn-ink);border-color:var(--btn-bg)}
   .btn.primary:hover{opacity:.88}
   .btn.ghost{background:var(--surface)}
@@ -1462,8 +1462,8 @@ function studyPrompt(e){
   const days = Math.max(0, Math.floor((startOfDay(e.due) - startOfDay(now())) / 864e5));
   const when = days === 0 ? "due today" : days === 1 ? "due tomorrow" : `due ${FMT_DAY.format(e.due)}, ${days} days from now`;
   const kindWord = e.kind === "quiz" ? "quiz" : e.kind === "discussion" ? "discussion post" : e.exam ? "exam" : "assignment";
-  const inCourse = EVENTS.filter(x => x.course === e.course), doneIn = inCourse.filter(x => store.done[x.id]).length;
-  const standing = inCourse.length > 3 ? ` So far I've finished ${doneIn} of ${inCourse.length} things in this class.` : "";
+  const dueSoFar = EVENTS.filter(x => x.course === e.course && x.due < now() && x.kind !== "fyi"), doneIn = dueSoFar.filter(x => store.done[x.id]).length;
+  const standing = dueSoFar.length >= 3 ? ` So far in this class I've finished ${doneIn} of the ${dueSoFar.length} things that were due.` : "";
   const head = `I'm a college student in ${e.course}. Be my tutor for this ${kindWord}: "${e.title}" (${when}).${standing} Keep replies short and ask before you explain; I'm often on my phone. `;
   let body;
   if (e.exam) body = "Build a realistic study plan for the days I have left, then run an active-recall session: quiz me on the listed chapters one question at a time, wait for my answer before revealing anything, correct me kindly, and keep a running list of my weak spots. Finish by turning my weak spots into a one-page cheat sheet.";
