@@ -2243,7 +2243,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v31.0";
+const APP_BUILD = "v31.1";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -3557,6 +3557,8 @@ async function adminSave(patch){
     const j = await r.json(); if (ADMIN.data) ADMIN.data.settings = j.settings;
     try { localStorage.removeItem("lmk_cfg"); } catch(_){}
     toast("Saved. Everyone sees it within a minute.");
+    ADMIN.at = 0; await adminFetch(true);   // the worker derives the tutor card from settings; re-read so the card shows what was saved
+    return;
   } catch(e) { toast("Save failed — the worker didn't accept it."); }
   render();
 }
