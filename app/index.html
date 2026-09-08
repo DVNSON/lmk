@@ -222,6 +222,7 @@
   .minibtn:hover{background:var(--surface-2)}
   .minibtn.keep{color:var(--good-text)}
   .minibtn.drop{color:var(--muted)}
+  .minibtn.muted{color:var(--muted)}
 
   /* ---------- semester: radar ---------- */
   .radar{padding:18px 16px 14px;overflow-x:auto}
@@ -480,6 +481,31 @@
   .sp-chat{display:flex;flex-direction:column;min-height:0;gap:8px}
   .sp-chat .chat{flex:1;max-height:none;min-height:220px;margin:0;padding:6px 4px}
   .modes{display:flex;gap:6px;flex-wrap:wrap}
+  .mode.make{border-color:color-mix(in srgb,var(--c5) 45%,var(--line))}
+  .sp-scope{display:block;margin-top:2px}
+  .sp-scope select{max-width:100%;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink-2);padding:3px 8px;font:500 12px/1.4 "Public Sans",system-ui,sans-serif}
+  /* quiz + deck widgets inside the chat */
+  .qz,.deck{align-self:stretch;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+  .qz-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13px;color:var(--muted)}
+  .qz-head b{color:var(--ink);font:700 15px/1.2 "Bricolage Grotesque",sans-serif}
+  .qq{border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:8px}
+  .qq-q{font-size:14px;font-weight:600;display:flex;gap:8px;align-items:flex-start}
+  .qn{flex:none;width:22px;height:22px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);font:600 11px/22px "Spline Sans Mono",monospace;text-align:center;color:var(--muted)}
+  .qq.right .qn{background:var(--good);border-color:var(--good);color:#fff} .qq.wrong .qn{background:var(--critical);border-color:var(--critical);color:#fff}
+  .qq-c{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:6px}
+  .qc{text-align:left;border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:13.5px;background:var(--surface-2)}
+  .qc:hover:not(:disabled){border-color:var(--ink)}
+  .qc.is-right{border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,var(--surface))}
+  .qc.is-wrong{border-color:var(--critical);background:color-mix(in srgb,var(--critical) 10%,var(--surface))}
+  .qc.dim{opacity:.55}
+  .qq-why{font-size:13px;color:var(--ink-2);padding-left:30px}
+  .qz-foot{display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px;font-size:14px}
+  .fc{position:relative;min-height:150px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2);text-align:center;padding:18px;font-size:16px;line-height:1.4;display:grid;place-items:center;cursor:pointer}
+  .fc .fc-side{display:block;max-width:100%} .fc .back{display:none;color:var(--ink)} .fc.flipped .front{display:none} .fc.flipped .back{display:block}
+  .fc .front{font-weight:700;font-family:"Bricolage Grotesque",sans-serif;font-size:18px}
+  .fc.flipped{background:color-mix(in srgb,var(--c1) 8%,var(--surface))}
+  .deck-acts{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  @media (prefers-reduced-motion: no-preference){ .fc{transition:background .2s} .qq.right,.qq.wrong{animation:none} }
   .mode{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
   .mode:hover{border-color:var(--line-strong);color:var(--ink)}
   .mode[aria-pressed="true"]{background:var(--btn-bg);color:var(--btn-ink);border-color:var(--btn-bg)}
@@ -1604,9 +1630,18 @@ const STUDY = {id: null, mode: "", pushed: false};   // pushed: this page added 
 const STUDY_MODES = [
   {id:"explain", label:"Explain it",      starter:"Explain the core idea behind this to me, one step at a time."},
   {id:"outline", label:"Outline with me", starter:"Help me outline this. Ask me what I'm thinking first."},
-  {id:"quiz",    label:"Quiz me",         starter:"Quiz me on this, one question at a time. Wait for my answer."},
+  {id:"quiz",    label:"Quiz",            make:"quiz",  title:"A whole quiz for one message"},
+  {id:"cards",   label:"Flashcards",      make:"cards", title:"A whole deck for one message"},
   {id:"check",   label:"Check my work",   starter:""},
 ];
+const KIND_WORD = e => e.isCourse ? "course" : e.kind === "quiz" ? "quiz" : e.kind === "discussion" ? "discussion post" : e.exam ? "exam" : "assignment";
+/* What the Study screen is about: one assignment, or a whole course (exam prep, the syllabus, what's coming). */
+function studyTarget(id){
+  const e = EVENTS.find(x => x.id === id); if (e) return e;
+  const m = /^c:(.+)$/.exec(id || ""); if (!m || !COURSES.includes(m[1])) return null;
+  const course = m[1], next = EVENTS.filter(open).filter(x => x.course === course && x.due > now()).sort((a, b) => a.due - b.due)[0];
+  return {id, title: course + " · the whole course", course, due: next ? next.due : now(), kind: "course", exam: false, desc: "", url: null, ext: null, effort: "medium", isCourse: true, next};
+}
 /* ---- LMK Plus ----
    The offer (link, portal, price) comes from /config; the student's own standing from /plus/status.
    Paying happens on Stripe with the random sync id attached; the worker learns about it from Stripe,
@@ -1708,6 +1743,16 @@ function tutorSave(id){ try { localStorage.setItem("lmk_tutor_" + id, JSON.strin
 function tutorFacts(e){
   const n = now(), days = Math.max(0, Math.floor((startOfDay(e.due) - startOfDay(n)) / 864e5));
   const x = e.ext || {};
+  if (e.isCourse) {
+    let grade = "";
+    try { const g = gradeFor(e.course); if (g) grade = `${g.letter} (${g.pct}%) across ${g.n} graded item${g.n === 1 ? "" : "s"}${g.weighted ? ", weighted" : ""}`; } catch(_){}
+    const up = EVENTS.filter(open).filter(y => y.course === e.course && y.due > n).sort((a, b) => a.due - b.due).slice(0, 6);
+    const doneIn = EVENTS.filter(y => y.course === e.course && y.due < n && y.kind !== "fyi"), fin = doneIn.filter(y => store.done[y.id]).length;
+    return {days, worth: "", est: "", today: null, grade, rubric: "", up,
+      plan: up.length ? "coming up in this course: " + up.map(y => `${y.title.slice(0, 40)} (${FMT_DAY.format(y.due)})`).join("; ") : "nothing else is due in this course",
+      due: up.length ? "next: " + up[0].title.slice(0, 40) + " on " + FMT_DAY.format(up[0].due) : "nothing scheduled",
+      standing: doneIn.length >= 3 ? `finished ${fin} of the ${doneIn.length} things due so far in this class` : ""};
+  }
   const worth = x.pts != null && x.pts !== "" ? `${x.pts} point${+x.pts === 1 ? "" : "s"}${x.st ? " · " + String(x.st).split(",")[0].replace(/_/g, " ").replace("online ", "") : ""}` : "";
   let est = "";
   try { const l = learnedMins(e); est = `about ${fmtMins(l.mins)}${l.learned ? ` (learned from ${l.n} of the student's own timings)` : l.level === "crowd" ? " (from other students on this assignment)" : " (LMK's guess)"}`; } catch(_){}
@@ -1732,16 +1777,79 @@ function tutorFacts(e){
 }
 function tutorCtx(e){
   const f = tutorFacts(e);
-  return {title: e.title, course: e.course, kind: e.exam ? "exam" : (e.kind || "assignment"), due: f.due, standing: f.standing,
+  return {title: e.title, course: e.course, kind: KIND_WORD(e), due: f.due, standing: f.standing,
     worth: f.worth, est: f.est, plan: f.plan, grade: f.grade, rubric: f.rubric, mode: STUDY.mode || "",
     desc: e.desc || "", notes: (store.itemNotes || {})[e.id] || "", syllabus: (store.courseNotes || {})[e.course] || ""};
 }
 function tutorRenderThread(id){
   const box = document.getElementById("aiChat"); if (!box) return;
-  const t = tutorThread(id);
-  box.innerHTML = t.length ? t.map(m => `<div class="msg ${m.role === "user" ? "me" : "ai"}">${esc(m.content)}</div>`).join("")
-    : `<div class="msg ai">Hi. I've read this ${esc(tutorCtx(EVENTS.find(x => x.id === id) || {title:"", course:"", due: now()}).kind)}: what it asks, when it's due, and where you stand. Pick a way to work above, or just ask.</div>`;
+  const t = tutorThread(id), e = studyTarget(id) || {title:"", course:"", due: now()};
+  const greet = e.isCourse
+    ? `Hi. I know your ${esc(e.course)}: the syllabus notes you've added, what's coming up, and where you stand. Ask about the course, or make a quiz or a deck for the exam.`
+    : `Hi. I've read this ${esc(KIND_WORD(e))}: what it asks, when it's due, and where you stand. Pick a way to work above, or just ask.`;
+  box.innerHTML = t.length ? t.map((m, i) => m.quiz ? quizHtml(m.quiz, i) : m.cards ? deckHtml(m.cards, i) : `<div class="msg ${m.role === "user" ? "me" : "ai"}">${esc(m.content)}</div>`).join("")
+    : `<div class="msg ai">${greet}</div>`;
   box.scrollTop = box.scrollHeight;
+}
+/* A quiz is one assistant turn the student works through in place. Picks are saved with the thread, and the
+   turn's text is rewritten as a digest so the next chat message knows how the quiz went. */
+function quizHtml(q, i){
+  const picked = q.picked || [];
+  const answered = q.questions.filter((_, j) => picked[j] != null).length, right = q.questions.filter((x, j) => picked[j] === x.answer).length;
+  const done = answered === q.questions.length, missed = q.questions.map((x, j) => picked[j] != null && picked[j] !== x.answer ? j + 1 : 0).filter(Boolean);
+  return `<div class="qz" data-turn="${i}"><div class="qz-head"><b>${esc(q.title)}</b><span>${done ? `${right} of ${q.questions.length}` : `${answered} of ${q.questions.length} answered`}</span></div>
+    ${q.questions.map((x, j) => { const p = picked[j]; return `<div class="qq ${p == null ? "" : p === x.answer ? "right" : "wrong"}"><div class="qq-q"><span class="qn">${j + 1}</span>${esc(x.q)}</div>
+      <div class="qq-c">${x.choices.map((c, k) => `<button class="qc ${p == null ? "" : k === x.answer ? "is-right" : k === p ? "is-wrong" : "dim"}" data-q="${j}" data-c="${k}" ${p == null ? "" : "disabled"}>${esc(c)}</button>`).join("")}</div>
+      ${p != null ? `<div class="qq-why">${p === x.answer ? "✓ " : "✗ "}${esc(x.why)}</div>` : ""}</div>`; }).join("")}
+    ${done ? `<div class="qz-foot"><b>${right === q.questions.length ? "All of them. Nice." : `${right} of ${q.questions.length}.`}</b>${missed.length ? `<button class="minibtn" data-again="quiz" data-focus="${esc(missed.map(n => q.questions[n - 1].q).join("; ").slice(0, 300))}">Again on what I missed · 1 message</button><button class="minibtn" data-explain="${esc(q.questions[missed[0] - 1].q)}">Explain #${missed[0]}</button>` : `<button class="minibtn" data-again="quiz" data-focus="harder questions">Harder · 1 message</button>`}</div>` : ""}</div>`;
+}
+function deckHtml(d, i){
+  const at = Math.min(d.at || 0, d.cards.length - 1), known = d.known || [], c = d.cards[at], seen = known.filter(k => k != null).length;
+  const missedFronts = d.cards.filter((_, j) => known[j] === false).map(x => x.front);
+  const finished = seen === d.cards.length;
+  return `<div class="deck" data-turn="${i}"><div class="qz-head"><b>${esc(d.title)}</b><span>${at + 1} of ${d.cards.length}${seen ? ` · ${known.filter(Boolean).length} known` : ""}</span></div>
+    <button class="fc ${d.flip ? "flipped" : ""}" data-flip="1" aria-label="Flip the card"><span class="fc-side front">${esc(c.front)}</span><span class="fc-side back">${esc(c.back)}</span></button>
+    <div class="deck-acts"><button class="minibtn" data-nav="-1" ${at === 0 ? "disabled" : ""}>‹ Back</button>
+      ${d.flip ? `<button class="minibtn muted" data-know="0">Not yet</button><button class="minibtn keep" data-know="1">Got it</button>` : `<span class="privacy" style="margin:0">Tap the card to flip it</span>`}
+      <button class="minibtn" data-nav="1" ${at >= d.cards.length - 1 ? "disabled" : ""}>Next ›</button></div>
+    ${finished ? `<div class="qz-foot"><b>${missedFronts.length ? `${missedFronts.length} to revisit.` : "You know the deck."}</b>${missedFronts.length ? `<button class="minibtn" data-again="cards" data-focus="${esc(missedFronts.join("; ").slice(0, 300))}">New cards on those · 1 message</button>` : `<button class="minibtn" data-again="cards" data-focus="deeper material not covered yet">Go deeper · 1 message</button>`}</div>` : ""}</div>`;
+}
+function quizDigest(q){
+  const picked = q.picked || [], missed = q.questions.map((x, j) => picked[j] != null && picked[j] !== x.answer ? `#${j + 1} ${x.q} (they chose "${x.choices[picked[j]]}", correct: "${x.choices[x.answer]}")` : "").filter(Boolean);
+  const answered = q.questions.filter((_, j) => picked[j] != null).length, right = q.questions.filter((x, j) => picked[j] === x.answer).length;
+  return `[Quiz "${q.title}": ${q.questions.map((x, j) => `${j + 1}. ${x.q} → ${x.choices[x.answer]}`).join(" | ")}]` + (answered ? ` The student answered ${answered} and got ${right} right.${missed.length ? " Missed: " + missed.join("; ") : ""}` : " Not answered yet.");
+}
+function deckDigest(d){
+  const known = d.known || [], miss = d.cards.filter((_, j) => known[j] === false).map(x => x.front);
+  return `[Flashcards "${d.title}": ${d.cards.map(c => c.front + " = " + c.back).join(" | ")}]` + (miss.length ? ` The student marked these as not known yet: ${miss.join("; ")}.` : "");
+}
+/* one message buys a whole quiz or deck */
+async function tutorMake(id, kind, focus){
+  const e = studyTarget(id); if (!e || TUTOR.busy) return;
+  const t = tutorThread(id), box = document.getElementById("aiChat");
+  const label = kind === "quiz" ? "quiz" : "deck of flashcards";
+  t.push({role: "user", content: `Make me a ${label} on this${focus ? ", focused on: " + focus : ""}.`}); tutorSave(id); tutorRenderThread(id);
+  const bubble = document.createElement("div"); bubble.className = "msg ai thinking"; bubble.textContent = kind === "quiz" ? "Writing your quiz" : "Writing your cards"; box.appendChild(bubble); box.scrollTop = box.scrollHeight;
+  TUTOR.busy = true; const sb = document.getElementById("aiSend"); if (sb) sb.disabled = true;
+  try {
+    const r = await fetch(apiUrl("/tutor"), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"},
+      body: JSON.stringify({sid: store.cloud.sid, secret: store.cloud.secret, ctx: tutorCtx(e), make: kind, focus: focus || ""})});
+    let j = {}; try { j = await r.json(); } catch(_){}
+    if (j.left != null) { TUTOR.left = +j.left; TUTOR.weekly = +j.weekly; TUTOR.plus = !!j.plus; TUTOR.credits = +(j.credits || 0); }
+    if (!r.ok || !j.ok) {
+      t.pop();
+      TUTOR.state = j.error === "allowance" ? "allowance" : (r.status === 503 ? "off" : TUTOR.state); if (j.error === "allowance") TUTOR.left = 0;
+      bubble.classList.remove("thinking");
+      bubble.textContent = j.error === "allowance" ? "That's this week's messages used up." : j.error === "make" ? "That one didn't come out right. Try again; it won't count twice against you if it fails." : j.error === "network" ? "A lot of people on this network are using the tutor right now. Try again later." : "The tutor couldn't do that just now. Try again in a moment.";
+      tutorSave(id); tutorNote(); return;
+    }
+    TUTOR.state = "ok";
+    if (kind === "quiz") { const q = Object.assign({picked: []}, j.quiz); t.push({role: "assistant", content: quizDigest(q), quiz: q}); }
+    else { const d = Object.assign({at: 0, known: [], flip: false}, j.cards); t.push({role: "assistant", content: deckDigest(d), cards: d}); }
+    tutorSave(id); tutorRenderThread(id); tutorNote();
+  } catch(_) {
+    t.pop(); bubble.classList.remove("thinking"); bubble.textContent = "Lost the connection. Try again.";
+  } finally { TUTOR.busy = false; const b = document.getElementById("aiSend"); if (b) b.disabled = false; }
 }
 function tutorNote(){
   const el = document.getElementById("aiNote"), up = document.getElementById("aiUpsell"); if (!el) return;
@@ -1771,7 +1879,7 @@ async function tutorBalance(){
 async function tutorSend(id, preset){
   const ta = document.getElementById("aiInput"); if (!ta || TUTOR.busy) return;
   const text = (preset || ta.value).trim(); if (!text) return;
-  const e = EVENTS.find(x => x.id === id); if (!e) return;
+  const e = studyTarget(id); if (!e) return;
   const t = tutorThread(id); t.push({role:"user", content:text}); ta.value = ""; tutorSave(id); tutorRenderThread(id);
   const box = document.getElementById("aiChat"); const bubble = document.createElement("div"); bubble.className = "msg ai thinking"; box.appendChild(bubble); box.scrollTop = box.scrollHeight;
   TUTOR.busy = true; document.getElementById("aiSend").disabled = true;
@@ -1804,20 +1912,26 @@ function planChip(){
 }
 /* The Study screen. One assignment, full page: the brief on the left (what it is, what it is worth, the rubric,
    the time you have, your notes) and the tutor on the right. The 60-second render never touches this page. */
+function scopeOptions(cur){
+  const n = now(), byCourse = {};
+  EVENTS.filter(open).filter(x => x.kind !== "fyi").sort((a, b) => a.due - b.due).forEach(x => { (byCourse[x.course] = byCourse[x.course] || []).push(x); });
+  if (cur && !cur.isCourse && !(byCourse[cur.course] || []).some(x => x.id === cur.id)) (byCourse[cur.course] = byCourse[cur.course] || []).unshift(cur);
+  return COURSES.map(c => `<optgroup label="${esc(c)}"><option value="c:${esc(c)}" ${cur && cur.id === "c:" + c ? "selected" : ""}>${esc(c)} · the whole course</option>${(byCourse[c] || []).slice(0, 12).map(x => `<option value="${x.id}" ${cur && cur.id === x.id ? "selected" : ""}>${esc(x.title.slice(0, 48))}${x.due < n ? " · overdue" : " · " + FMT_DAY.format(x.due)}</option>`).join("")}</optgroup>`).join("");
+}
 function openStudy(id, opts = {}){
-  const e = EVENTS.find(x => x.id === id); if (!e) return;
+  const e = studyTarget(id); if (!e) return;
   try { detailOverlay.classList.remove("open"); } catch(_){}
   let pref = ""; try { pref = localStorage.getItem("lmk_ai_pref") || ""; } catch(_){}
   try { STUDY.mode = localStorage.getItem("lmk_tutor_mode_" + id) || ""; } catch(_) { STUDY.mode = ""; }
   STUDY.id = id;
-  const prompt = studyPrompt(e);
+  const prompt = e.isCourse ? `I'm a college student in ${e.course}. Be my tutor for this course as a whole. Here is what I know about it:${(store.courseNotes || {})[e.course] ? "\n\n" + (store.courseNotes || {})[e.course].slice(0, 3000) : " (nothing added yet)"}\n\nComing up: ${(tutorFacts(e).up || []).map(y => y.title + " (" + FMT_DAY.format(y.due) + ")").join("; ") || "nothing scheduled"}. Start by asking what I want to work on. Keep replies short; I'm often on my phone.` : studyPrompt(e);
   const order = AI_TARGETS.slice().sort((a, b) => (b.id === pref) - (a.id === pref));
   const inApp = tutorPossible();
   const locked = inApp && (TUTOR.state === "off" || !plusTutorOn());
-  const kind = e.exam ? "exam" : "assignment";
+  const kind = KIND_WORD(e);
   const f = tutorFacts(e);
   const g = (() => { try { return gradeFor(e.course); } catch(_) { return null; } })();
-  const notes = (store.itemNotes || {})[e.id] || "";
+  const notes = e.isCourse ? ((store.courseNotes || {})[e.course] || "") : ((store.itemNotes || {})[e.id] || "");
   const ownAI = `<details class="ownai"${inApp ? "" : " open"}><summary>${inApp ? "Prefer your own AI? Open Claude, ChatGPT or Gemini with the same brief" : "Open it in your own AI, with a prompt that already knows this " + kind}</summary>
       <div class="row" style="margin-top:10px">
         ${order.map(t => `<a class="btn ${t.id === pref || (!pref && t.id === "claude") ? "primary" : "ghost"}" data-ai="${t.id}" href="${esc(t.url(prompt))}" target="_blank" rel="noopener">${t.name}${t.id === pref ? " · your usual" : ""}</a>`).join("")}
@@ -1825,7 +1939,11 @@ function openStudy(id, opts = {}){
       </div>
       <textarea id="aiPrompt" aria-label="The prompt LMK prepared; edit it if you like" style="margin-top:12px;min-height:120px;width:100%;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink);padding:10px;font:13px/1.5 'Public Sans',system-ui,sans-serif;resize:vertical">${esc(prompt)}</textarea>
       <p class="privacy" style="margin-top:6px">Edit it first if you want to add what you've tried. Gemini can't take a prompt from a link, so it's copied for you to paste. LMK sends nothing anywhere this way.</p></details>`;
-  const facts = [
+  const facts = e.isCourse ? [
+    ["Next up", f.up && f.up.length ? `${esc(f.up[0].title.slice(0, 40))} · ${FMT_DAY.format(f.up[0].due)}` : "nothing scheduled"],
+    ["Open", `${EVENTS.filter(open).filter(y => y.course === e.course).length} item${EVENTS.filter(open).filter(y => y.course === e.course).length === 1 ? "" : "s"}`],
+    g ? ["Standing", `${g.letter} · ${g.pct}%${g.working ? " · " + g.working + " in progress" : ""}`] : null,
+  ].filter(Boolean) : [
     ["Due", `${FMT_DAY.format(e.due)} · ${FMT_TIME.format(e.due)}${f.days === 0 ? " · today" : f.days === 1 ? " · tomorrow" : " · in " + f.days + " days"}`],
     f.worth ? ["Worth", f.worth] : null,
     ["Usually takes", f.est.replace(/^about /, "").replace(/ \(.*\)$/, "")],
@@ -1835,18 +1953,19 @@ function openStudy(id, opts = {}){
   const rub = (e.ext && e.ext.rub) ? String(e.ext.rub).split("; ").filter(Boolean) : [];
   studyPage.innerHTML = `
     <div class="sp-head"><button class="sp-back" id="spBack" aria-label="Back to your plan">← Plan</button>
-      <div class="sp-title"><b id="aiTitle">${esc(e.title)}</b><span>${esc(e.course)} · ${inApp ? "your tutor" : "study with AI"}</span></div>${inApp ? planChip() : ""}</div>
+      <div class="sp-title"><b id="aiTitle">${esc(e.title)}</b><label class="sp-scope"><span class="srconly">What to study</span><select id="spScope" aria-label="Choose what to study">${scopeOptions(e)}</select></label></div>${inApp ? planChip() : ""}</div>
     <div class="sp-body">
       <details class="sp-more card" ${window.innerWidth > 800 ? "open" : ""} style="border:none;background:transparent;box-shadow:none"><summary>About this ${kind}</summary>
       <aside class="sp-brief">
         <div class="card sp-facts">${facts.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")}</div>
-        <div class="card sp-block"><h4>Instructions from Canvas</h4>${e.desc ? `<div class="sp-scroll">${esc(e.desc)}</div>` : `<p class="privacy" style="margin:0">Nothing came through for this one yet. Open it in Canvas and paste what matters into your notes; the tutor reads them.</p>`}</div>
+        ${e.isCourse ? `<div class="card sp-block"><h4>Coming up</h4>${f.up && f.up.length ? `<ul>${f.up.map(y => `<li>${esc(y.title.slice(0, 60))} · ${FMT_DAY.format(y.due)}</li>`).join("")}</ul>` : `<p class="privacy" style="margin:0">Nothing else is due in this course.</p>`}</div>`
+        : `<div class="card sp-block"><h4>Instructions from Canvas</h4>${e.desc ? `<div class="sp-scroll">${esc(e.desc)}</div>` : `<p class="privacy" style="margin:0">Nothing came through for this one yet. Open it in Canvas and paste what matters into your notes; the tutor reads them.</p>`}</div>`}
         ${rub.length ? `<div class="card sp-block"><h4>Rubric</h4><ul>${rub.map(r => `<li>${esc(r)}</li>`).join("")}</ul></div>` : ""}
-        <div class="card sp-block"><h4>Your notes</h4><textarea id="spNotes" placeholder="What you've tried, what the professor said, anything the tutor should know…">${esc(notes)}</textarea><p class="privacy" style="margin:6px 0 0">Saved on this device and in your Drive. The tutor reads them.</p></div>
-        <div class="row" style="margin:0">${e.url ? `<a class="btn ghost" href="${esc(e.url)}" target="_blank" rel="noopener">Open in Canvas ↗</a>` : ""}<button class="btn ghost" id="spDone">${store.done[e.id] ? "Not done after all" : "Done ✓"}</button></div>
+        <div class="card sp-block"><h4>${e.isCourse ? "Syllabus and course notes" : "Your notes"}</h4><textarea id="spNotes" placeholder="${e.isCourse ? "Paste the syllabus, the exam format, the chapters covered, anything the tutor should know about this course…" : "What you've tried, what the professor said, anything the tutor should know…"}">${esc(notes)}</textarea><p class="privacy" style="margin:6px 0 0">Saved on this device and in your Drive. The tutor reads them.</p></div>
+        <div class="row" style="margin:0">${e.url ? `<a class="btn ghost" href="${esc(e.url)}" target="_blank" rel="noopener">Open in Canvas ↗</a>` : ""}${e.isCourse ? "" : `<button class="btn ghost" id="spDone">${store.done[e.id] ? "Not done after all" : "Done ✓"}</button>`}</div>
       </aside></details>
       <section class="sp-chat">
-        ${inApp && !locked ? `<div class="modes" role="group" aria-label="How do you want to work?">${STUDY_MODES.map(m => `<button class="mode" data-mode="${m.id}" aria-pressed="${STUDY.mode === m.id}">${m.label}</button>`).join("")}</div>
+        ${inApp && !locked ? `<div class="modes" role="group" aria-label="How do you want to work?">${STUDY_MODES.map(m => `<button class="mode ${m.make ? "make" : ""}" data-mode="${m.id}" aria-pressed="${STUDY.mode === m.id}" ${m.title ? `title="${m.title}"` : ""}>${m.make ? "✦ " : ""}${m.label}</button>`).join("")}</div>
         <div class="chat card" id="aiChat" aria-live="polite" style="padding:10px"></div>
         <div class="chatbar"><textarea id="aiInput" rows="1" placeholder="Ask anything about it…" aria-label="Your message to the tutor"></textarea><button class="btn primary" id="aiSend">Send</button></div>
         <div class="planbar"><span id="aiNote"></span><span id="aiUpsell"></span></div>
@@ -1859,14 +1978,20 @@ function openStudy(id, opts = {}){
     </div>`;
   studyPage.hidden = false;
   document.documentElement.style.overflow = "hidden";
-  STUDY.pushed = false;
-  if (!opts.fromHistory) { try { history.pushState({study: id}, "", location.pathname + location.search + "#study=" + id.slice(1)); STUDY.pushed = true; } catch(_){} }
+  const hash = "#study=" + encodeURIComponent(e.isCourse ? id : id.slice(1));
+  if (opts.replace) { try { history.replaceState({study: id}, "", location.pathname + location.search + hash); } catch(_){} }   // switching scope keeps one history entry
+  else if (!opts.fromHistory) { STUDY.pushed = false; try { history.pushState({study: id}, "", location.pathname + location.search + hash); STUDY.pushed = true; } catch(_){} }
   studyPage.scrollTop = 0;
   document.getElementById("spBack").onclick = () => closeStudy();
   studyPage.querySelectorAll('[data-act="plus-open"]').forEach(b => b.addEventListener("click", openPlus));
   const nt = document.getElementById("spNotes");
-  nt.addEventListener("change", () => { store.itemNotes = store.itemNotes || {}; if (nt.value.trim()) store.itemNotes[e.id] = nt.value.trim(); else delete store.itemNotes[e.id]; save(); });
-  document.getElementById("spDone").onclick = () => { toggleDone(e.id, null, "Marked done. Nice."); render(); document.getElementById("spDone").textContent = store.done[e.id] ? "Not done after all" : "Done ✓"; };
+  nt.addEventListener("change", () => {
+    if (e.isCourse) { store.courseNotes = store.courseNotes || {}; if (nt.value.trim()) store.courseNotes[e.course] = nt.value.trim(); else delete store.courseNotes[e.course]; }
+    else { store.itemNotes = store.itemNotes || {}; if (nt.value.trim()) store.itemNotes[e.id] = nt.value.trim(); else delete store.itemNotes[e.id]; }
+    save();
+  });
+  const dn = document.getElementById("spDone"); if (dn) dn.onclick = () => { toggleDone(e.id, null, "Marked done. Nice."); render(); dn.textContent = store.done[e.id] ? "Not done after all" : "Done ✓"; };
+  document.getElementById("spScope").addEventListener("change", ev => { const to = ev.target.value; if (to && to !== id) openStudy(to, {replace: true}); });
   if (inApp && !locked) {
     tutorRenderThread(id); tutorNote(); tutorBalance();
     const ta = document.getElementById("aiInput");
@@ -1874,12 +1999,30 @@ function openStudy(id, opts = {}){
     ta.addEventListener("keydown", ev => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); tutorSend(id); } });
     ta.addEventListener("input", () => { ta.style.height = "auto"; ta.style.height = Math.min(140, ta.scrollHeight) + "px"; });
     document.getElementById("aiClear").onclick = () => { TUTOR.threads[id] = []; tutorSave(id); tutorRenderThread(id); };
+    document.getElementById("aiChat").addEventListener("click", ev => {
+      const turnEl = ev.target.closest("[data-turn]"); if (!turnEl) return;
+      const m = tutorThread(id)[+turnEl.dataset.turn]; if (!m) return;
+      const b = ev.target.closest("button"); if (!b) return;
+      if (b.dataset.again) { tutorMake(id, b.dataset.again, b.dataset.focus || ""); return; }
+      if (b.dataset.explain) { ta.value = "Explain question: " + b.dataset.explain; ta.focus(); ta.dispatchEvent(new Event("input")); return; }
+      if (m.quiz && b.dataset.q != null) { m.quiz.picked = m.quiz.picked || []; m.quiz.picked[+b.dataset.q] = +b.dataset.c; m.content = quizDigest(m.quiz); }
+      else if (m.cards) {
+        const d = m.cards;
+        if (b.dataset.flip) d.flip = !d.flip;
+        else if (b.dataset.know != null) { d.known = d.known || []; d.known[d.at || 0] = b.dataset.know === "1"; d.flip = false; if ((d.at || 0) < d.cards.length - 1) d.at = (d.at || 0) + 1; }
+        else if (b.dataset.nav) { d.at = Math.max(0, Math.min(d.cards.length - 1, (d.at || 0) + +b.dataset.nav)); d.flip = false; }
+        m.content = deckDigest(d);
+      } else return;
+      const top = document.getElementById("aiChat").scrollTop;
+      tutorSave(id); tutorRenderThread(id); document.getElementById("aiChat").scrollTop = top;
+    });
     studyPage.querySelectorAll(".mode").forEach(btn => btn.addEventListener("click", () => {
       const m = STUDY_MODES.find(x => x.id === btn.dataset.mode); if (!m) return;
       const was = STUDY.mode === m.id;
       STUDY.mode = was ? "" : m.id;
       try { if (STUDY.mode) localStorage.setItem("lmk_tutor_mode_" + id, STUDY.mode); else localStorage.removeItem("lmk_tutor_mode_" + id); } catch(_){}
       studyPage.querySelectorAll(".mode").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.mode === STUDY.mode)));
+      if (m.make) { STUDY.mode = ""; try { localStorage.removeItem("lmk_tutor_mode_" + id); } catch(_){} studyPage.querySelectorAll(".mode").forEach(x => x.setAttribute("aria-pressed", "false")); tutorMake(id, m.make, ""); return; }
       if (was) return;
       if (m.id === "check") { ta.placeholder = "Paste your draft or your solution here…"; ta.focus(); return; }
       ta.placeholder = "Ask anything about it…";
@@ -2543,7 +2686,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v35.0";
+const APP_BUILD = "v36.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -4104,7 +4247,7 @@ crowdInit();
 pingDaily();
 loadRemoteConfig();
 (function studyFromHash(){
-  try { const m = location.hash.match(/#study=(\d+)/); if (m && EVENTS.some(e => e.id === "a" + m[1])) { history.replaceState({study: "a" + m[1]}, "", location.href); openStudy("a" + m[1], {fromHistory: true}); } } catch(_){}
+  try { const m = location.hash.match(/#study=([^&]+)/); if (!m) return; const raw = decodeURIComponent(m[1]); const id = /^c:/.test(raw) ? raw : "a" + raw; if (studyTarget(id)) { history.replaceState({study: id}, "", location.href); openStudy(id, {fromHistory: true}); } } catch(_){}
 })();
 setTimeout(maybeAskReview, 25000);
 /* The welcome asks for a name. Only show it once we're sure this is a new person: after the first
