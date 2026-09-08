@@ -1960,7 +1960,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v29.1";
+const APP_BUILD = "v29.2";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -2723,7 +2723,7 @@ function mergeStores(a, b){
   const newer = (b.savedAt||0) >= (a.savedAt||0) ? b : a;
   const older = newer === b ? a : b;
   const m = {};
-  for (const k of ["done","dropped","starred","triaged","itemNotes","courseNotes","grades","effortOv","leadOv","seriesRules","kindOv","extGraded","extDone","handDone","capOv","tutorCtx"]) {
+  for (const k of ["done","dropped","starred","triaged","itemNotes","courseNotes","grades","effortOv","leadOv","seriesRules","kindOv","extGraded","extDone","handDone","capOv","tutorCtx","celebrated","recapSeen","lmkSyllabusIds"]) {
     m[k] = Object.assign({}, older[k]||{}, newer[k]||{});
   }
   // learning data: measurements union by timestamp, tracked minutes take the max
