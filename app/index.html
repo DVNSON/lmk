@@ -456,6 +456,50 @@
   .plus-pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700;background:var(--surface);cursor:pointer}
   .plus-pill i{width:8px;height:8px;border-radius:50%;background:var(--splash);display:inline-block}
   @media (max-width:640px){ .plus-hero{margin:-18px -20px 16px;padding:22px 20px 18px;border-radius:24px 24px 0 0} }
+  /* ---------- the Study screen: one assignment, full page ---------- */
+  .studypage{position:fixed;inset:0;z-index:90;background:var(--bg);display:flex;flex-direction:column;overflow:auto;-webkit-overflow-scrolling:touch}
+  .sp-head{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent);position:sticky;top:0;z-index:2;
+    background:color-mix(in srgb,var(--bg) 78%,transparent);backdrop-filter:blur(16px) saturate(1.3);-webkit-backdrop-filter:blur(16px) saturate(1.3)}
+  .sp-back{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 13px;font-weight:600;font-size:13px;white-space:nowrap;box-shadow:var(--shadow)}
+  .sp-title{flex:1;min-width:0}
+  .sp-title b{display:block;font:700 16px/1.25 "Bricolage Grotesque",sans-serif;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sp-title span{font:500 11.5px/1.4 "Spline Sans Mono",monospace;color:var(--muted);letter-spacing:.03em}
+  .sp-body{display:grid;grid-template-columns:340px minmax(0,1fr);gap:20px;width:100%;max-width:1140px;margin:0 auto;padding:18px 20px 24px;flex:1;min-height:0}
+  .sp-brief{display:flex;flex-direction:column;gap:12px;min-height:0;overflow-y:auto;padding-right:2px}
+  .sp-more>summary{display:none}
+  .sp-facts{padding:6px 14px;display:grid;grid-template-columns:auto 1fr;column-gap:14px;row-gap:0;font-size:13px}
+  .sp-facts>div{display:contents}
+  .sp-facts span{color:var(--muted);padding:8px 0;border-top:1px solid var(--line);font:500 11px/1.6 "Spline Sans Mono",monospace;letter-spacing:.05em;text-transform:uppercase}
+  .sp-facts b{padding:7px 0;border-top:1px solid var(--line);font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+  .sp-facts>div:first-child span,.sp-facts>div:first-child b{border-top:none}
+  .sp-block{padding:13px 14px}
+  .sp-block h4{margin:0 0 6px;font:600 11px/1 "Spline Sans Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .sp-scroll{max-height:220px;overflow-y:auto;font-size:13.5px;line-height:1.55;color:var(--ink-2);white-space:pre-line}
+  .sp-block ul{margin:0;padding-left:18px;font-size:13px;color:var(--ink-2);line-height:1.5}
+  .sp-block textarea{width:100%;min-height:80px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:9px 10px;font:inherit;font-size:13.5px;resize:vertical}
+  .sp-chat{display:flex;flex-direction:column;min-height:0;gap:8px}
+  .sp-chat .chat{flex:1;max-height:none;min-height:220px;margin:0;padding:6px 4px}
+  .modes{display:flex;gap:6px;flex-wrap:wrap}
+  .mode{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+  .mode:hover{border-color:var(--line-strong);color:var(--ink)}
+  .mode[aria-pressed="true"]{background:var(--btn-bg);color:var(--btn-ink);border-color:var(--btn-bg)}
+  .sp-chat .planbar{margin-top:0}
+  .sp-chat details.ownai{margin-top:4px}
+  @media (min-width:801px){ .studypage{overflow:hidden} }
+  @media (max-width:800px){
+    .studypage{padding-bottom:env(safe-area-inset-bottom)}
+    .sp-body{grid-template-columns:1fr;padding:14px 16px 28px;flex:none;min-height:auto}
+    .sp-brief{overflow:visible;order:2}
+    .sp-chat{order:1}
+    .sp-chat .chat{min-height:160px}
+    .sp-more>summary{display:flex;align-items:center;gap:8px;cursor:pointer;list-style:none;font-weight:700;font-size:14px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+    .sp-more>summary::-webkit-details-marker{display:none}
+    .sp-more>summary::after{content:"›";margin-left:auto;font-size:20px;color:var(--muted);transition:transform .2s}
+    .sp-more[open]>summary::after{transform:rotate(90deg)}
+    .sp-more[open]>summary{margin-bottom:12px}
+    .sp-head{padding:10px 14px}
+    .sp-title b{font-size:15px}
+  }
   .planbar{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);font-size:12.5px;color:var(--ink-2)}
   .planbar b{color:var(--ink)}
   .planbar .btn{padding:7px 12px;font-size:13px}
@@ -697,7 +741,7 @@
 </div>
 <div class="overlay" id="detailOverlay" role="dialog" aria-modal="true" aria-labelledby="ddTitle"><div class="modal" id="detailModal"></div></div>
 <div class="overlay" id="planOverlay" role="dialog" aria-modal="true" aria-labelledby="ppTitle"><div class="modal" id="planModal"></div></div>
-<div class="overlay" id="aiOverlay" role="dialog" aria-modal="true" aria-labelledby="aiTitle"><div class="modal" id="aiModal" style="max-width:600px"></div></div>
+<div class="studypage" id="studyPage" role="region" aria-labelledby="aiTitle" hidden></div>
 <div class="overlay" id="plusOverlay" role="dialog" aria-modal="true" aria-labelledby="plusTitle"><div class="modal" id="plusModal" style="max-width:540px"></div></div>
 <div class="overlay" id="addOverlay" role="dialog" aria-modal="true" aria-labelledby="addTitle">
   <div class="modal">
@@ -1003,7 +1047,7 @@ function applyCanvasPayload(p, opts = {}){
   for (const aid in p.items){
     const x = p.items[aid] || {}; if (!x.t) continue;
     n++;
-    items[aid] = {t:x.t, c:x.c, cid:x.cid, due:x.due || "", pts:x.pts, gt:x.gt, st:x.st, k:x.excused ? "fyi" : (x.k || ""), grp:x.grp == null ? "" : String(x.grp), sub:x.sub || "", subAt:x.subAt || "", score:x.score == null ? null : x.score, missing:!!x.missing, late:!!x.late, url:x.url || "", desc:x.due ? "" : (x.desc || "")};
+    items[aid] = {t:x.t, c:x.c, cid:x.cid, due:x.due || "", pts:x.pts, gt:x.gt, st:x.st, k:x.excused ? "fyi" : (x.k || ""), grp:x.grp == null ? "" : String(x.grp), sub:x.sub || "", subAt:x.subAt || "", score:x.score == null ? null : x.score, missing:!!x.missing, late:!!x.late, url:x.url || "", desc:x.desc || "", rub:x.rub || ""};
     const id = "a" + aid;
     // External-tool work (MyEducator, Edfinity, Connect…) pushes a running score back to Canvas
     // while you're still working, which flips the state to "graded" early. Treat that as
@@ -1555,7 +1599,14 @@ const AI_TARGETS = [
   {id:"chatgpt", name:"ChatGPT", url: p => "https://chatgpt.com/?q=" + encodeURIComponent(p)},
   {id:"gemini",  name:"Gemini",  url: () => "https://gemini.google.com/app", copyFirst: true},
 ];
-const aiOverlay = document.getElementById("aiOverlay");
+const studyPage = document.getElementById("studyPage");
+const STUDY = {id: null, mode: "", pushed: false};   // pushed: this page added its own history entry, so closing pops it
+const STUDY_MODES = [
+  {id:"explain", label:"Explain it",      starter:"Explain the core idea behind this to me, one step at a time."},
+  {id:"outline", label:"Outline with me", starter:"Help me outline this. Ask me what I'm thinking first."},
+  {id:"quiz",    label:"Quiz me",         starter:"Quiz me on this, one question at a time. Wait for my answer."},
+  {id:"check",   label:"Check my work",   starter:""},
+];
 /* ---- LMK Plus ----
    The offer (link, portal, price) comes from /config; the student's own standing from /plus/status.
    Paying happens on Stripe with the random sync id attached; the worker learns about it from Stripe,
@@ -1579,7 +1630,7 @@ var renderPlus = function(){
   if (!plusPossible() || (!offer.link && !(me && me.plus))) { way.hidden = true; return; }
   const weekly = offer.weekly || (me && me.weekly) || 40, price = offer.price || (me && me.price) || "";
   let html;
-  if (me && me.plus && me.early && !me.paid) html = `<span>✓ <b>Plus is yours free, for as long as LMK exists.</b> You were here before it existed. That means ${weekly} tutor messages a week and whatever comes next.</span>`;
+  if (me && me.plus && me.early && !me.paid) html = `<span>✓ <b>Plus is yours free, for as long as LMK exists.</b> You were here before it existed. That means ${weekly} tutor messages a week and whatever comes next.</span>${plusLink() ? `<a class="minibtn" href="${esc(plusLink())}" target="_blank" rel="noopener" title="Plus is already yours; paying funds the tutor for everyone">Back LMK · ${esc(price)}</a>` : ""}`;
   else if (me && me.plus) html = `<span>✓ <b>You're on Plus.</b> ${weekly} tutor messages a week${me.credits ? ", plus " + me.credits + " credits" : ""}.${me.until ? " Renews " + FMT_DAY.format(new Date(me.until - 3 * 864e5)) + "." : ""}</span>${offer.portal ? `<a class="minibtn" href="${esc(offer.portal)}" target="_blank" rel="noopener">Manage billing</a>` : ""}`;
   else if (me && me.status === "canceled") html = `<span>Your Plus subscription ended. The free version keeps everything else.</span>${plusLink() ? `<a class="btn grad" href="${esc(plusLink())}" target="_blank" rel="noopener">Get Plus again · ${esc(price)}</a>` : ""}`;
   else html = `<span><b>LMK Plus</b> · ${esc(price)}. ${weekly} tutor messages a week instead of ${offer.freeWeekly != null ? offer.freeWeekly : "a few"}, and first access to what's next.</span><button class="btn grad" data-act="plus-open">See Plus</button>`;
@@ -1600,6 +1651,7 @@ function openPlus(){
   const isPlus = !!(me && me.plus), early = !!(me && me.early && !me.paid), canceled = !!(me && me.status === "canceled" && !me.plus);
   const cta = MODE !== "web"
     ? `<a class="btn grad" href="${esc(LMK_CONFIG.appUrl)}" target="_blank" rel="noopener">Open LMK on the web →</a><span class="privacy" style="margin:0">Plus and the tutor live on lmktoday.app; this copy runs inside claude.ai.</span>`
+    : isPlus && early && plusLink() ? `<a class="btn grad" href="${esc(plusLink())}" target="_blank" rel="noopener">Back LMK · ${esc(price)}</a><span class="privacy" style="margin:0">Plus is already yours. Paying anyway funds the tutor for everyone; cancel any time.</span>`
     : isPlus ? (offer.portal && !early ? `<a class="btn ghost" href="${esc(offer.portal)}" target="_blank" rel="noopener">Manage billing</a>` : "")
     : plusLink() ? `<a class="btn grad" href="${esc(plusLink())}" target="_blank" rel="noopener">Get Plus · ${esc(price)}</a><span class="privacy" style="margin:0">Card by Stripe. Cancel any time.</span>`
     : `<span class="privacy" style="margin:0">Plus opens for purchase very soon. Everyone using LMK before it does gets it free, for as long as LMK exists.</span>`;
@@ -1650,28 +1702,56 @@ function tutorThread(id){
   return TUTOR.threads[id];
 }
 function tutorSave(id){ try { localStorage.setItem("lmk_tutor_" + id, JSON.stringify(tutorThread(id).slice(-12))); } catch(_){} }
+/* Everything LMK already knows about this piece of work, in the tutor's hands: what it is worth, the rubric,
+   how long it usually takes, today's budget, what else is due this week, and the course standing. Nothing here
+   names the student. */
+function tutorFacts(e){
+  const n = now(), days = Math.max(0, Math.floor((startOfDay(e.due) - startOfDay(n)) / 864e5));
+  const x = e.ext || {};
+  const worth = x.pts != null && x.pts !== "" ? `${x.pts} point${+x.pts === 1 ? "" : "s"}${x.st ? " · " + String(x.st).split(",")[0].replace(/_/g, " ").replace("online ", "") : ""}` : "";
+  let est = "";
+  try { const l = learnedMins(e); est = `about ${fmtMins(l.mins)}${l.learned ? ` (learned from ${l.n} of the student's own timings)` : l.level === "crowd" ? " (from other students on this assignment)" : " (LMK's guess)"}`; } catch(_){}
+  let today = null, plan = "";
+  try {
+    const d = PLAN[dayKey(startOfDay(n))];
+    if (d) today = {cap: d.cap, mins: d.mins};
+    const soon = EVENTS.filter(open).filter(y => y.id !== e.id && y.due > n && y.due - n < 7 * 864e5 && y.kind !== "fyi" && y.kind !== "inclass").slice(0, 5);
+    const late = EVENTS.filter(open).filter(y => y.id !== e.id && y.due < n && y.kind !== "fyi" && y.kind !== "inclass").length;
+    const bits = [];
+    if (today) bits.push(`study budget today ${fmtMins(today.cap)}, ${fmtMins(today.mins)} of it already planned`);
+    if (soon.length) bits.push("also due within a week: " + soon.map(y => `${y.title.slice(0, 40)} (${y.course}, ${FMT_DAY.format(y.due)})`).join("; "));
+    if (late) bits.push(`${late} overdue item${late === 1 ? "" : "s"} still open`);
+    plan = bits.join(". ");
+  } catch(_){}
+  let grade = "";
+  try { const g = gradeFor(e.course); if (g) grade = `${g.letter} (${g.pct}%) across ${g.n} graded item${g.n === 1 ? "" : "s"}${g.weighted ? ", weighted" : ""}${g.working ? `, ${g.working} in progress` : ""}`; } catch(_){}
+  const dueSoFar = EVENTS.filter(y => y.course === e.course && y.due < n && y.kind !== "fyi"), doneIn = dueSoFar.filter(y => store.done[y.id]).length;
+  return {days, worth, est, today, plan, grade, rubric: x.rub || "",
+    due: FMT_DAY.format(e.due) + " · " + FMT_TIME.format(e.due) + (days === 0 ? " (today)" : ` (${days} day${days === 1 ? "" : "s"} from now)`),
+    standing: dueSoFar.length >= 3 ? `finished ${doneIn} of the ${dueSoFar.length} things due so far in this class` : ""};
+}
 function tutorCtx(e){
-  const days = Math.max(0, Math.floor((startOfDay(e.due) - startOfDay(now())) / 864e5));
-  const dueSoFar = EVENTS.filter(x => x.course === e.course && x.due < now() && x.kind !== "fyi"), doneIn = dueSoFar.filter(x => store.done[x.id]).length;
-  return {title: e.title, course: e.course, kind: e.exam ? "exam" : (e.kind || "assignment"), due: FMT_DAY.format(e.due) + " · " + FMT_TIME.format(e.due) + (days === 0 ? " (today)" : ` (${days} day${days === 1 ? "" : "s"} from now)`),
-    standing: dueSoFar.length >= 3 ? `finished ${doneIn} of the ${dueSoFar.length} things due so far in this class` : "",
+  const f = tutorFacts(e);
+  return {title: e.title, course: e.course, kind: e.exam ? "exam" : (e.kind || "assignment"), due: f.due, standing: f.standing,
+    worth: f.worth, est: f.est, plan: f.plan, grade: f.grade, rubric: f.rubric, mode: STUDY.mode || "",
     desc: e.desc || "", notes: (store.itemNotes || {})[e.id] || "", syllabus: (store.courseNotes || {})[e.course] || ""};
 }
 function tutorRenderThread(id){
   const box = document.getElementById("aiChat"); if (!box) return;
   const t = tutorThread(id);
   box.innerHTML = t.length ? t.map(m => `<div class="msg ${m.role === "user" ? "me" : "ai"}">${esc(m.content)}</div>`).join("")
-    : `<div class="msg ai">Hi. I know this ${esc(tutorCtx(EVENTS.find(x => x.id === id) || {title:"", course:""}).kind)} and what it asks. What are you stuck on, or where do you want to start?</div>`;
+    : `<div class="msg ai">Hi. I've read this ${esc(tutorCtx(EVENTS.find(x => x.id === id) || {title:"", course:"", due: now()}).kind)}: what it asks, when it's due, and where you stand. Pick a way to work above, or just ask.</div>`;
   box.scrollTop = box.scrollHeight;
 }
 function tutorNote(){
   const el = document.getElementById("aiNote"), up = document.getElementById("aiUpsell"); if (!el) return;
   const offer = PLUS.offer || {}, plusWeekly = offer.weekly || 40, price = offer.price || "$4/month";
-  const bind = () => { const pb = document.getElementById("aiModal").querySelector('#aiUpsell [data-act="plus-open"]'); if (pb) pb.addEventListener("click", () => { aiOverlay.classList.remove("open"); openPlus(); }); };
+  const bind = () => { const pb = studyPage.querySelector('#aiUpsell [data-act="plus-open"]'); if (pb) pb.addEventListener("click", openPlus); };
   if (TUTOR.state === "off") { el.textContent = "The tutor is resting right now. Your own AI below still works."; if (up) up.innerHTML = ""; return; }
   if (TUTOR.plus) {
     el.innerHTML = TUTOR.state === "allowance" ? `<b>All ${TUTOR.weekly} Plus messages used this week.</b> Resets Monday.${TUTOR.credits ? " " + TUTOR.credits + " credits left." : ""}` : `<b>${TUTOR.left != null ? TUTOR.left : "…"} of ${TUTOR.weekly || plusWeekly} Plus messages</b> left this week${TUTOR.credits ? " · " + TUTOR.credits + " credits after that" : ""}.`;
-    if (up) up.innerHTML = "";
+    // free-for-life members still get a quiet way to pay: it funds the tutor for everyone
+    if (up) { up.innerHTML = PLUS.me && PLUS.me.early && !PLUS.me.paid && plusLink() ? `<button class="minibtn" data-act="plus-open" title="Plus is already yours; paying funds the tutor">Back LMK · ${esc(price)}</button>` : ""; bind(); }
     return;
   }
   if (TUTOR.state === "allowance") el.innerHTML = `<b>This week's ${TUTOR.weekly || ""} free messages are used.</b> Resets Monday; your own AI below is unlimited.`;
@@ -1688,9 +1768,9 @@ async function tutorBalance(){
   } catch(_){}
   tutorNote();
 }
-async function tutorSend(id){
+async function tutorSend(id, preset){
   const ta = document.getElementById("aiInput"); if (!ta || TUTOR.busy) return;
-  const text = ta.value.trim(); if (!text) return;
+  const text = (preset || ta.value).trim(); if (!text) return;
   const e = EVENTS.find(x => x.id === id); if (!e) return;
   const t = tutorThread(id); t.push({role:"user", content:text}); ta.value = ""; tutorSave(id); tutorRenderThread(id);
   const box = document.getElementById("aiChat"); const bubble = document.createElement("div"); bubble.className = "msg ai thinking"; box.appendChild(bubble); box.scrollTop = box.scrollHeight;
@@ -1722,55 +1802,117 @@ function planChip(){
   if (me && me.plus) return `<button class="planchip plus" data-act="plus-open" title="Your plan">✦ ${me.early && !me.paid ? "Plus · free for life" : "Plus"}</button>`;
   return `<button class="planchip" data-act="plus-open" title="See what Plus adds">Free plan · <span style="color:var(--c1)">See Plus</span></button>`;
 }
-function openStudy(id){
+/* The Study screen. One assignment, full page: the brief on the left (what it is, what it is worth, the rubric,
+   the time you have, your notes) and the tutor on the right. The 60-second render never touches this page. */
+function openStudy(id, opts = {}){
   const e = EVENTS.find(x => x.id === id); if (!e) return;
+  try { detailOverlay.classList.remove("open"); } catch(_){}
   let pref = ""; try { pref = localStorage.getItem("lmk_ai_pref") || ""; } catch(_){}
+  try { STUDY.mode = localStorage.getItem("lmk_tutor_mode_" + id) || ""; } catch(_) { STUDY.mode = ""; }
+  STUDY.id = id;
   const prompt = studyPrompt(e);
   const order = AI_TARGETS.slice().sort((a, b) => (b.id === pref) - (a.id === pref));
   const inApp = tutorPossible();
   const locked = inApp && (TUTOR.state === "off" || !plusTutorOn());
   const kind = e.exam ? "exam" : "assignment";
-  const ownAI = `<details class="ownai"${inApp ? "" : " open"}><summary>${inApp ? "Prefer your own AI? Open Claude, ChatGPT or Gemini with the same prompt" : "Open it in your own AI, with a prompt that already knows this " + kind}</summary>
+  const f = tutorFacts(e);
+  const g = (() => { try { return gradeFor(e.course); } catch(_) { return null; } })();
+  const notes = (store.itemNotes || {})[e.id] || "";
+  const ownAI = `<details class="ownai"${inApp ? "" : " open"}><summary>${inApp ? "Prefer your own AI? Open Claude, ChatGPT or Gemini with the same brief" : "Open it in your own AI, with a prompt that already knows this " + kind}</summary>
       <div class="row" style="margin-top:10px">
         ${order.map(t => `<a class="btn ${t.id === pref || (!pref && t.id === "claude") ? "primary" : "ghost"}" data-ai="${t.id}" href="${esc(t.url(prompt))}" target="_blank" rel="noopener">${t.name}${t.id === pref ? " · your usual" : ""}</a>`).join("")}
         <button class="btn ghost" data-ai="copy">Copy prompt</button>
       </div>
-      <textarea id="aiPrompt" aria-label="The prompt LMK prepared; edit it if you like" style="margin-top:12px;min-height:120px;font:13px/1.5 'Public Sans',system-ui,sans-serif">${esc(prompt)}</textarea>
+      <textarea id="aiPrompt" aria-label="The prompt LMK prepared; edit it if you like" style="margin-top:12px;min-height:120px;width:100%;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink);padding:10px;font:13px/1.5 'Public Sans',system-ui,sans-serif;resize:vertical">${esc(prompt)}</textarea>
       <p class="privacy" style="margin-top:6px">Edit it first if you want to add what you've tried. Gemini can't take a prompt from a link, so it's copied for you to paste. LMK sends nothing anywhere this way.</p></details>`;
-  document.getElementById("aiModal").innerHTML = `
-    <div class="aihead"><div><h3 id="aiTitle">${inApp ? "Your tutor" : "Study with AI"}</h3><p class="sub2" style="margin:0 0 10px">${esc(e.title)} · ${esc(e.course)}${inApp ? ". It already knows this " + kind + " and coaches one step at a time." : ""}</p></div>${inApp ? planChip() : ""}</div>
-    ${inApp && !locked ? `<div class="chat" id="aiChat" aria-live="polite"></div>
-    <div class="chatbar"><textarea id="aiInput" rows="1" placeholder="Ask anything about it…" aria-label="Your message to the tutor"></textarea><button class="btn primary" id="aiSend">Send</button></div>
-    <div class="planbar"><span id="aiNote"></span><span id="aiUpsell"></span></div>
-    <div class="chatnote"><span>Nothing here is graded or saved to your account. It coaches; it won't do the work for you.</span><button class="minibtn" id="aiClear" title="Start this conversation over">Start over</button></div>` : ""}
-    ${inApp && locked ? `<div class="chat" aria-live="polite" style="max-height:none"><div class="msg ai">Hi. I'm LMK's tutor. I already know this ${kind}: what it asks, when it's due, and where you stand in ${esc(e.course)}. I coach one step at a time and I won't do the graded work for you.</div></div>
-    <div class="locked"><span>✦</span><div><b>${plusTutorOn() ? "The tutor is resting right now." : "The tutor opens soon."}</b> ${PLUS.me && PLUS.me.plus ? "Your Plus messages will be waiting." : `Plus members get ${(PLUS.offer && PLUS.offer.weekly) || 40} messages a week; free accounts get ${(PLUS.offer && PLUS.offer.freeWeekly != null) ? PLUS.offer.freeWeekly : 2}.`}</div>${PLUS.me && PLUS.me.plus ? "" : `<button class="minibtn" data-act="plus-open">See Plus</button>`}</div>` : ""}
-    ${!inApp && MODE !== "web" ? `<div class="locked"><span>✦</span><div><b>The tutor and Plus live on lmktoday.app.</b> This copy runs inside claude.ai and can't reach them.</div><a class="minibtn" href="${esc(LMK_CONFIG.appUrl)}" target="_blank" rel="noopener">Open there</a></div>` : ""}
-    ${ownAI}
-    <div class="foot"><span></span><button class="minibtn" id="aiClose">Close</button></div>`;
-  aiOverlay.classList.add("open");
-  document.getElementById("aiModal").querySelectorAll('[data-act="plus-open"]').forEach(b => b.addEventListener("click", () => { aiOverlay.classList.remove("open"); openPlus(); }));
+  const facts = [
+    ["Due", `${FMT_DAY.format(e.due)} · ${FMT_TIME.format(e.due)}${f.days === 0 ? " · today" : f.days === 1 ? " · tomorrow" : " · in " + f.days + " days"}`],
+    f.worth ? ["Worth", f.worth] : null,
+    ["Usually takes", f.est.replace(/^about /, "").replace(/ \(.*\)$/, "")],
+    f.today ? ["Today", `${fmtMins(f.today.cap)} budget · ${fmtMins(f.today.mins)} planned`] : null,
+    g ? [esc(e.course), `${g.letter} · ${g.pct}%${g.working ? " · " + g.working + " in progress" : ""}`] : null,
+  ].filter(Boolean);
+  const rub = (e.ext && e.ext.rub) ? String(e.ext.rub).split("; ").filter(Boolean) : [];
+  studyPage.innerHTML = `
+    <div class="sp-head"><button class="sp-back" id="spBack" aria-label="Back to your plan">← Plan</button>
+      <div class="sp-title"><b id="aiTitle">${esc(e.title)}</b><span>${esc(e.course)} · ${inApp ? "your tutor" : "study with AI"}</span></div>${inApp ? planChip() : ""}</div>
+    <div class="sp-body">
+      <details class="sp-more card" ${window.innerWidth > 800 ? "open" : ""} style="border:none;background:transparent;box-shadow:none"><summary>About this ${kind}</summary>
+      <aside class="sp-brief">
+        <div class="card sp-facts">${facts.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")}</div>
+        <div class="card sp-block"><h4>Instructions from Canvas</h4>${e.desc ? `<div class="sp-scroll">${esc(e.desc)}</div>` : `<p class="privacy" style="margin:0">Nothing came through for this one yet. Open it in Canvas and paste what matters into your notes; the tutor reads them.</p>`}</div>
+        ${rub.length ? `<div class="card sp-block"><h4>Rubric</h4><ul>${rub.map(r => `<li>${esc(r)}</li>`).join("")}</ul></div>` : ""}
+        <div class="card sp-block"><h4>Your notes</h4><textarea id="spNotes" placeholder="What you've tried, what the professor said, anything the tutor should know…">${esc(notes)}</textarea><p class="privacy" style="margin:6px 0 0">Saved on this device and in your Drive. The tutor reads them.</p></div>
+        <div class="row" style="margin:0">${e.url ? `<a class="btn ghost" href="${esc(e.url)}" target="_blank" rel="noopener">Open in Canvas ↗</a>` : ""}<button class="btn ghost" id="spDone">${store.done[e.id] ? "Not done after all" : "Done ✓"}</button></div>
+      </aside></details>
+      <section class="sp-chat">
+        ${inApp && !locked ? `<div class="modes" role="group" aria-label="How do you want to work?">${STUDY_MODES.map(m => `<button class="mode" data-mode="${m.id}" aria-pressed="${STUDY.mode === m.id}">${m.label}</button>`).join("")}</div>
+        <div class="chat card" id="aiChat" aria-live="polite" style="padding:10px"></div>
+        <div class="chatbar"><textarea id="aiInput" rows="1" placeholder="Ask anything about it…" aria-label="Your message to the tutor"></textarea><button class="btn primary" id="aiSend">Send</button></div>
+        <div class="planbar"><span id="aiNote"></span><span id="aiUpsell"></span></div>
+        <div class="chatnote"><span>Nothing here is graded or saved to your account. It coaches; it won't do the work for you.</span><button class="minibtn" id="aiClear" title="Start this conversation over">Start over</button></div>` : ""}
+        ${inApp && locked ? `<div class="chat card" aria-live="polite" style="padding:10px;min-height:auto;flex:none"><div class="msg ai">Hi. I'm LMK's tutor. I already know this ${kind}: what it asks, when it's due, and where you stand in ${esc(e.course)}. I coach one step at a time and I won't do the graded work for you.</div></div>
+        <div class="locked"><span>✦</span><div><b>${plusTutorOn() ? "The tutor is resting right now." : "The tutor opens soon."}</b> ${PLUS.me && PLUS.me.plus ? "Your Plus messages will be waiting." : `Plus members get ${(PLUS.offer && PLUS.offer.weekly) || 40} messages a week; free accounts get ${(PLUS.offer && PLUS.offer.freeWeekly != null) ? PLUS.offer.freeWeekly : 2}.`}</div>${PLUS.me && PLUS.me.plus ? "" : `<button class="minibtn" data-act="plus-open">See Plus</button>`}</div>` : ""}
+        ${!inApp && MODE !== "web" ? `<div class="locked"><span>✦</span><div><b>The tutor and Plus live on lmktoday.app.</b> This copy runs inside claude.ai and can't reach them.</div><a class="minibtn" href="${esc(LMK_CONFIG.appUrl)}" target="_blank" rel="noopener">Open there</a></div>` : ""}
+        ${ownAI}
+      </section>
+    </div>`;
+  studyPage.hidden = false;
+  document.documentElement.style.overflow = "hidden";
+  STUDY.pushed = false;
+  if (!opts.fromHistory) { try { history.pushState({study: id}, "", location.pathname + location.search + "#study=" + id.slice(1)); STUDY.pushed = true; } catch(_){} }
+  studyPage.scrollTop = 0;
+  document.getElementById("spBack").onclick = () => closeStudy();
+  studyPage.querySelectorAll('[data-act="plus-open"]').forEach(b => b.addEventListener("click", openPlus));
+  const nt = document.getElementById("spNotes");
+  nt.addEventListener("change", () => { store.itemNotes = store.itemNotes || {}; if (nt.value.trim()) store.itemNotes[e.id] = nt.value.trim(); else delete store.itemNotes[e.id]; save(); });
+  document.getElementById("spDone").onclick = () => { toggleDone(e.id, null, "Marked done. Nice."); render(); document.getElementById("spDone").textContent = store.done[e.id] ? "Not done after all" : "Done ✓"; };
   if (inApp && !locked) {
     tutorRenderThread(id); tutorNote(); tutorBalance();
     const ta = document.getElementById("aiInput");
     document.getElementById("aiSend").onclick = () => tutorSend(id);
     ta.addEventListener("keydown", ev => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); tutorSend(id); } });
-    ta.addEventListener("input", () => { ta.style.height = "auto"; ta.style.height = Math.min(120, ta.scrollHeight) + "px"; });
+    ta.addEventListener("input", () => { ta.style.height = "auto"; ta.style.height = Math.min(140, ta.scrollHeight) + "px"; });
     document.getElementById("aiClear").onclick = () => { TUTOR.threads[id] = []; tutorSave(id); tutorRenderThread(id); };
-    setTimeout(() => ta.focus(), 50);
+    studyPage.querySelectorAll(".mode").forEach(btn => btn.addEventListener("click", () => {
+      const m = STUDY_MODES.find(x => x.id === btn.dataset.mode); if (!m) return;
+      const was = STUDY.mode === m.id;
+      STUDY.mode = was ? "" : m.id;
+      try { if (STUDY.mode) localStorage.setItem("lmk_tutor_mode_" + id, STUDY.mode); else localStorage.removeItem("lmk_tutor_mode_" + id); } catch(_){}
+      studyPage.querySelectorAll(".mode").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.mode === STUDY.mode)));
+      if (was) return;
+      if (m.id === "check") { ta.placeholder = "Paste your draft or your solution here…"; ta.focus(); return; }
+      ta.placeholder = "Ask anything about it…";
+      if (!tutorThread(id).length && m.starter && !TUTOR.busy) tutorSend(id, m.starter);
+      else toast(m.label + ": on for your next messages.");
+    }));
+    if (!IS_MOBILE) setTimeout(() => ta.focus(), 50);
   }
-  document.getElementById("aiClose").onclick = () => aiOverlay.classList.remove("open");
-  document.getElementById("aiModal").querySelectorAll("[data-ai]").forEach(b => b.addEventListener("click", ev => {
+  studyPage.querySelectorAll("[data-ai]").forEach(b => b.addEventListener("click", ev => {
     const text = document.getElementById("aiPrompt").value.trim() || prompt;
     const t = AI_TARGETS.find(x => x.id === b.dataset.ai);
     if (!t) { ev.preventDefault(); try { navigator.clipboard.writeText(text).then(() => toast("Prompt copied. Paste it into any AI."), () => toast("Couldn't copy here; select the text and copy it.")); } catch(_) { toast("Couldn't copy here; select the text and copy it."); } return; }
     try { localStorage.setItem("lmk_ai_pref", t.id); } catch(_){}
     if (t.copyFirst) { try { navigator.clipboard.writeText(text).catch(() => {}); } catch(_){} toast("Prompt copied. Paste it into Gemini."); }
     else b.href = t.url(text);
-    setTimeout(() => aiOverlay.classList.remove("open"), 300);
   }));
 }
-aiOverlay.addEventListener("click", e => { if (e.target === aiOverlay) aiOverlay.classList.remove("open"); });
+function closeStudy(opts = {}){
+  if (studyPage.hidden) return;
+  studyPage.hidden = true; studyPage.innerHTML = ""; STUDY.id = null;
+  document.documentElement.style.overflow = "";
+  render();   // the plan underneath may have changed (notes, done) while the page was up
+  const pushed = STUDY.pushed; STUDY.pushed = false;
+  // only pop an entry this page added itself; a direct load or a refresh replaced the current entry, and going
+  // back from there would leave the app
+  if (!opts.fromHistory && pushed) { try { history.back(); return; } catch(_){} }
+  if (/#study=/.test(location.hash)) { try { history.replaceState(null, "", location.pathname + location.search); } catch(_){} }
+}
+window.addEventListener("popstate", ev => {
+  const st = ev.state || {};
+  if (st.study) { if (STUDY.id !== st.study) openStudy(st.study, {fromHistory: true}); }
+  else if (!studyPage.hidden) closeStudy({fromHistory: true});
+});
 let toastTimer = null;
 function toast(msg, action){
   const t = document.getElementById("toast");
@@ -2401,7 +2543,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v34.0";
+const APP_BUILD = "v35.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -2656,7 +2798,7 @@ document.getElementById("gearBtn").addEventListener("click", ()=>{
 });
 document.getElementById("closeModal").addEventListener("click", ()=>overlay.classList.remove("open"));
 overlay.addEventListener("click", e=>{ if (e.target===overlay) overlay.classList.remove("open"); });
-document.addEventListener("keydown", e=>{ if (e.key==="Escape") { overlay.classList.remove("open"); ["addOverlay","planOverlay","detailOverlay","findOverlay","celebrateOverlay","aiOverlay","plusOverlay"].forEach(x=>document.getElementById(x).classList.remove("open")); } });
+document.addEventListener("keydown", e=>{ if (e.key==="Escape") { overlay.classList.remove("open"); ["addOverlay","planOverlay","detailOverlay","findOverlay","celebrateOverlay","plusOverlay"].forEach(x=>document.getElementById(x).classList.remove("open")); if (!studyPage.hidden && !TUTOR.busy) closeStudy(); } });
 
 const dz = document.getElementById("dropZone"), fi = document.getElementById("fileInput");
 dz.addEventListener("click", ()=>fi.click());
@@ -3961,6 +4103,9 @@ loadData(); render();
 crowdInit();
 pingDaily();
 loadRemoteConfig();
+(function studyFromHash(){
+  try { const m = location.hash.match(/#study=(\d+)/); if (m && EVENTS.some(e => e.id === "a" + m[1])) { history.replaceState({study: "a" + m[1]}, "", location.href); openStudy("a" + m[1], {fromHistory: true}); } } catch(_){}
+})();
 setTimeout(maybeAskReview, 25000);
 /* The welcome asks for a name. Only show it once we're sure this is a new person: after the first
    Drive sync had its chance (a phone whose browser storage was wiped gets its name back from Drive). */
