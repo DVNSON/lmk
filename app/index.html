@@ -1086,11 +1086,11 @@ function renderCloudStatus(){
   let html;
   if (!cloudOn()) html = `<span><b>Sync from anywhere</b> is off. Turn it on and LMK's server keeps your Canvas sync fresh, so your phone is up to date while your laptop is closed.</span><button class="minibtn" data-act="cloud-on">Turn on</button>`;
   else if (EXT.present && !IS_MOBILE) {
-    if (ec.registered && ec.sid === store.cloud.sid) html = `<span>✓ <b>Sync from anywhere</b> is on. Your phone stays fresh while this laptop is closed.${CLOUD.at ? " Last read " + ago(CLOUD.at) + "." : ""}</span><button class="minibtn" data-act="cloud-pair" title="Copies a link; open it on your phone once">Open on your phone</button><button class="minibtn drop" data-act="cloud-off">Turn off</button>`;
+    if (ec.registered && ec.sid === store.cloud.sid) html = `<span>✓ <b>Sync from anywhere</b> is on. Your phone stays fresh while this laptop is closed.${CLOUD.at ? " Last read " + ago(CLOUD.at) + "." : ""} <span style="color:var(--muted)">Support code ${esc(store.cloud.sid.slice(0, 8))}</span></span><button class="minibtn" data-act="cloud-pair" title="Copies a link; open it on your phone once">Open on your phone</button><button class="minibtn drop" data-act="cloud-off">Turn off</button>`;
     else if (ec.err) html = `<span><b>Sync from anywhere</b> couldn't start: ${esc(ec.err)}. Everything else works as before; the phone stays fresh through your Drive when this laptop is on.</span><button class="minibtn drop" data-act="cloud-off">Turn off</button>`;
     else html = `<span><b>Sync from anywhere</b> is connecting. Open any Canvas page once and the extension finishes it (it makes an "LMK" access token in your own Canvas account).</span><a class="minibtn" href="${esc(LMK_CONFIG.canvasUrl)}" target="_blank" rel="noopener">Open Canvas</a><button class="minibtn drop" data-act="cloud-off">Turn off</button>`;
   } else {
-    if (CLOUD.registered) html = `<span>✓ <b>Sync from anywhere</b> is on.${CLOUD.at ? " Last read " + ago(CLOUD.at) + "." : ""}${CLOUD.err ? " " + esc(CLOUD.err) + "." : ""}</span><button class="minibtn" data-act="cloud-now">Refresh now</button><button class="minibtn drop" data-act="cloud-off">Turn off</button>`;
+    if (CLOUD.registered) html = `<span>✓ <b>Sync from anywhere</b> is on.${CLOUD.at ? " Last read " + ago(CLOUD.at) + "." : ""}${CLOUD.err ? " " + esc(CLOUD.err) + "." : ""} <span style="color:var(--muted)">Support code ${esc(store.cloud.sid.slice(0, 8))}</span></span><button class="minibtn" data-act="cloud-now">Refresh now</button><button class="minibtn drop" data-act="cloud-off">Turn off</button>`;
     else if (CLOUD.registered === false) html = `<span><b>Sync from anywhere</b> isn't connected yet. Open LMK on a laptop with the extension once, or connect with a Canvas access token below.</span>`;
     else html = `<span><b>Sync from anywhere</b> is on.</span><button class="minibtn" data-act="cloud-now">Refresh now</button>`;
   }
@@ -2101,7 +2101,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v30.0";
+const APP_BUILD = "v30.1";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -2109,6 +2109,7 @@ function reportErr(e, where){
     const stack = String((e && e.stack) || "").split("\n").slice(1, 4).map(x => x.trim()).join(" | ").slice(0, 500);
     lastErr = {where, msg, stack, at: new Date().toISOString()};
     console.error("LMK", where, e);
+    try { if (MODE === "web" && LMK_CONFIG.statsUrl && pingAllowed() && !store.adminKey) fetch(apiUrl("/err"), {method:"POST", mode:"cors", credentials:"omit", keepalive:true, headers:{"content-type":"text/plain"}, body: JSON.stringify({b: APP_BUILD, m: where + ": " + msg})}).catch(() => {}); } catch(_){}
     const el = document.getElementById("errcard"); if (!el) return;
     const body = `LMK ${APP_BUILD} · ${MODE} · ${where}\n${msg}\n${stack}\n${navigator.userAgent}\nassignments: ${typeof EVENTS !== "undefined" && EVENTS ? EVENTS.length : "?"}`;
     const href = LMK_CONFIG.feedbackUrl + "&body=" + encodeURIComponent(body);
@@ -2303,6 +2304,9 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="adm-save-ann") { const g = id => document.getElementById(id); adminSave({announce: {text: g("admAnnText").value.trim().slice(0, 240), url: g("admAnnUrl").value.trim().slice(0, 300), until: g("admAnnUntil").value, on: g("admAnnOn").checked}}); }
   else if (a==="adm-save-store") { adminSave({storeUrl: document.getElementById("admStore").value.trim().slice(0, 300)}); }
   else if (a==="adm-copy-csv") { adminCopyCsv(); }
+  else if (a==="adm-pause") { adminSave({cloudPaused: !!act.checked}); }
+  else if (a==="adm-lookup") { adminLookup(); }
+  else if (a==="adm-student") { adminStudent(act.dataset.sid, act.dataset.do); }
   else if (a==="cap-close") { showCap = false; render(); }
   else if (a==="cap-edit") { showCap = !showCap; render(); }
   else if (a==="cap-bump") { store.capOv = store.capOv || {}; store.capOv[dayKey(now())] = capHours(now()) + 1; save(); render(); toast("Today got an extra hour. Just today."); }
@@ -3419,6 +3423,25 @@ async function adminSave(patch){
   } catch(e) { toast("Save failed — the worker didn't accept it."); }
   render();
 }
+async function adminLookup(){
+  const q = (document.getElementById("admLookup") || {}).value || "", out = document.getElementById("admLookupOut");
+  if (!/^[a-f0-9]{6,64}$/.test(q.trim())) { if (out) out.textContent = "A support code is 6+ hex characters."; return; }
+  try {
+    const r = await fetch(apiUrl("/admin/student?key=" + encodeURIComponent(ADMIN.key) + "&sid=" + encodeURIComponent(q.trim())), {mode:"cors", credentials:"omit"});
+    const j = await r.json(); const p = j.student;
+    if (!p) { out.textContent = "No student with that code."; return; }
+    const ago = t => t ? Math.round((Date.now() - t) / 60000) + " min ago" : "never";
+    out.innerHTML = `${esc(p.host)} · ${p.courses} courses · last read ${ago(p.synced_at)} · ${!p.active ? "paused" : p.err ? esc(p.err) : "healthy"} <button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="retry">Retry</button> <button class="minibtn drop" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="forget">Forget</button>`;
+  } catch(_) { if (out) out.textContent = "Couldn't reach the worker."; }
+}
+async function adminStudent(sid, action){
+  if (action === "forget" && !confirm("Forget this student on the server? Their app keeps working from the extension; the server copy and key are deleted.")) return;
+  try {
+    const r = await fetch(apiUrl("/admin/student?key=" + encodeURIComponent(ADMIN.key)), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"}, body: JSON.stringify({sid, action})});
+    const j = await r.json(); toast(j.ok ? `Done: ${action}.` : "The worker refused: " + (j.error || r.status));
+  } catch(_) { toast("Couldn't reach the worker."); }
+  adminFetch(true);
+}
 function adminCopyCsv(){
   const d = ADMIN.data; if (!d) return;
   const lines = ["day,installs,first_syncs,opens"];
@@ -3452,6 +3475,10 @@ function renderAdmin(root){
   if (!ADMIN.data && !ADMIN.err) { adminFetch(false); root.innerHTML = `<div class="empty">Reading the numbers…</div>`; return; }
   if (!ADMIN.data) { root.innerHTML = `<div class="empty" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${esc(ADMIN.err)} <button class="minibtn" data-act="adm-refresh">Try again</button> <button class="minibtn drop" data-act="adm-logout">Forget admin key</button></div>`; return; }
   const d = ADMIN.data, days = d.days || {}, S = d.settings || {}, tot = d.totals || {};
+  const CL = d.cloud || {}, T = d.today || {}, ops = d.ops || {};
+  const ago = t => { if (!t) return "never"; const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 1440 ? Math.round(m / 60) + " h ago" : Math.round(m / 1440) + " d ago"; };
+  const reqToday = (T.sync_pull || 0) + (T.sync_refresh || 0) + (T.sync_register || 0) + (T.cron_step || 0) + (T.open || 0) + (T.install || 0) + (T.firstsync || 0) + (T.err || 0);
+  const cronStale = ops.cronAt && Date.now() - ops.cronAt > 10 * 60e3;
   const today = dayKey(now());
   const keys = []; for (let i = 29; i >= 0; i--) keys.push(dayKey(addDays(startOfDay(now()), -i)));
   const get = (k, ev) => (days[k] && days[k][ev]) || 0;
@@ -3465,9 +3492,20 @@ function renderAdmin(root){
     <div class="card tile"><div class="k">Opens today</div><div class="v">${openToday}</div><div class="s">devices that opened LMK</div></div>
     <div class="card tile"><div class="k">Opens per day</div><div class="v">${avg7}</div><div class="s">average, last 7 days</div></div>
     <div class="card tile"><div class="k">Installs</div><div class="v">${installs}</div><div class="s">${inst7} in the last 7 days</div></div>
-    <div class="card tile"><div class="k">Sync from anywhere</div><div class="v">${(d.cloud && d.cloud.students) || 0}</div><div class="s">${d.cloud ? `${d.cloud.syncedToday || 0} read today · ${d.cloud.errors || 0} need attention` : "not deployed yet"}</div></div>
+    <div class="card tile"><div class="k">Sync from anywhere</div><div class="v">${CL.active || 0}<span style="font-size:14px;color:var(--muted)"> / ${CL.students || 0}</span></div><div class="s">${d.cloud ? `${CL.syncedToday || 0} read in 24 h · ${CL.errors || 0} need attention` : "not deployed yet"}</div></div>
+    <div class="card tile"><div class="k">Free plan today</div><div class="v">${reqToday.toLocaleString()}</div><div class="s">of 100,000 worker requests · ${T.cron_step || 0} cron steps</div></div>
     <div class="card tile"><div class="k">First syncs</div><div class="v">${syncs}</div><div class="s">${conv === null ? "no installs yet" : conv + "% of installs reached Canvas"}</div></div>
   </div>`;
+  // ---- health: is the machine running, and is anything piling up ----
+  html += `<div class="card adm-card"><h3>Health</h3>
+    <div class="adm-row" style="gap:18px">
+      <span>Worker <b>v${esc(String(ops.version || "?"))}</b></span>
+      <span>Cron last ran <b style="${cronStale ? "color:var(--critical-text)" : ""}">${ago(ops.cronAt)}</b>${cronStale ? " · expected every 2 min" : ""}</span>
+      <span>Oldest active read <b>${ago(CL.oldest)}</b></span>
+      <span>${CL.stale || 0} students stale (3 d+) · ${CL.expiring || 0} tokens due for renewal</span>
+      ${d.cloudError ? `<span style="color:var(--critical-text)">cloud stats failed: ${esc(d.cloudError)}</span>` : ""}
+    </div>
+    <div class="adm-row" style="margin-top:10px"><label class="ck"><input type="checkbox" id="admPaused" ${S.cloudPaused ? "checked" : ""} data-act="adm-pause"> Pause Sync from anywhere (kill switch: the cron and page-driven reads stop; phones keep the last copy; nothing is deleted)</label></div></div>`;
   // ---- chart: opens as bars, installs as a line; one scale, two series, legend + direct hover ----
   const W = 640, H = 210, padL = 34, padR = 12, padT = 12, padB = 26;
   const rawMax = Math.max(1, ...keys.map(k => Math.max(get(k, "open"), get(k, "install"))));
@@ -3488,6 +3526,19 @@ function renderAdmin(root){
   svg += `</svg>`;
   html += `<div class="card adm-card"><h3>Last 30 days</h3><p class="sub2">One device counts once a day. Your own devices, test renders and copies running anywhere but lmktoday.app are never counted, so a zero here means no one else has opened LMK yet.</p>${svg}
     <div class="legend"><span><i style="background:var(--chart-a)"></i>Daily opens</span><span><i style="background:var(--chart-b)"></i>Installs</span></div></div>`;
+  // ---- the fleet: who is syncing, where, and what is wrong ----
+  const probs = d.problems || [];
+  html += `<div class="card adm-card"><h3>Sync fleet</h3><p class="sub2">Every student is a random support code; the code is shown to them under the gear so they can quote it. Schools: ${(CL.byHost || []).map(x => `<b>${esc(x.host)}</b> ${x.n}`).join(" · ") || "none yet"}.${(CL.byErr || []).length ? " Errors: " + CL.byErr.map(x => `${esc(x.err)} (${x.n})`).join(" · ") + "." : ""}</p>
+    <div class="adm-row" style="margin-bottom:10px"><input id="admLookup" type="text" placeholder="support code" maxlength="64" style="flex:1 1 160px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:8px 10px;font:inherit;font-size:14px"><button class="minibtn" data-act="adm-lookup">Look up</button><span id="admLookupOut" class="sub2" style="margin:0"></span></div>
+    ${probs.length ? `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="text-align:left;color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.06em"><th style="padding:6px 8px">Code</th><th>School</th><th>Courses</th><th>Last read</th><th>Status</th><th></th></tr></thead><tbody>` +
+      probs.map(p => `<tr style="border-top:1px solid var(--line)"><td style="padding:7px 8px;font-family:'Spline Sans Mono',monospace">${esc(p.sid.slice(0, 8))}</td><td>${esc(p.host)}</td><td>${p.courses}</td><td>${ago(p.synced_at)}</td><td>${!p.active ? "paused" : p.err ? `<span style="color:var(--critical-text)">${esc(p.err)}</span>` : "stale"}</td>
+        <td style="white-space:nowrap;text-align:right">${p.active ? `<button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="retry">Retry</button> <button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="pause">Pause</button>` : `<button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="resume">Resume</button>`} <button class="minibtn drop" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="forget">Forget</button></td></tr>`).join("") + `</tbody></table></div>` : `<p class="sub2" style="margin:0">No stale, paused or failing students right now.</p>`}
+  </div>`;
+  // ---- what breaks in the app ----
+  const errs = d.errs || [];
+  html += `<div class="card adm-card"><h3>App errors · last 7 days</h3><p class="sub2">What reportErr caught on real devices: a build and a message, nothing else. ${T.err ? T.err + " today." : "None today."}</p>
+    ${errs.length ? `<table style="width:100%;border-collapse:collapse;font-size:13px"><tbody>` + errs.map(e => `<tr style="border-top:1px solid var(--line)"><td style="padding:6px 8px;font-family:'Spline Sans Mono',monospace;white-space:nowrap">${esc(e.build)}</td><td style="padding:6px 8px">${esc(e.msg)}</td><td style="padding:6px 8px;text-align:right;font-variant-numeric:tabular-nums">${e.n}</td></tr>`).join("") + `</tbody></table>` : `<p class="sub2" style="margin:0">Nothing reported. Either it's clean or nobody's on it yet; the tiles above say which.</p>`}
+  </div>`;
   // ---- announcement ----
   const A = S.announce || {};
   html += `<div class="card adm-card"><h3>Announcement</h3><p class="sub2">A slim banner every student sees above their plan until they dismiss it. Use it for "store link is live", "known issue with X", or a heavy-week heads-up. Plain text, one link at most.</p>
@@ -3514,7 +3565,7 @@ function renderAdmin(root){
     <a href="https://claude.ai/code/artifact/b4e9012c-9097-4f93-bd54-49a0082caf71" target="_blank" rel="noopener">Launch Kit<small>every post and message, ready to paste</small></a>
   </div></div>`;
   // ---- moderation, honestly ----
-  html += `<div class="card adm-card"><h3>Moderation</h3><p class="sub2" style="margin:0">Nothing to moderate yet, and that is by design: the server holds counts and these settings, never a student's assignments, grades or name. When shared course statistics arrive in Phase 2 they will be anonymous medians per assignment, and this is where outliers get pruned and a bad contribution gets dropped.</p></div>`;
+  html += `<div class="card adm-card"><h3>Moderation</h3><p class="sub2" style="margin:0">The server holds counts, these settings, and (for Sync from anywhere) an encrypted Canvas key plus assignment rows per random code, never a name. Moderation is the fleet table above: pause a code that hammers Canvas, forget one on request, retry one after a fix. When shared course statistics arrive they will be anonymous medians per assignment, pruned here.</p></div>`;
   // ---- system ----
   html += `<div class="card adm-card"><h3>System</h3><p class="sub2">Worker <b>${esc(LMK_CONFIG.statsUrl.replace(/^https?:\/\//, ""))}</b> · this device is in <b>${MODE}</b> mode · admin key is stored on this device only.</p>
     <div class="adm-row"><button class="minibtn drop" data-act="adm-logout">Forget admin key on this device</button></div></div>`;
