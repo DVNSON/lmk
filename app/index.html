@@ -3342,7 +3342,7 @@ function cachePlanLine(days, today){
 /* The sync bookmarklet, generated from ~/lmk-extension/bookmarklet.txt — regenerate both together.
    It works on ANY school's Canvas, which is the whole point: it takes the origin from the page it runs on. */
 const LMK_SYNC_BOOKMARKLET = "javascript:(function(){\n  let BASE = \"\";\n  async function getJSON(path){\n    const out = [];\n    let url = BASE + path + (path.includes(\"?\") ? \"&\" : \"?\") + \"per_page=100\";\n    for (let hop = 0; url && hop < 20; hop++){\n      const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000);\n      let r; try { r = await fetch(url, {credentials:\"include\", headers:{\"Accept\":\"application/json\"}, signal: ctl.signal}); } finally { clearTimeout(timer); }\n      if (!r.ok) throw new Error(r.status + \" \" + path);\n      let txt = await r.text();\n      if (txt.startsWith(\"while(1);\")) txt = txt.slice(9);\n      const data = JSON.parse(txt);\n      if (Array.isArray(data)) out.push(...data); else return data;\n      const link = r.headers.get(\"Link\") || \"\";\n      const m = link.match(/<([^>]+)>;%5Cs*rel=\"next\"/);\n      url = m ? m[1] : null;\n    }\n    return out;\n  }\n  const strip = h => (h || \"\").replace(/<[^>]+>/g, \" \").replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/%5Cs+/g, \" \").trim();\n  /* Canvas's own grade for this course: exactly what the student sees, with group weights, drop rules,\n     late policies and excused work already applied. Null when the instructor hides totals. */\n  function courseScores(c){\n    const num = v => (v === null || v === undefined || v === \"\" || !isFinite(+v)) ? null : +v;\n    const es = (c.enrollments || []).filter(e => /student/i.test(e.type || e.role || \"\"));\n    const e = es.find(x => x.computed_current_score != null) || es[0] || {};\n    return {cur: num(e.computed_current_score), fin: num(e.computed_final_score)};\n  }\n  function courseTag(c){\n    const s = (c.course_code || c.name || \"\");\n    if (/asuready/i.test(s)) return \"ASU Ready\";\n    const m = s.match(/([A-Z]{2,4})%5Cs?-?(%5Cd{2,3}[A-Z]?)/);\n    return m ? m[1] + \" \" + m[2] : s.slice(0, 18);\n  }\n  function rubricText(a){\n    const r = Array.isArray(a.rubric) ? a.rubric : [];\n    return r.slice(0, 12).map(c => String(c.description || \"\").replace(/%5Cs+/g, \" \").trim().slice(0, 80) + (c.points != null ? \" (\" + c.points + \" pts)\" : \"\")).filter(x => x.trim() && x.trim() !== \"(0 pts)\").join(\"; \").slice(0, 900);\n  }\n  function kindHint(a){\n    const st = a.submission_types || [];\n    if (a.grading_type === \"not_graded\" || (a.points_possible === 0 && !st.includes(\"online_quiz\"))) return \"fyi\";\n    if (st.includes(\"none\") || st.includes(\"on_paper\")) return \"inclass\";\n    if (/attendance|participation|in.?class|clicker/i.test(a.name || \"\")) return \"inclass\";\n    if (st.includes(\"online_quiz\")) return \"quiz\";\n    if (st.includes(\"discussion_topic\")) return \"discussion\";\n    return \"\";\n  }\n  (typeof window !== \"undefined\" ? window : self).lmkCollect = async function(base){\n    BASE = (base || location.origin).replace(/%5C/$/, \"\");\n    const HOST = BASE.replace(/^https?:%5C/%5C//, \"\");\n    const courses = (await getJSON(\"/api/v1/courses?enrollment_state=active&include[]=term&include[]=total_scores\")).filter(c => c.name && !c.access_restricted_by_date);\n    const items = {};\n    const groups = {};\n    for (const c of courses){\n      const tag = courseTag(c);\n      let list = [];\n      try { list = await getJSON(`/api/v1/courses/${c.id}/assignments?include[]=submission&order_by=due_at`); } catch(e){ continue; }\n      /* What the instructor actually wrote back. One request per course, only this student's submissions,\n         only comments from someone who is not the student. It is the most useful thing LMK can know. */\n      let fb = {};\n      try {\n        const subs = await getJSON(`/api/v1/courses/${c.id}/students/submissions?student_ids[]=self&include[]=submission_comments&per_page=100`);\n        for (const sub of (Array.isArray(subs) ? subs : [])) {\n          const mine = String(sub.user_id || \"\");\n          const notes = (sub.submission_comments || []).filter(x => x && x.comment && String(x.author_id || \"\") !== mine);\n          if (notes.length) fb[String(sub.assignment_id)] = strip(notes[notes.length - 1].comment).slice(0, 400);\n        }\n      } catch(e){}\n      try {\n        const g = await getJSON(`/api/v1/courses/${c.id}/assignment_groups`);\n        groups[c.id] = g.map(x => ({id:x.id, name:x.name, w:x.group_weight}));\n      } catch(e){}\n      for (const a of list){\n        if (a.only_visible_to_overrides && !a.due_at && !a.has_overrides) continue;\n        const s = a.submission || {};\n        items[String(a.id)] = {\n          t: a.name, c: tag, cid: String(c.id),\n          due: a.due_at || \"\", lock: a.lock_at || \"\",\n          pts: a.points_possible, gt: a.grading_type, st: (a.submission_types || []).join(\",\"),\n          grp: a.assignment_group_id, k: kindHint(a),\n          sub: s.workflow_state || \"\", subAt: s.submitted_at || \"\", score: s.score == null ? null : s.score,\n          late: !!s.late, missing: !!s.missing, excused: !!s.excused,\n          url: a.html_url || \"\",\n          desc: strip(a.description).slice(0, 1200),\n          rub: rubricText(a),\n          fb: fb[String(a.id)] || \"\",\n          qid: a.quiz_id ? String(a.quiz_id) : \"\",\n        };\n      }\n    }\n    // Canvas keeps seconds spent on every quiz attempt %E2%80%94 exact durations, no sensor needed.\n    const quizTime = {}, quizMap = {};\n    const quizzes = Object.entries(items).filter(([aid, x]) => x.qid && /^(submitted|graded|pending_review)$/.test(x.sub)).slice(0, 40);\n    for (const [aid, x] of quizzes){\n      quizMap[x.cid + \"/\" + x.qid] = aid;\n      try {\n        const r = await getJSON(`/api/v1/courses/${x.cid}/quizzes/${x.qid}/submissions`);\n        const subs = (r && r.quiz_submissions) || [];\n        const secs = subs.map(q => +q.time_spent || 0).filter(v => v > 0);\n        if (secs.length) quizTime[aid] = Math.round(Math.max(...secs) / 60);\n      } catch(e){}\n    }\n    for (const aid in items) if (items[aid].qid) quizMap[items[aid].cid + \"/\" + items[aid].qid] = aid;\n    // apply_assignment_group_weights is the course-level switch: when it is false Canvas ignores\n    // the group weights entirely and grades on total points, however the weights are set.\n    return {lmk:\"canvas\", v:3, at: Date.now(), host: HOST,\n      courses: courses.map(c => Object.assign({id:String(c.id), tag:courseTag(c), name:c.name, wt: !!c.apply_assignment_group_weights}, courseScores(c))),\n      groups, items, quizTime, quizMap};\n  };\n})();\n\n(async()=>{try{const p=await window.lmkCollect();const s=JSON.stringify(p);const n=Object.keys(p.items).length;\nlet ok=false;try{await navigator.clipboard.writeText(s);ok=true}catch(e){}\nif(!ok){const ta=document.createElement(\"textarea\");ta.value=s;ta.style.cssText=\"position:fixed;top:8px;left:8px;width:90vw;height:40vh;z-index:99999;font-size:12px\";document.body.appendChild(ta);ta.focus();ta.select();try{ok=document.execCommand(\"copy\")}catch(e){}if(ok)ta.remove();else alert(\"Select all + copy the box, then paste it into LMK (gear %E2%86%92 Paste from Canvas).\")}\nif(ok)alert(\"LMK: copied \"+n+\" assignments. Open LMK %E2%86%92 gear %E2%86%92 Paste from Canvas %E2%86%92 paste.\")}catch(e){alert(\"LMK: could not read Canvas %E2%80%94 are you logged in on this tab? \"+e)}})();";
-const APP_BUILD = "v49.1";
+const APP_BUILD = "v50.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -3543,6 +3543,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="triage-more") { triageOpen = true; render(); }
   else if (a==="sync-dismiss") { const el = document.getElementById("syncNote"); if (el) el.hidden = true; }
   else if (a==="ann-dismiss") { const el = document.getElementById("announce"); try { localStorage.setItem("lmk_ann_dismissed", el.dataset.sig || ""); } catch(_){} el.hidden = true; }
+  else if (a==="adm-unlock") { adminUnlock(); }
   else if (a==="adm-refresh") { adminFetch(true); }
   else if (a==="adm-logout") { adminForget(); }
   else if (a==="adm-save-ann") { const g = id => document.getElementById(id); adminSave({announce: {text: g("admAnnText").value.trim().slice(0, 240), url: g("admAnnUrl").value.trim().slice(0, 300), until: g("admAnnUntil").value, on: g("admAnnOn").checked}}); }
@@ -4186,7 +4187,10 @@ function mergeStores(a, b){
   m.streakDays = [...new Set([...(a.streakDays||[]), ...(b.streakDays||[])])];
   m.capacity = newer.capacity || older.capacity || null;
   m.since = Math.min(a.since || Infinity, b.since || Infinity); if (!isFinite(m.since)) delete m.since;
-  m.adminKey = newer.adminKey !== undefined ? newer.adminKey : older.adminKey; if (!m.adminKey) delete m.adminKey;
+  /* A real key beats an empty one whichever side is newer: `adminForget()` writes "" and that empty string
+     used to win and un-admin every other device. Forgetting is local — it clears this device's
+     localStorage — so it does not need to travel. */
+  m.adminKey = newer.adminKey || older.adminKey || ""; if (!m.adminKey) delete m.adminKey;
   if (a.cloud && b.cloud) { const first = (a.cloud.at || 0) <= (b.cloud.at || 0) ? a.cloud : b.cloud; m.cloud = Object.assign({}, first, {on: newer.cloud ? !!newer.cloud.on : !!first.on}); }
   else m.cloud = a.cloud || b.cloud || null;
   if (!m.cloud) delete m.cloud;
@@ -4746,6 +4750,13 @@ function adminApply(){
   } catch(_){}
   adminApply();
 })();
+function adminUnlock(){
+  const inp = document.getElementById("admKeyIn"), msg = document.getElementById("admKeyMsg");
+  const k = (inp && inp.value || "").trim();
+  if (!/^[A-Za-z0-9_\-]{16,}$/.test(k)) { if (msg) { msg.className = "sub2 bad"; msg.textContent = "That does not look like the key."; } return; }
+  try { localStorage.setItem("lmk_admin_key", k); } catch(_){}
+  store.adminKey = k; save(); adminApply(); ADMIN.data = null; ADMIN.err = ""; render();
+}
 function adminForget(){
   try { localStorage.removeItem("lmk_admin_key"); } catch(_){}
   store.adminKey = ""; save();
@@ -4915,7 +4926,16 @@ function chartCard(title, sub, keys, bar, line, barLabel, lineLabel, fmt, tip){
   return `<div class="card adm-card"><h3>${esc(title)}</h3><p class="sub2">${sub}</p>${svg}<div class="legend"><span><i style="background:var(--chart-a)"></i>${esc(barLabel)}</span><span><i style="background:var(--chart-b)"></i>${esc(lineLabel)}</span></div></div>`;
 }
 function renderAdmin(root){
-  if (!ADMIN.key) { root.innerHTML = `<div class="empty">Admin unlocks when you open LMK once with your admin link.</div>`; return; }
+  if (!ADMIN.key) {
+    root.innerHTML = `<div class="card adm-card"><h3>Unlock Mission control</h3>
+      <p class="sub2">Open LMK once with your admin link, or paste the key here. It is kept on this device and rides your synced store to the others, so this is a one-time thing per browser.</p>
+      <div class="adm-row"><input id="admKeyIn" class="adm-in" type="password" placeholder="admin key" autocomplete="off" style="flex:1;min-width:220px">
+      <button class="btn primary" data-act="adm-unlock">Unlock</button></div>
+      <p class="sub2" id="admKeyMsg" style="margin:8px 0 0"></p></div>`;
+    const inp = document.getElementById("admKeyIn");
+    if (inp) inp.addEventListener("keydown", e => { if (e.key === "Enter") adminUnlock(); });
+    return;
+  }
   if (MODE !== "web") {
     const href = LMK_CONFIG.appUrl.replace(/\/$/, "") + "/#admin=" + encodeURIComponent(ADMIN.key);
     root.innerHTML = `<div class="card adm-card"><h3>Mission control lives on lmktoday.app</h3><p class="sub2">This copy runs inside claude.ai, whose sandbox can't reach the LMK worker. Your admin key travels with your Google account, so the dashboard is one click away.</p>
@@ -4947,6 +4967,11 @@ function renderAdmin(root){
      read as a decline every morning. Raw totals keep the inclusive window; anything compared uses full days. */
   const full7 = ev => sum(ev, 22, 29), prevFull7 = ev => sum(ev, 15, 22);
   const AT = d.allTime || tot;                                        // "ever" means ever, not the last 90 days
+  /* Devices are not people. `install` counts a BROWSER opening the app, so a student with a laptop and a
+     phone is two. `owners` is one row per sync id, and a sync id deliberately follows a student across
+     devices — mergeStores keeps the earliest and #pair= copies it to a phone — so it is the closest honest
+     count of students, and it needs no identifier in the counter to get there. */
+  const students = (RV && RV.owners) || 0;
   const installs = AT.install || 0, syncs = AT.firstsync || 0, conv = installs ? Math.round(syncs / installs * 100) : null;
   const connToday = get(today, "synced"), extInstalls = AT.extension || 0;
   const act7 = full7("install") ? Math.round(full7("firstsync") / full7("install") * 100) : null;
@@ -4994,6 +5019,7 @@ function renderAdmin(root){
   if (ADMIN.tab === "overview") {
     html += `<div class="tiles">
       ${tile("Active today", openToday, `${avg7} a day, last 7 full days`, delta(full7("open"), prevFull7("open"), "opens"))}
+      ${tile("Students", n(students), students ? `${n(installs)} browser${installs === 1 ? "" : "s"} between them` : `${n(installs)} browsers, none registered yet`)}
       ${tile("Devices ever", n(installs), `${full7("install")} new in the last 7 full days`, delta(full7("install"), prevFull7("install"), "new devices"))}
       ${tile("Reached Canvas", n(syncs), `${conv === null ? "no devices yet" : conv + "% of every device"} · ${connToday} active today`,
         act7 === null ? "" : `<span class="d">${act7}% activated this week${actPrev === null ? "" : ` (was ${actPrev}%)`}</span>`)}
@@ -5002,7 +5028,7 @@ function renderAdmin(root){
       ${tile("30 days", money(cash30), `cash in · ${money(spend30)} tokens out · MRR ${money(mrr)}`)}
     </div>`;
     html += `<div class="card adm-card"><h3>Needs attention</h3>${attention.length ? `<ul class="attn">${attention.map(([tab, msg]) => `<li><span>${esc(msg)}</span><button class="minibtn" data-act="adm-tab" data-tab="${tab}">Open</button></li>`).join("")}</ul>` : `<p class="sub2" style="margin:0">Nothing. The machine is running, the money side is wired, and no one is stuck.</p>`}</div>`;
-    html += chartCard("Last 30 days", `Every day here is a UTC day, and a device counts once per day. <b>Active today</b> is devices that opened the app, not opens. <b>Devices ever</b> and <b>Reached Canvas</b> are all-time counts${firstDay ? `, since ${esc(firstDay)}` : ""} — before ${esc(APP_BUILD)} they showed a 90-day slice and rows were bucketed by each student's own local midnight, so anything before that date is a different measurement. The extension has been installed ${n(extInstalls)} times. Your own devices, test renders and anything not served from lmktoday.app never count.`, keys, k => get(k, "open"), k => get(k, "synced"), "Devices active", "Reached Canvas", v => String(v), k => `${k}: ${known(k) ? `${get(k, "open")} active, ${get(k, "synced")} with Canvas, ${get(k, "install")} new devices, ${get(k, "tutor_msg")} tutor msgs` : "before the counter existed"}`);
+    html += chartCard("Last 30 days", `Every day here is a UTC day, and a device counts once per day. <b>Active today</b> is devices that opened the app, not opens. <b>Students</b> counts sync ids, one per person across all their devices; <b>Devices ever</b> and <b>Reached Canvas</b> count browsers, and are all-time${firstDay ? `, since ${esc(firstDay)}` : ""} — before ${esc(APP_BUILD)} they showed a 90-day slice and rows were bucketed by each student's own local midnight, so anything before that date is a different measurement. The extension has been installed ${n(extInstalls)} times. Your own devices, test renders and anything not served from lmktoday.app never count.`, keys, k => get(k, "open"), k => get(k, "synced"), "Devices active", "Reached Canvas", v => String(v), k => `${k}: ${known(k) ? `${get(k, "open")} active, ${get(k, "synced")} with Canvas, ${get(k, "install")} new devices, ${get(k, "tutor_msg")} tutor msgs` : "before the counter existed"}`);
   }
   if (ADMIN.tab === "revenue") {
     if (!RV || !CO) html += `<div class="card adm-card"><h3>Revenue</h3><p class="sub2" style="margin:0">The worker hasn't answered with cost and revenue yet${d.costError || d.revenueError ? ": " + esc(d.costError || d.revenueError) : ""}. Deploy worker v10 and apply schema.sql (usage and payments tables).</p></div>`;
