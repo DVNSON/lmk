@@ -3157,7 +3157,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v45.0";
+const APP_BUILD = "v45.1";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -4444,6 +4444,9 @@ document.getElementById("wGo").addEventListener("click", () => {
 /* ================= anonymous counter =================
    One "open" per device per day, one "install" ever, one "firstsync" ever — plain numbers to the
    LMK worker, nothing that can name a person. Silent until LMK_CONFIG.statsUrl is set. */
+/* The worker keys every row it writes itself by UTC, so the app must send UTC too. Sending the student's
+   local day mixed a ~50-hour smear into a 24-hour bucket and shifted the whole chart for anyone not on GMT. */
+const utcDayKey = () => new Date().toISOString().slice(0, 10);
 function ping(ev){
   if (MODE !== "web" || !LMK_CONFIG.statsUrl) return;
   if (!pingAllowed()) return;                                                // only real students on the real domain
@@ -4451,7 +4454,7 @@ function ping(ev){
   try { if (localStorage.getItem("lmk_admin_key")) return; } catch(_){}
   try {
     fetch(LMK_CONFIG.statsUrl.replace(/\/$/, "") + "/hit", {method:"POST", mode:"cors", credentials:"omit", keepalive:true,
-      headers:{"content-type":"text/plain"}, body: JSON.stringify({ev, d: dayKey(now())})}).catch(() => {});
+      headers:{"content-type":"text/plain"}, body: JSON.stringify({ev, d: utcDayKey()})}).catch(() => {});
   } catch(_){}
 }
 /* Test renders and local copies never reach the counter: headless browsers flag themselves with
@@ -4463,15 +4466,19 @@ function pingAllowed(){
   } catch(_) { return false; }
   return true;
 }
+/* Runs at boot, on every minute tick and whenever the tab comes back, because LMK is built never to need a
+   refresh: a tab left open across midnight used to contribute one "open" for the whole week it stayed open.
+   The gate is one getItem and a string compare, so it is cheap enough for the minute tick. */
 function pingDaily(){
-  try {
-    const k = dayKey(now()), last = localStorage.getItem("lmk_ping_day");
-    if (!last) ping("install");                                              // a new device opened the app
-    if (last !== k) {
-      localStorage.setItem("lmk_ping_day", k); ping("open");
-      if (store.ext && Object.keys(store.ext.items || {}).length) ping("synced");   // once a day, a device that has Canvas data: the real activation number
-    }
-  } catch(_){}
+  const k = utcDayKey();
+  let last = null, stored = false;
+  try { last = localStorage.getItem("lmk_ping_day"); } catch(_) { return; }   // no storage means no honest gate: send nothing rather than send every minute
+  if (last === k) return;
+  try { localStorage.setItem("lmk_ping_day", k); stored = true; } catch(_){}
+  if (!stored) return;                                                       // a write that failed would repeat the day's events forever
+  if (!last) ping("install");                                                // a browser opening the app for the first time
+  ping("open");                                                              // one device, one day
+  if (store.ext && Object.keys(store.ext.items || {}).length) ping("synced");
 }
 /* After ten finished things and five days, ask once for a store review. Laptops only — that is where the store is. */
 function maybeAskReview(){
@@ -4589,8 +4596,8 @@ async function adminStudent(sid, action, months, level){
 }
 function adminCopyCsv(){
   const d = ADMIN.data; if (!d) return;
-  const lines = ["day,installs,first_syncs,opens"];
-  Object.keys(d.days || {}).sort().forEach(k => { const r = d.days[k]; lines.push(`${k},${r.install||0},${r.firstsync||0},${r.open||0}`); });
+  const lines = ["day,installs,first_syncs,opens,synced,extension,tutor_msg"];
+  Object.keys(d.days || {}).sort().forEach(k => { const r = d.days[k]; lines.push(`${k},${r.install||0},${r.firstsync||0},${r.open||0},${r.synced||0},${r.extension||0},${r.tutor_msg||0}`); });
   try { navigator.clipboard.writeText(lines.join("\n")).then(() => toast("CSV copied — " + (lines.length - 1) + " days."), () => toast("Couldn't copy here.")); } catch(_) { toast("Couldn't copy here."); }
 }
 const PHASE1 = [
@@ -4692,17 +4699,29 @@ function renderAdmin(root){
   const money = v => "$" + (+v || 0).toFixed(2);
   const ago = t => { if (!t) return "never"; const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 1440 ? Math.round(m / 60) + " h ago" : Math.round(m / 1440) + " d ago"; };
   const n = v => (+v || 0).toLocaleString();
-  const reqToday = (T.sync_pull || 0) + (T.sync_refresh || 0) + (T.sync_register || 0) + (T.cron_step || 0) + (T.open || 0) + (T.install || 0) + (T.firstsync || 0) + (T.err || 0) + (T.tutor_msg || 0);
+  const errToday = d.errToday || 0;   // app errors live in the `errs` table; T.err was always undefined
+  const reqToday = (T.sync_pull || 0) + (T.sync_refresh || 0) + (T.sync_register || 0) + (T.cron_step || 0) + (T.open || 0) + (T.install || 0) + (T.firstsync || 0) + errToday + (T.tutor_msg || 0);
   const cronStale = ops.cronAt && Date.now() - ops.cronAt > 10 * 60e3;
-  const today = dayKey(now());
-  const keys = []; for (let i = 29; i >= 0; i--) keys.push(dayKey(addDays(startOfDay(now()), -i)));
+  /* One clock. Rows are keyed by the worker's UTC day, so the axis and "today" must be UTC too — reading
+     them off the admin's own local calendar shifted the whole chart for anyone west of Greenwich. */
+  const today = d.todayKey || new Date().toISOString().slice(0, 10);
+  const base = Date.parse(today + "T00:00:00Z");
+  const keys = []; for (let i = 29; i >= 0; i--) keys.push(new Date(base - i * 864e5).toISOString().slice(0, 10));
+  const firstDay = d.firstDay || "";
   const get = (k, ev) => (days[k] && days[k][ev]) || 0;
+  const known = k => !firstDay || k >= firstDay;                      // before this date the counter did not exist
   const sum = (ev, a, b) => keys.slice(a, b).reduce((t, k) => t + get(k, ev), 0);
   const last7 = ev => sum(ev, 23, 30), prev7 = ev => sum(ev, 16, 23);
-  const installs = tot.install || 0, syncs = tot.firstsync || 0, conv = installs ? Math.round(syncs / installs * 100) : null;
-  const connToday = get(today, "synced"), extInstalls = tot.extension || 0;
-  const openToday = get(today, "open"), avg7 = Math.round(last7("open") / 7 * 10) / 10;
-  const delta = (a, b) => { if (!b && !a) return ""; if (!b) return `<span class="d up">new</span>`; const p = Math.round((a - b) / b * 100); return `<span class="d ${p >= 0 ? "up" : "down"}">${p >= 0 ? "▲" : "▼"} ${Math.abs(p)}% vs prior week</span>`; };
+  /* Comparisons need equal windows. keys[29] is today, a part-day, so comparing it against seven whole days
+     read as a decline every morning. Raw totals keep the inclusive window; anything compared uses full days. */
+  const full7 = ev => sum(ev, 22, 29), prevFull7 = ev => sum(ev, 15, 22);
+  const AT = d.allTime || tot;                                        // "ever" means ever, not the last 90 days
+  const installs = AT.install || 0, syncs = AT.firstsync || 0, conv = installs ? Math.round(syncs / installs * 100) : null;
+  const connToday = get(today, "synced"), extInstalls = AT.extension || 0;
+  const act7 = full7("install") ? Math.round(full7("firstsync") / full7("install") * 100) : null;
+  const actPrev = prevFull7("install") ? Math.round(prevFull7("firstsync") / prevFull7("install") * 100) : null;
+  const openToday = get(today, "open"), avg7 = Math.round(full7("open") / 7 * 10) / 10;
+  const delta = (a, b, noun) => { if (!b && !a) return ""; const what = noun ? " " + noun : ""; if (!b) return `<span class="d up">new</span>`; const p = Math.round((a - b) / b * 100); return `<span class="d ${p >= 0 ? "up" : "down"}">${p >= 0 ? "▲" : "▼"} ${Math.abs(p)}%${what} vs prior week</span>`; };
   // money: real cost from Anthropic's usage blocks (worker `usage` table) and real cash from Stripe (`payments`)
   const priceNum = parseFloat(String(PL.plusPrice || "").replace(/[^0-9.]/g, "")) || 4;
   const mrr = RV ? RV.mrr : (PL.paying || 0) * priceNum;
@@ -4714,13 +4733,13 @@ function renderAdmin(root){
   if (!PL.webhook) attention.push(["plus", "Stripe webhook secret is not set; payments can't be recognised."]);
   if (!PL.plusLink) attention.push(["plus", "No Payment Link saved; nobody can buy Plus."]);
   if ((CL.errors || 0) > 0) attention.push(["students", `${CL.errors} student sync${CL.errors === 1 ? " needs" : "s need"} attention.`]);
-  if (T.err) attention.push(["ops", `${T.err} app error${T.err === 1 ? "" : "s"} reported today.`]);
+  if (errToday) attention.push(["ops", `${errToday} app error${errToday === 1 ? "" : "s"} reported today.`]);
   if (S.cloudPaused) attention.push(["students", "Sync from anywhere is paused (kill switch on)."]);
   if (installs >= 5 && syncs / installs < 0.5) attention.push(["students", `Only ${conv}% of devices ever reached Canvas. Activation, not features, is the bottleneck.`]);
   if (!TU.tutorOn) attention.push(["tutor", "The tutor is switched off."]);
   if (d.costError || d.revenueError) attention.push(["ops", "Cost or revenue tables failed to read: " + (d.costError || d.revenueError) + ". Apply schema.sql."]);
   if (CO && RV && spend30 > cash30 && spend30 > 1) attention.push(["revenue", `The tutor cost ${money(spend30)} in 30 days against ${money(cash30)} in cash.`]);
-  const TABS = [["overview", "Overview", 0], ["revenue", "Revenue", 0], ["students", "Students", CL.errors || 0], ["tutor", "Tutor", 0], ["plus", "Plus", 0], ["ops", "Ops", (cronStale ? 1 : 0) + (T.err ? 1 : 0)]];
+  const TABS = [["overview", "Overview", 0], ["revenue", "Revenue", 0], ["students", "Students", CL.errors || 0], ["tutor", "Tutor", 0], ["plus", "Plus", 0], ["ops", "Ops", (cronStale ? 1 : 0) + (errToday ? 1 : 0)]];
   if (!TABS.some(t => t[0] === ADMIN.tab)) ADMIN.tab = "overview";
   const tile = (k, v, s, extra) => `<div class="card tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div>${extra || ""}</div>`;
   const input = (id, val, w, attrs) => `<input id="${id}" ${attrs || 'type="number" min="0"'} value="${esc(String(val))}" class="adm-in" style="width:${w || 90}px">`;
@@ -4731,15 +4750,16 @@ function renderAdmin(root){
 
   if (ADMIN.tab === "overview") {
     html += `<div class="tiles">
-      ${tile("Opens today", openToday, `${avg7} a day, last 7 days`, delta(last7("open"), prev7("open")))}
-      ${tile("Devices", installs, `${last7("install")} new this week`, delta(last7("install"), prev7("install")))}
-      ${tile("Connected", n(tot.synced || 0), `${connToday} today · ${conv === null ? "no devices yet" : conv + "% of devices ever reached Canvas"}`)}
-      ${tile("Plus members", (PL.paying || 0) + (PL.granted || 0), `${PL.paying || 0} paying · ${PL.granted || 0} granted`)}
-      ${tile("Tutor today", n(T.tutor_msg), `${money(spendToday)} in tokens · ${n(sum("tutor_msg", 23, 30))} this week`)}
+      ${tile("Active today", openToday, `${avg7} a day, last 7 full days`, delta(full7("open"), prevFull7("open"), "opens"))}
+      ${tile("Devices ever", n(installs), `${full7("install")} new in the last 7 full days`, delta(full7("install"), prevFull7("install"), "new devices"))}
+      ${tile("Reached Canvas", n(syncs), `${conv === null ? "no devices yet" : conv + "% of every device"} · ${connToday} active today`,
+        act7 === null ? "" : `<span class="d">${act7}% activated this week${actPrev === null ? "" : ` (was ${actPrev}%)`}</span>`)}
+      ${tile("Plus members", n((PL.paying || 0) + (PL.granted || 0)), `${PL.paying || 0} paying · ${PL.granted || 0} granted`)}
+      ${tile("Tutor today", n(T.tutor_msg), `${money(spendToday)} in tokens · ${n(full7("tutor_msg"))} in 7 full days`)}
       ${tile("30 days", money(cash30), `cash in · ${money(spend30)} tokens out · MRR ${money(mrr)}`)}
     </div>`;
     html += `<div class="card adm-card"><h3>Needs attention</h3>${attention.length ? `<ul class="attn">${attention.map(([tab, msg]) => `<li><span>${esc(msg)}</span><button class="minibtn" data-act="adm-tab" data-tab="${tab}">Open</button></li>`).join("")}</ul>` : `<p class="sub2" style="margin:0">Nothing. The machine is running, the money side is wired, and no one is stuck.</p>`}</div>`;
-    html += chartCard("Last 30 days", `One device counts once a day. "Devices" is a browser opening the app for the first time, not an extension install (${n(extInstalls)} of those recorded); "connected" is a device that has Canvas data. Your own devices, test renders and anything not served from lmktoday.app never count.`, keys, k => get(k, "open"), k => get(k, "synced"), "Daily opens", "Connected", v => String(v), k => `${k}: ${get(k, "open")} opens, ${get(k, "synced")} connected, ${get(k, "install")} new devices, ${get(k, "tutor_msg")} tutor msgs`);
+    html += chartCard("Last 30 days", `Every day here is a UTC day, and a device counts once per day. <b>Active today</b> is devices that opened the app, not opens. <b>Devices ever</b> and <b>Reached Canvas</b> are all-time counts${firstDay ? `, since ${esc(firstDay)}` : ""} — before ${esc(APP_BUILD)} they showed a 90-day slice and rows were bucketed by each student's own local midnight, so anything before that date is a different measurement. The extension has been installed ${n(extInstalls)} times. Your own devices, test renders and anything not served from lmktoday.app never count.`, keys, k => get(k, "open"), k => get(k, "synced"), "Devices active", "Reached Canvas", v => String(v), k => `${k}: ${known(k) ? `${get(k, "open")} active, ${get(k, "synced")} with Canvas, ${get(k, "install")} new devices, ${get(k, "tutor_msg")} tutor msgs` : "before the counter existed"}`);
   }
   if (ADMIN.tab === "revenue") {
     if (!RV || !CO) html += `<div class="card adm-card"><h3>Revenue</h3><p class="sub2" style="margin:0">The worker hasn't answered with cost and revenue yet${d.costError || d.revenueError ? ": " + esc(d.costError || d.revenueError) : ""}. Deploy worker v10 and apply schema.sql (usage and payments tables).</p></div>`;
@@ -4851,7 +4871,7 @@ function renderAdmin(root){
     html += `<div class="tiles">
       ${tile("Cron", ago(ops.cronAt), cronStale ? `<span class="bad">expected every 5 min</span>` : "GitHub Actions tick, every 5 min")}
       ${tile("Worker requests", n(reqToday), `today, of 100,000 on the free plan · ${T.cron_step || 0} cron steps`)}
-      ${tile("App errors", T.err || 0, "today, from reportErr on real devices")}
+      ${tile("App errors", n(errToday), "today, from reportErr on real devices")}
       ${tile("Build", esc(APP_BUILD), `worker v${esc(String(ops.version || "?"))}`)}
     </div>`;
     html += `<div class="card adm-card"><h3>App errors · last 7 days</h3>${table(["Build", "Message", "Count"], errs.map(e => `<tr><td class="mono">${esc(e.build)}</td><td>${esc(e.msg)}</td><td class="num">${e.n}</td></tr>`)) || `<p class="sub2" style="margin:0">Nothing caught. Every uncaught error on a real device lands here with a build and a message, nothing else.</p>`}</div>`;
@@ -4987,9 +5007,9 @@ function maybeWelcome(){
 }
 setTimeout(maybeWelcome, 9000);
 (MODE === "web" ? initWebSync() : initSync()).catch(() => {}).finally(() => { maybeWelcome(); if (store.onboarded) cloudEnsure(); cloudPull("boot"); plusRefresh(false); });
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") cloudPull("visible"); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { pingDaily(); cloudPull("visible"); } });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
-setInterval(() => { if (document.hidden) return; render(); cloudPull("tick"); pullMaybe(); }, 60000);
+setInterval(() => { if (document.hidden) return; pingDaily(); render(); cloudPull("tick"); pullMaybe(); }, 60000);
 </script>
 
 
