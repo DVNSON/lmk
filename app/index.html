@@ -588,6 +588,8 @@
   .announce a{font-weight:600;margin-left:6px}
   .announce .x{margin-left:auto;flex:none;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
   .announce .x:hover{background:var(--surface-2);color:var(--ink)}
+  .syncnote{border-color:color-mix(in srgb,var(--good) 40%,var(--line));background:color-mix(in srgb,var(--good) 8%,var(--surface))}
+  .syncnote b{color:var(--ink)}
   .errcard{border-color:color-mix(in srgb,var(--critical) 45%,var(--line));background:color-mix(in srgb,var(--critical) 7%,var(--surface));flex-wrap:wrap}
   .errcard .minibtn{text-decoration:none}
   /* ---------- admin ---------- */
@@ -687,6 +689,7 @@
     <button role="tab" data-tab="admin" aria-selected="false" id="tabAdminTop" hidden>Admin</button>
   </nav>
   <div class="announce" id="announce" hidden></div>
+  <div class="announce syncnote" id="syncNote" role="status" hidden></div>
   <div class="announce errcard" id="errcard" role="alert" hidden></div>
   <div class="chips" id="courseChips" aria-label="Filter by course"></div>
 
@@ -724,6 +727,7 @@
       <div class="row" style="margin-top:4px"><a class="btn grad" id="setupInstall" href="#" target="_blank" rel="noopener">Add to Chrome →</a></div>
       <p class="sub2" id="setupPhone" style="margin:10px 0 0;font-size:12.5px" hidden>On a phone? Set up on a laptop once, then sign in with Google (bottom of the page) and your plan appears here.</p>
       <p class="sub2" id="setupBg" style="margin:10px 0 0;font-size:12.5px" hidden></p>
+      <div class="adm-row" id="setupInstallApp" style="margin:12px 0 0;font-size:13px;color:var(--ink-2)" hidden></div>
       <div class="adm-row" id="setupDrive" style="margin:12px 0 0;font-size:13px;color:var(--ink-2)" hidden></div>
       <div class="adm-row" id="setupCloud" style="margin:12px 0 0;font-size:13px;color:var(--ink-2)" hidden></div>
     </div>
@@ -1193,6 +1197,7 @@ function applyCanvasPayload(p, opts = {}){
   store.ext = {at:p.at || Date.now(), host:p.host || "", items, courses:(p.courses && p.courses.length) ? p.courses : ((store.ext || {}).courses || []), groups:p.groups || (store.ext || {}).groups || {}};
   save(); loadData(); render();
   if (firstSync) { ping("firstsync"); ping("synced"); }
+  syncNote(`<b>Canvas synced.</b> ${n} assignment${n === 1 ? "" : "s"}${newDone ? ` · ${newDone} marked done` : ""}${unDone ? ` · ${unDone} back to in progress` : ""}${newGrades ? ` · ${newGrades} grade${newGrades === 1 ? "" : "s"} in` : ""}${shelfAdd ? ` · ${shelfAdd} undated on the shelf` : ""}`, !!(newDone || unDone || newGrades || shelfAdd));
   if (!opts.quiet) toast(`Canvas synced: ${n} assignments${newDone ? ` · ${newDone} marked done` : ""}${unDone ? ` · ${unDone} back to in-progress` : ""}${newGrades ? ` · ${newGrades} grades` : ""}${shelfAdd ? ` · ${shelfAdd} undated on the shelf` : ""}.`);
   return {n, newDone, newGrades, shelfAdd};
 }
@@ -1334,6 +1339,18 @@ document.getElementById("ctSave").addEventListener("click", () => cloudRegisterT
 function driveOfferPossible(){ return MODE === "web" && !IS_MOBILE && EXT.present; }
 function driveConnect(){ toast("Opening Google…"); try { window.postMessage({lmk:"drive-connect"}, "*"); } catch(_){} }
 function driveDisconnect(){ try { window.postMessage({lmk:"drive-disconnect"}, "*"); } catch(_){} }
+/* The install offer lives in the setup sheet too, so a student who dismissed the hint can still find it. */
+function renderInstall(){
+  const el = document.getElementById("setupInstallApp"); if (!el) return;
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  if (MODE !== "web" || standalone) { el.hidden = true; return; }
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  if (!installEvt && !ios) { el.hidden = true; return; }
+  el.innerHTML = installEvt
+    ? `<span>Install LMK as an app: it opens full screen and works offline.</span><button class="minibtn" data-act="install-app">Install</button>`
+    : `<span>On iPhone: <b>Share → Add to Home Screen</b> makes LMK a real app that opens full screen.</span>`;
+  el.hidden = false;
+}
 function renderDriveOffer(){
   const el = document.getElementById("setupDrive"); if (!el) return;
   if (!driveOfferPossible()) { el.hidden = true; return; }
@@ -1774,6 +1791,22 @@ function tierLink(level){
     ? l + (l.includes("?") ? "&" : "?") + "client_reference_id=" + encodeURIComponent(store.cloud.sid) : "";
 }
 /* What each plan gives you, in the order a student cares about. */
+/* Packs of units, bought once, spent after the day's allowance. The link carries the student's id so the
+   webhook credits the right account; the Stripe product must set metadata.credits to the same number. */
+function packList(){ return (PLUS.offer && PLUS.offer.packs) || (PLUS.me && PLUS.me.packs) || []; }
+function packLink(p){
+  const l = p && p.link;
+  return l && /^https:\/\/buy\.stripe\.com\//.test(l) && store.cloud && store.cloud.sid
+    ? l + (l.includes("?") ? "&" : "?") + "client_reference_id=" + encodeURIComponent(store.cloud.sid) : "";
+}
+function packsHtml(){
+  const list = packList().filter(p => packLink(p));
+  if (!list.length) return "";
+  return `<div class="card adm-card" style="padding:13px 14px;margin:0 0 6px">
+    <b style="font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">Need more today?</b>
+    <p class="privacy" style="margin:4px 0 8px">Units you buy never expire and are spent only after the day's allowance. No subscription needed.</p>
+    <div class="row" style="margin:0">${list.map(p => `<a class="btn ghost" href="${esc(packLink(p))}" target="_blank" rel="noopener">${p.units} units · ${esc(p.price || "")}</a>`).join("")}</div></div>`;
+}
 function tierLines(level){
   const t = tierOf(level), out = [`${t.units} tutor units a day`, `Quizzes of ${t.quiz} · decks of ${t.cards}`];
   if (level !== "free") out.push("Everything in " + TIER_NAMES[level === "pro" ? "plus" : "free"]);
@@ -1841,6 +1874,7 @@ function openPlus(){
     ${state}
     ${doorway}
     <div class="tiers">${levels.map(card).join("")}</div>
+    ${packsHtml()}
     <p class="plus-note">A <b>unit</b> is one message to the tutor. A quiz or a deck of flashcards costs three, because it writes far more. Reviewing cards you already made is free and unlimited on every plan. Changing plans is handled by Stripe, which credits whatever is left of the month you already paid for. Nothing about you is stored but a random id; Stripe keeps your card and email.${store.cloud && store.cloud.sid ? ` Your support code is <b style="font-family:'Spline Sans Mono',monospace">${esc(store.cloud.sid.slice(0, 8))}</b>.` : ""}</p>
     <div class="foot"><span></span><button class="minibtn" id="plusClose">Close</button></div>`;
   plusOverlay.classList.add("open");
@@ -2097,10 +2131,11 @@ function tutorNote(){
   const next = lvl === "free" ? "plus" : lvl === "plus" ? "pro" : "";
   const nextT = next ? tierOf(next) : null, canSell = next && nextT && nextT.sell && tierLink(next);
   if (TUTOR.state === "off") { el.textContent = "The tutor is resting right now. Your own AI below still works."; if (up) up.innerHTML = ""; return; }
-  if (TUTOR.state === "allowance") el.innerHTML = `<b>Today's ${TUTOR.daily || ""} units are used.</b> More tomorrow${TUTOR.credits ? ` · ${TUTOR.credits} credits left` : ""}; your own AI below is unlimited.`;
+  if (TUTOR.state === "allowance") el.innerHTML = `<b>Today's ${TUTOR.daily || ""} units are used.</b> More tomorrow${TUTOR.credits ? ` · ${TUTOR.credits} bought units left` : ""}; your own AI below is unlimited.`;
   else if (TUTOR.left != null) el.innerHTML = `<b>${TUTOR.left} of ${TUTOR.daily} ${name} units</b> left today${TUTOR.credits ? ` · ${TUTOR.credits} credits after that` : ""}. <span title="A message costs 1, a quiz or a deck costs 3" style="border-bottom:1px dotted var(--line-strong);cursor:help">What's a unit?</span>`;
   else el.innerHTML = `A few tutor units a day.`;
-  if (up) { up.innerHTML = canSell ? `<button class="btn grad" data-act="plus-open">${TIER_NAMES[next]} · ${nextT.units} a day · ${esc(nextT.price)}</button>` : ""; bind(); }
+  const topUp = TUTOR.state === "allowance" && packList().some(p => packLink(p));
+  if (up) { up.innerHTML = topUp ? `<button class="btn grad" data-act="plus-open">Buy more units</button>` : canSell ? `<button class="btn grad" data-act="plus-open">${TIER_NAMES[next]} · ${nextT.units} a day · ${esc(nextT.price)}</button>` : ""; bind(); }
 }
 async function tutorBalance(){
   if (!tutorPossible()) return;
@@ -2999,7 +3034,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v41.0";
+const APP_BUILD = "v42.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -3080,7 +3115,7 @@ function maybeHomeScreenHint(){
   let seen = false; try { seen = localStorage.getItem("lmk_a2hs") === "1"; } catch(_){}
   if (standalone || seen) return;
   try { localStorage.setItem("lmk_a2hs", "1"); } catch(_){}
-  if (installEvt) toast("Put LMK on your home screen?", {label:"Install", fn: () => { installEvt.prompt(); installEvt = null; }});
+  if (installEvt) toast("Put LMK on your home screen?", {label:"Install", fn: () => { installEvt.prompt(); installEvt = null; renderInstall(); }});
   else if (/iPhone|iPad|iPod/.test(navigator.userAgent)) toast("Tip: Share → “Add to Home Screen” makes LMK a real app on this phone.");
 }
 
@@ -3190,6 +3225,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   }
   else if (a==="gbreak") openGradeDetail(act.dataset.course);
   else if (a==="reload") { location.reload(); }
+  else if (a==="install-app") { if (installEvt) { installEvt.prompt(); installEvt = null; setTimeout(renderInstall, 500); } }
   else if (a==="open-token") { const g = document.getElementById("gearBtn"); if (g) g.click(); const dt = document.getElementById("cloudTokenWay"); if (dt) { dt.hidden = false; dt.open = true; setTimeout(() => dt.scrollIntoView({block: "start"}), 100); } }
   else if (a==="plus-open") { openPlus(); }
   else if (a==="rv-open") { openReview(act.dataset.course || null); }
@@ -3197,6 +3233,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="open-gear") { const g = document.getElementById("gearBtn"); if (g) g.click(); }
   else if (a==="web-signin") { webSignIn(); }
   else if (a==="triage-more") { triageOpen = true; render(); }
+  else if (a==="sync-dismiss") { const el = document.getElementById("syncNote"); if (el) el.hidden = true; }
   else if (a==="ann-dismiss") { const el = document.getElementById("announce"); try { localStorage.setItem("lmk_ann_dismissed", el.dataset.sig || ""); } catch(_){} el.hidden = true; }
   else if (a==="adm-refresh") { adminFetch(true); }
   else if (a==="adm-logout") { adminForget(); }
@@ -4406,10 +4443,12 @@ async function adminSaveTiers(){
       link: lv === "free" ? "" : (g("admT_" + lv + "_link").value || "").trim().slice(0, 300),
     };
   }
-  let map = {};
+  let map = {}, packs = [];
   try { map = JSON.parse(g("admTierMap").value || "{}"); if (!map || typeof map !== "object" || Array.isArray(map)) throw 0; }
   catch(_) { toast("The plan map must be JSON like {\"1000\":\"pro\"}."); return; }
-  adminSave({tiers, tierMap: map});
+  try { packs = JSON.parse(g("admPacks").value || "[]"); if (!Array.isArray(packs)) throw 0; }
+  catch(_) { toast("Packs must be a JSON list like [{\"units\":60,\"price\":\"$3\",\"link\":\"…\"}]."); return; }
+  adminSave({tiers, tierMap: map, packs});
 }
 async function adminStudent(sid, action, months, level){
   if (action === "forget" && !confirm("Forget this student on the server? Their app keeps working from the extension; the server copy and key are deleted.")) return;
@@ -4666,11 +4705,12 @@ function renderAdmin(root){
           <td>${input("admT_" + lv + "_price", t.price || "", 110, 'type="text" maxlength="24"')}</td>
           <td><input type="checkbox" id="admT_${lv}_sell" ${t.sell ? "checked" : ""} ${lv === "free" ? "disabled" : ""}></td></tr>`; }))}
       <div class="adm-grid" style="margin-top:12px">
+        <label class="fld wide">Top-up packs, as JSON ${input("admPacks", JSON.stringify(PL.packs || []), 0, 'type="text" placeholder=\'[{"units":60,"price":"$3","link":"https://buy.stripe.com/..."}]\'')}</label>
         <label class="fld wide">Plus payment link ${input("admT_plus_link", (TT.plus || {}).link || "", 0, 'type="url" placeholder="https://buy.stripe.com/…"')}</label>
         <label class="fld wide">Pro payment link ${input("admT_pro_link", (TT.pro || {}).link || "", 0, 'type="url" placeholder="https://buy.stripe.com/… (create it in Stripe first)"')}</label>
         <label class="fld wide">Which payment buys which plan ${input("admTierMap", JSON.stringify(PL.tierMap || {}), 0, 'type="text" placeholder=\'{"1000":"pro","price_abc":"pro"}\'')}</label>
       </div>
-      <p class="sub2" style="margin:10px 0 0">Map by amount in cents or by Stripe price id; anything unmapped counts as Plus. Upgrades keep their credit automatically when a student switches plan in the billing portal, so turn plan switching on there rather than selling a second link.</p>
+      <p class="sub2" style="margin:10px 0 0">A pack's Stripe product must set <span class="mono">metadata.credits</span> to the same number of units, in payment mode, or the webhook credits nothing. Map by amount in cents or by Stripe price id; anything unmapped counts as Plus. Upgrades keep their credit automatically when a student switches plan in the billing portal, so turn plan switching on there rather than selling a second link.</p>
       <div class="adm-row" style="margin-top:12px;justify-content:flex-end"><button class="btn primary" data-act="adm-save-tiers">Save plans</button></div></div>`;
     html += `<div class="card adm-card"><h3>Offer</h3><p class="sub2">${PL.webhook ? "" : "<b>Webhook secret not set:</b> run <span class=\"mono\">npx wrangler secret put STRIPE_WEBHOOK_SECRET</span> or payments can't be recognised. "}The link opens Stripe with the student's code attached; the success page must send them to lmktoday.app/app/#plus=ok. The price here is what the app shows; change it in Stripe too.</p>
       <div class="adm-grid">
@@ -4721,6 +4761,16 @@ function renderAdmin(root){
    One small GET, cached ten minutes: an announcement and the store link. The request carries
    nothing about the student, and the app works exactly the same if it fails. */
 function applyStoreUrl(){ for (const id of ["setupInstall","wInstall"]) { const el = document.getElementById(id); if (el) el.href = LMK_CONFIG.storeUrl; } }
+/* What the last sync changed, at the top of the page rather than in a toast that vanishes.
+   It stays until dismissed when something actually changed, and fades on its own when nothing did. */
+let syncNoteTimer = 0;
+function syncNote(html, sticky){
+  const el = document.getElementById("syncNote"); if (!el) return;
+  el.innerHTML = html + `<button class="x" data-act="sync-dismiss" aria-label="Dismiss">✕</button>`;
+  el.hidden = false;
+  clearTimeout(syncNoteTimer);
+  if (!sticky) syncNoteTimer = setTimeout(() => { el.hidden = true; }, 12000);
+}
 function showAnnouncement(ann){
   const el = document.getElementById("announce"); if (!el) return;
   const today = dayKey(now());
@@ -4754,6 +4804,7 @@ async function loadRemoteConfig(){
 /* ================= setup copy per mode =================
    The setup sheet is literal HTML above the script; anything that differs by mode is set here. */
 (function setupCopy(){
+  renderInstall();
   const $ = id => document.getElementById(id);
   $("setupInstall").href = LMK_CONFIG.storeUrl;
   $("wInstall").href = LMK_CONFIG.storeUrl;
