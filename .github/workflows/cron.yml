@@ -18,3 +18,12 @@ jobs:
           code=$(curl -sS -m 60 -o /tmp/out.json -w "%{http_code}" -X POST "https://lmk-api.emieldieuvenson.workers.dev/cron?key=$KEY")
           echo "status $code"; cat /tmp/out.json; echo
           test "$code" = "200"
+      # Its own step and its own worker invocation: the sync tick can spend 36 subrequests per cronStep, and
+      # a slow Canvas run must never be the reason a morning note does not go out.
+      - name: Push
+        env:
+          KEY: ${{ secrets.LMK_CRON_KEY }}
+        run: |
+          code=$(curl -sS -m 30 -o /tmp/push.json -w "%{http_code}" -X POST "https://lmk-api.emieldieuvenson.workers.dev/push/send?key=$KEY")
+          echo "status $code"; cat /tmp/push.json; echo
+          test "$code" = "200"

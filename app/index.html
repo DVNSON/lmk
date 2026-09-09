@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="LMK">
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="../assets/icon-192.png">
 <script>if ("serviceWorker" in navigator) addEventListener("load", function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); });</script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23e0489a'/><text y='68' x='50' text-anchor='middle' font-size='38' font-weight='800' font-family='sans-serif' fill='white'>LMK</text></svg>">
 <style>
@@ -760,6 +761,12 @@
         <button class="btn primary" id="impBtn">Import</button>
         <span class="parse-msg" id="impMsg" role="status"></span>
       </div>
+    </div>
+
+    <div class="setupway" id="setupPush" hidden>
+      <div class="h4">A note each morning</div>
+      <p class="sub2" id="pushWhy" style="margin:2px 0 8px"></p>
+      <div class="row" style="margin:0"><button class="btn grad" id="pushBtn" hidden></button><span class="parse-msg" id="pushMsg" role="status"></span></div>
     </div>
 
     <details class="setupway">
@@ -3159,12 +3166,140 @@ function postPlanToExtension(){
     lastPlanMsg = key;
     window.postMessage({lmk:"plan", at: Date.now(), days, hour,
       openUrl: MODE === "artifact" ? LMK_CONFIG.artifactUrl : location.origin + location.pathname}, "*");
+    if (MODE === "web") { cachePlanLine(days, today); pushQueueSync(days, today, hour); }
+  } catch(_){}
+}
+/* The push carries a count and a duration. The line that NAMES the first thing is written here, into the
+   same cache the service worker reads, so an assignment title never leaves the device. */
+/* ---- the morning note on a phone ----
+   The laptop already has one, from the extension's own alarm. This is for a phone with LMK on the home
+   screen, and it is the only mechanism that reaches a closed iPhone at all.
+
+   There is no timezone anywhere in this. The device works out up to four future mornings on its own clock
+   and uploads them as absolute instants; the server only ever asks whose instant has passed. That removes
+   the timezone column, the local-day arithmetic and the DST error in one go — and it means the queue drains
+   after four days, so a student who stops opening LMK goes quiet instead of being read a stale plan. */
+const PUSH = {sub: null, state: "unknown"};      // unknown | unsupported | off | on | denied
+function pushSupported(){
+  try { return MODE === "web" && "serviceWorker" in navigator && "PushManager" in window && typeof Notification !== "undefined"; } catch(_) { return false; }
+}
+/* iOS only exposes any of this to a PWA opened from the home screen, and never from a Safari tab. */
+function pushStandalone(){
+  try { return !!(window.matchMedia("(display-mode: standalone)").matches || navigator.standalone); } catch(_) { return false; }
+}
+function pushKey(){ const k = (PLUS.offer && PLUS.offer.push && PLUS.offer.push.key) || LMK_CONFIG.vapidKey || ""; return /^[A-Za-z0-9_-]{80,100}$/.test(k) ? k : ""; }
+function b64ToBytes(x){
+  const s = String(x).replace(/-/g, "+").replace(/_/g, "/"), pad = s.length % 4 ? "=".repeat(4 - s.length % 4) : "";
+  const bin = atob(s + pad), u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return u;
+}
+const bytesToB64 = b => { let x = ""; const u = new Uint8Array(b); for (let i = 0; i < u.length; i++) x += String.fromCharCode(u[i]); return btoa(x).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
+
+/* Up to four future mornings, each an absolute instant on this device's clock, each carrying only how many
+   things and how many minutes. `hour` is learnedWakeHour() — nobody is asked what time they get up. */
+function pushQueue(days, today, hour){
+  const out = [], h = Math.floor(hour), m = Math.round((hour - h) * 60);
+  for (let i = 0; i < 4; i++) {
+    const d0 = addDays(today, i), k = dayKey(d0), d = days[k];
+    const at = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate(), h, m, 0, 0).getTime();
+    if (at <= Date.now()) continue;                          // this morning has already gone
+    if (!d || !d.n) continue;                                // nothing to say is better than saying nothing
+    out.push({at, n: d.n, mins: Math.round(d.mins || 0)});
+  }
+  return out;
+}
+let lastQueueKey = "";
+function pushQueueSync(days, today, hour){
+  if (PUSH.state !== "on" || !PUSH.sub) return;
+  const q = pushQueue(days, today, hour), key = JSON.stringify(q);
+  if (key === lastQueueKey) return;
+  lastQueueKey = key;
+  pushPost("/push/queue", {endpoint: PUSH.sub.endpoint, queue: q});
+}
+function pushPost(path, extra){
+  if (!(store.cloud && store.cloud.sid && store.cloud.secret) || !LMK_CONFIG.statsUrl) return Promise.resolve(null);
+  return fetch(apiUrl(path), {method: "POST", mode: "cors", credentials: "omit",
+    headers: {"content-type": "application/json"},
+    body: JSON.stringify(Object.assign({sid: store.cloud.sid, secret: store.cloud.secret}, extra))})
+    .then(r => r.json()).catch(() => null);
+}
+/* Read the state without asking for anything. Called on boot and whenever the setup sheet renders, because
+   permission is revocable in OS settings and a stale row on the server helps nobody. */
+/* One row, four states, and it hides itself entirely when there is nothing honest to offer. A laptop with
+   the extension is deliberately excluded: chrome.alarms already wakes it, and nobody should be told the same
+   thing twice. */
+function renderPush(){
+  const box = document.getElementById("setupPush"), why = document.getElementById("pushWhy"),
+        btn = document.getElementById("pushBtn"), msg = document.getElementById("pushMsg");
+  if (!box) return;
+  const possible = pushSupported() && !!pushKey() && !!(store.cloud && store.cloud.sid);
+  const laptopCovered = EXT.present && !IS_MOBILE;
+  if (MODE !== "web" || laptopCovered || (!possible && PUSH.state !== "denied" && !IS_MOBILE)) { box.hidden = true; return; }
+  box.hidden = false; msg.textContent = "";
+  const set = (t, label, act) => { why.textContent = t; btn.hidden = !label; if (label) { btn.textContent = label; btn.dataset.act = act; } };
+  if (PUSH.state === "on") set("LMK wakes you with what today holds, at roughly the time you usually start. It never names an assignment on the way — the words are put together on this device.", "Turn it off", "push-off");
+  else if (PUSH.state === "denied") set("Notifications are blocked for LMK in your browser or phone settings. Allow them there and come back — LMK cannot ask again.", "", "");
+  else if (IS_MOBILE && !pushStandalone()) set("Add LMK to your home screen first: tap Share, then Add to Home Screen, then open LMK from the icon. A phone will not let a website send notifications until you do.", "", "");
+  else if (!possible) set("Not available in this browser.", "", "");
+  else set("One line each morning telling you what today holds, so you do not have to open anything to find out. No assignment name ever leaves this device.", "Turn it on", "push-on");
+}
+async function pushRefresh(){
+  if (!pushSupported()) { PUSH.state = "unsupported"; return; }
+  try {
+    if (Notification.permission === "denied") { PUSH.state = "denied"; PUSH.sub = null; return; }
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg ? await reg.pushManager.getSubscription() : null;
+    PUSH.sub = sub;
+    PUSH.state = sub && Notification.permission === "granted" ? "on" : "off";
+  } catch(_) { PUSH.state = "off"; PUSH.sub = null; }
+}
+/* Must be called from a click: iOS refuses requestPermission outside a user gesture, silently. */
+async function pushOn(){
+  if (!pushSupported()) return {ok: false, why: "unsupported"};
+  const key = pushKey();
+  if (!key) return {ok: false, why: "notready"};
+  if (!(store.cloud && store.cloud.sid)) return {ok: false, why: "nosync"};
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") { PUSH.state = perm === "denied" ? "denied" : "off"; return {ok: false, why: perm}; }
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: b64ToBytes(key)});
+    const j = sub.toJSON ? sub.toJSON() : {};
+    const keys = j.keys || {};
+    if (!keys.p256dh || !keys.auth) return {ok: false, why: "nokeys"};
+    const today = startOfDay(now());
+    const days = {};
+    for (let i = 0; i < 4; i++) { const k = dayKey(addDays(today, i)), d = PLAN[k]; if (d) days[k] = {n: d.items.length, mins: d.mins}; }
+    const r = await pushPost("/push/subscribe", {endpoint: sub.endpoint, p256dh: keys.p256dh, auth: keys.auth, queue: pushQueue(days, today, learnedWakeHour())});
+    if (!r || !r.ok) return {ok: false, why: "server"};
+    PUSH.sub = sub; PUSH.state = "on"; lastQueueKey = "";
+    return {ok: true};
+  } catch(e) { return {ok: false, why: String((e && e.name) || e).slice(0, 40)}; }
+}
+async function pushOff(){
+  try {
+    const ep = PUSH.sub && PUSH.sub.endpoint;
+    if (PUSH.sub) { try { await PUSH.sub.unsubscribe(); } catch(_){} }
+    if (ep) await pushPost("/push/off", {endpoint: ep});
+    PUSH.sub = null; PUSH.state = "off"; lastQueueKey = "";
+  } catch(_){}
+}
+function cachePlanLine(days, today){
+  try {
+    if (!("caches" in window)) return;
+    const d = days[dayKey(today)] || null, f = d && d.first;
+    const first = !d || !d.n ? "Nothing due today. Enjoy it."
+      : f ? `First: ${f.title}${f.course ? " · " + f.course : ""}` : `${d.n} thing${d.n === 1 ? "" : "s"} on today's plan.`;
+    const body = JSON.stringify({at: Date.now(), first});
+    caches.open("lmk-v1").then(c => c.put("./plan.json", new Response(body, {headers: {"content-type": "application/json"}}))).catch(() => {});
   } catch(_){}
 }
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v46.1";
+const APP_BUILD = "v47.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -3425,7 +3560,7 @@ document.addEventListener("mousemove", e=>{
 const overlay = document.getElementById("overlay");
 document.getElementById("gearBtn").addEventListener("click", ()=>{
   document.getElementById("courseList2").innerHTML = COURSES.map(c=>`<option value="${esc(c)}">`).join("");
-  renderDriveOffer(); renderBgStatus(); renderCloudStatus(); renderPlus(); plusRefresh(false);
+  renderDriveOffer(); renderBgStatus(); renderCloudStatus(); renderPush(); renderPlus(); plusRefresh(false);
   overlay.classList.add("open");
 });
 document.getElementById("closeModal").addEventListener("click", ()=>overlay.classList.remove("open"));
@@ -3515,6 +3650,26 @@ document.getElementById("exportData").addEventListener("click", ()=>{
    re-adds every done mark it can still see (`if (ts >= tomb)` with tomb = 0), and a Drive pull merges the old
    marks straight back in. It also has to clear handDone and extDone, or hand-made checks stay protected from
    the repair pass and reappear. Tombstones must be written from the keys BEFORE the maps are replaced. */
+document.getElementById("pushBtn").addEventListener("click", async e => {
+  const act = e.currentTarget.dataset.act, msg = document.getElementById("pushMsg");
+  e.currentTarget.disabled = true;
+  try {
+    if (act === "push-off") { await pushOff(); msg.textContent = ""; }
+    else {
+      msg.textContent = "";
+      const r = await pushOn();
+      if (r.ok) { msg.className = "parse-msg ok"; msg.textContent = "On. The first one arrives tomorrow morning."; }
+      else {
+        msg.className = "parse-msg err";
+        msg.textContent = r.why === "denied" ? "Your browser blocked it. Allow notifications for LMK in its settings."
+          : r.why === "nosync" ? "Turn on Google sign-in or Sync from anywhere first, so LMK knows which device to wake."
+          : r.why === "notready" ? "Not switched on yet — try again later."
+          : r.why === "unsupported" ? "This browser cannot do it."
+          : "That did not go through. Try again in a moment.";
+      }
+    }
+  } finally { e.currentTarget.disabled = false; renderPush(); }
+});
 document.getElementById("clearProgress").addEventListener("click", ()=>{
   const n = Object.keys(store.done || {}).length;
   if (n && !confirm(`Clear ${n} checkmark${n === 1 ? "" : "s"}? This clears them on every device you sync with, and LMK will not re-add them from Canvas.`)) return;
@@ -5019,6 +5174,7 @@ async function loadRemoteConfig(){
 })();
 /* ================= boot ================= */
 loadData(); restoreView(); restoreSprint(); render();
+if (MODE === "web") pushRefresh().then(renderPush).catch(() => {});
 crowdInit();
 pingDaily();
 loadRemoteConfig();
