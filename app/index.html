@@ -705,7 +705,7 @@
   </main>
 
   <footer class="pagefoot">
-    <span id="srcLabel"></span> <span style="color:var(--muted)" title="Anonymous: assignment id + minutes only. No names, no grades.">· learning from you + anonymous course stats</span>
+    <span id="srcLabel"></span> <span id="learnLabel" style="color:var(--muted)">· learning from you</span>
     <span id="syncBadge">☁ Device-only</span>
     <a id="feedbackLink" href="#" target="_blank" rel="noopener" title="Wrong estimate, misfiled assignment, anything — one line is plenty">Something off? Tell me</a>
   </footer>
@@ -1344,6 +1344,13 @@ function cloudTurnOff(){
   CLOUD.registered = false; renderCloudStatus();
   toast("Sync from anywhere is off. LMK's server forgot your Canvas sync.");
 }
+/* Every "Open Canvas" used to be the literal ASU address, which sends a student at any other school to a
+   login page for a university they do not attend. The collector already stamps every payload with the host it
+   read (`store.ext.host`), so once a sync has happened the app knows the right one — it just never used it. */
+function canvasHref(){
+  const h = String((store.ext || {}).host || "").trim();
+  return /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(h) ? "https://" + h + "/#lmk-sync" : LMK_CONFIG.canvasUrl;
+}
 function cloudPairLink(){ return LMK_CONFIG.appUrl.replace(/\/$/, "") + "/#pair=" + store.cloud.sid + "." + store.cloud.secret; }
 function renderCloudStatus(){
   const el = document.getElementById("setupCloud"), way = document.getElementById("cloudTokenWay"); if (!el) return;
@@ -1355,7 +1362,7 @@ function renderCloudStatus(){
   else if (EXT.present && !IS_MOBILE) {
     if (ec.registered && ec.sid === store.cloud.sid) html = `<span>✓ <b>Sync from anywhere</b> is on. Your phone stays fresh while this laptop is closed.${CLOUD.at ? " Last read " + ago(CLOUD.at) + "." : ""} <span style="color:var(--muted)">Support code ${esc(store.cloud.sid.slice(0, 8))}</span></span><button class="minibtn" data-act="cloud-pair" title="Copies a link; open it on your phone once">Open on your phone</button><button class="minibtn drop" data-act="cloud-off">Turn off</button>`;
     else if (ec.err) html = `<span><b>Sync from anywhere</b> couldn't start: ${esc(ec.err)}. Everything else works as before; the phone stays fresh through your Drive when this laptop is on.</span><button class="minibtn drop" data-act="cloud-off">Turn off</button>`;
-    else html = `<span><b>Sync from anywhere</b> is connecting. Open any Canvas page once and the extension finishes it (it makes an "LMK" access token in your own Canvas account).</span><a class="minibtn" href="${esc(LMK_CONFIG.canvasUrl)}" target="_blank" rel="noopener">Open Canvas</a><button class="minibtn drop" data-act="cloud-off">Turn off</button>`;
+    else html = `<span><b>Sync from anywhere</b> is connecting. Open any Canvas page once and the extension finishes it (it makes an "LMK" access token in your own Canvas account).</span><a class="minibtn" href="${esc(canvasHref())}" target="_blank" rel="noopener">Open Canvas</a><button class="minibtn drop" data-act="cloud-off">Turn off</button>`;
   } else {
     if (CLOUD.registered) html = `<span>✓ <b>Sync from anywhere</b> is on.${CLOUD.at ? " Last read " + ago(CLOUD.at) + "." : ""}${CLOUD.err ? " " + esc(CLOUD.err) + "." : ""} <span style="color:var(--muted)">Support code ${esc(store.cloud.sid.slice(0, 8))}</span></span><button class="minibtn" data-act="cloud-now">Refresh now</button><button class="minibtn drop" data-act="cloud-off">Turn off</button>`;
     else if (CLOUD.registered === false) html = `<span><b>Sync from anywhere</b> isn't connected yet. Open LMK on a laptop with the extension once, or connect with a Canvas access token below.</span>`;
@@ -1422,7 +1429,7 @@ function maybeOfferDrive(){
 }
 function applyExtPresence(){
   const b = document.getElementById("setupInstall"); if (!b) return;
-  if (EXT.present) { b.textContent = "Extension installed ✓ · Open Canvas →"; b.href = LMK_CONFIG.canvasUrl; }
+  if (EXT.present) { b.textContent = "Extension installed ✓ · Open Canvas →"; b.href = canvasHref(); }
 }
 /* While the first-run card is waiting on Canvas, ask the extension every few seconds for whatever it
    has. The extension answers a "canvas-ping" with its latest payload, so the sync the student just
@@ -2787,9 +2794,9 @@ function renderNow(root){
           : "Three steps, about a minute: <b>1.</b> Add the <b>LMK for Canvas</b> extension to Chrome. <b>2.</b> Open Canvas once like you normally would. <b>3.</b> Come back here; your classes appear by themselves. LMK stays empty until you've opened Canvas, and the first refresh or two can still show nothing while it syncs. That's normal."}</div>
         <div class="actions">
           ${phone ? (gdReady() ? `<button class="btn grad" data-act="web-signin">Sign in with Google</button>` : "")
-                  : installed ? `<a class="btn grad" href="${LMK_CONFIG.canvasUrl}" target="_blank" rel="noopener">Open Canvas →</a>`
+                  : installed ? `<a class="btn grad" href="${esc(canvasHref())}" target="_blank" rel="noopener">Open Canvas →</a>`
                   : `<a class="btn grad" href="${LMK_CONFIG.storeUrl}" target="_blank" rel="noopener">Add to Chrome →</a>`}
-          ${!phone && !installed ? `<a class="btn ghost" href="${LMK_CONFIG.canvasUrl}" target="_blank" rel="noopener" title="Already added the extension? This is the only other step.">Already added it? Open Canvas →</a>` : ""}
+          ${!phone && !installed ? `<a class="btn ghost" href="${esc(canvasHref())}" target="_blank" rel="noopener" title="Already added the extension? This is the only other step.">Already added it? Open Canvas →</a>` : ""}
           ${phone ? `<button class="btn ghost" data-act="open-token" title="A Canvas access token lets LMK's server read Canvas for you">No laptop? Use a Canvas token</button>` : ""}
           ${!phone && MODE === "web" && gdReady() ? `<button class="btn ghost" data-act="web-signin">Sign in with Google</button>` : ""}
           <button class="btn ghost" data-act="open-gear">Other ways</button>
@@ -3157,7 +3164,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v45.2";
+const APP_BUILD = "v46.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -3504,9 +3511,20 @@ document.getElementById("exportData").addEventListener("click", ()=>{
     }
   } catch(_) { toast("Couldn't export here."); }
 });
+/* Clearing used to be silently undone. Emptying the maps leaves no tombstone, so the very next Canvas sync
+   re-adds every done mark it can still see (`if (ts >= tomb)` with tomb = 0), and a Drive pull merges the old
+   marks straight back in. It also has to clear handDone and extDone, or hand-made checks stay protected from
+   the repair pass and reappear. Tombstones must be written from the keys BEFORE the maps are replaced. */
 document.getElementById("clearProgress").addEventListener("click", ()=>{
-  store.done={}; store.dropped={}; store.starred={}; store.triaged={}; store.streakDays=[];
+  const n = Object.keys(store.done || {}).length;
+  if (n && !confirm(`Clear ${n} checkmark${n === 1 ? "" : "s"}? This clears them on every device you sync with, and LMK will not re-add them from Canvas.`)) return;
+  for (const kind of ["done", "dropped", "starred", "triaged"]) {
+    for (const id in (store[kind] || {})) tomb(kind, id);
+    store[kind] = {};
+  }
+  store.handDone = {}; store.extDone = {}; store.streakDays = [];
   save(); render();
+  toast(n ? `${n} checkmark${n === 1 ? "" : "s"} cleared.` : "Nothing to clear.");
 });
 
 /* ================= assignment detail & notes ================= */
@@ -4963,6 +4981,10 @@ async function loadRemoteConfig(){
    The setup sheet is literal HTML above the script; anything that differs by mode is set here. */
 (function setupCopy(){
   renderInstall();
+  /* Course stats need Claude's own storage, which a normal web page cannot reach — crowdInit() returns on its
+     second line in web mode. The footer must not claim sharing that only the artifact copy can do. */
+  const ll = document.getElementById("learnLabel");
+  if (ll && MODE === "artifact") { ll.textContent = "· learning from you + anonymous course stats"; ll.title = "Anonymous: assignment id + minutes only. No names, no grades."; }
   const $ = id => document.getElementById(id);
   $("setupInstall").href = LMK_CONFIG.storeUrl;
   $("wInstall").href = LMK_CONFIG.storeUrl;
