@@ -23,6 +23,7 @@
 </head>
 <body>
 <title>LMK</title>
+<title>LMK</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Public+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@500;600&display=swap">
 <style>
   :root{
@@ -1890,13 +1891,22 @@ function renderPlusPill(){
   const me = PLUS.me;
   txt.textContent = myLevel() !== "free" ? TIER_NAMES[myLevel()] + " ✓" : "LMK plans";
 }
-/* Back from Stripe: the link's success page sends the student to #plus=ok; ask the worker a few times, since the webhook can lag a moment. */
+/* Back from Stripe: a link's success page sends the student to #plus=ok (a plan) or #credits=ok (a pack).
+   Ask the worker a few times either way, since the webhook can lag a moment, and accept whichever landed —
+   a pack buyer stays on the free plan, so waiting for `plus` alone would look like the payment failed. */
 (function plusReturn(){
   try {
-    if (!/#plus=ok/.test(location.hash)) return;
+    if (!/#(plus|credits)=ok/.test(location.hash)) return;
     history.replaceState(null, "", location.pathname + location.search);
+    const wasCredits = (PLUS.me && PLUS.me.credits) || 0;
     let tries = 0;
-    const poll = async () => { tries++; await plusRefresh(true); if (PLUS.me && PLUS.me.plus) { toast("Welcome to Plus. Thank you for backing LMK."); TUTOR.state = "unknown"; return; } if (tries < 6) setTimeout(poll, 3000); else toast("Payment received? Plus shows up here within a minute or two."); };
+    const poll = async () => {
+      tries++; await plusRefresh(true);
+      const me = PLUS.me || {};
+      if (me.plus) { toast("Welcome to " + (TIER_NAMES[me.level] || "Plus") + ". Thank you for backing LMK."); TUTOR.state = "unknown"; return; }
+      if ((me.credits || 0) > wasCredits) { toast((me.credits - wasCredits) + " units added. They never expire."); TUTOR.state = "unknown"; return; }
+      if (tries < 6) setTimeout(poll, 3000); else toast("Payment received? It shows up here within a minute or two.");
+    };
     setTimeout(poll, 1500);
   } catch(_){}
 })();
@@ -3034,7 +3044,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v43.0";
+const APP_BUILD = "v43.1";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -4709,14 +4719,14 @@ function renderAdmin(root){
           <td>${input("admT_" + lv + "_price", t.price || "", 110, 'type="text" maxlength="24"')}</td>
           <td><input type="checkbox" id="admT_${lv}_sell" ${t.sell ? "checked" : ""} ${lv === "free" ? "disabled" : ""}></td></tr>`; }))}
       <div class="adm-grid" style="margin-top:12px">
-        <label class="fld wide">Top-up packs, as JSON ${input("admPacks", JSON.stringify(PL.packs || []), 0, 'type="text" placeholder=\'[{"units":60,"price":"$3","link":"https://buy.stripe.com/..."}]\'')}</label>
+        <label class="fld wide">Top-up packs, as JSON <span class="muted" style="font-weight:400">(each Stripe product needs metadata.credits set to the same number of units)</span> ${input("admPacks", JSON.stringify(PL.packs || []), 0, 'type="text" placeholder=\'[{"units":60,"price":"$3","link":"https://buy.stripe.com/..."}]\'')}</label>
         <label class="fld wide">Plus payment link ${input("admT_plus_link", (TT.plus || {}).link || "", 0, 'type="url" placeholder="https://buy.stripe.com/…"')}</label>
         <label class="fld wide">Pro payment link ${input("admT_pro_link", (TT.pro || {}).link || "", 0, 'type="url" placeholder="https://buy.stripe.com/… (create it in Stripe first)"')}</label>
         <label class="fld wide">Which payment buys which plan ${input("admTierMap", JSON.stringify(PL.tierMap || {}), 0, 'type="text" placeholder=\'{"1000":"pro","price_abc":"pro"}\'')}</label>
       </div>
       <p class="sub2" style="margin:10px 0 0">A pack's Stripe product must set <span class="mono">metadata.credits</span> to the same number of units, in payment mode, or the webhook credits nothing. Map by amount in cents or by Stripe price id; anything unmapped counts as Plus. Upgrades keep their credit automatically when a student switches plan in the billing portal, so turn plan switching on there rather than selling a second link.</p>
       <div class="adm-row" style="margin-top:12px;justify-content:flex-end"><button class="btn primary" data-act="adm-save-tiers">Save plans</button></div></div>`;
-    html += `<div class="card adm-card"><h3>Offer</h3><p class="sub2">${PL.webhook ? "" : "<b>Webhook secret not set:</b> run <span class=\"mono\">npx wrangler secret put STRIPE_WEBHOOK_SECRET</span> or payments can't be recognised. "}The link opens Stripe with the student's code attached; the success page must send them to lmktoday.app/app/#plus=ok. The price here is what the app shows; change it in Stripe too.</p>
+    html += `<div class="card adm-card"><h3>Offer</h3><p class="sub2">${PL.webhook ? "" : "<b>Webhook secret not set:</b> run <span class=\"mono\">npx wrangler secret put STRIPE_WEBHOOK_SECRET</span> or payments can't be recognised. "}The link opens Stripe with the student's code attached; a plan's success page must send them to lmktoday.app/app/#plus=ok and a pack's to #credits=ok. The price here is what the app shows; change it in Stripe too.</p>
       <div class="adm-grid">
         <label class="fld wide">Payment Link ${input("admPlusLink", PL.plusLink || "", 0, 'type="url" placeholder="https://buy.stripe.com/…"')}</label>
         <label class="fld wide">Customer portal ${input("admPlusPortal", PL.plusPortal || "", 0, 'type="url" placeholder="https://billing.stripe.com/…"')}</label>
@@ -4859,5 +4869,59 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
 setInterval(() => { if (document.hidden) return; render(); cloudPull("tick"); pullMaybe(); }, 60000);
 </script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 </body>
 </html>
