@@ -2168,13 +2168,17 @@ function openingProposal(e){
     : "Want me to explain the idea behind it, or quiz you first?";
   return `${opener}${why} ${move}`;
 }
-function tutorRenderThread(id){
+function tutorRenderThread(id, opts = {}){
   const box = document.getElementById("aiChat"); if (!box) return;
   const t = tutorThread(id), e = studyTarget(id) || {title:"", course:"", due: now()};
   const greet = openingProposal(e);
   box.innerHTML = t.length ? t.map((m, i) => m.quiz ? quizHtml(m.quiz, i) : m.cards ? deckHtml(m.cards, i) : `<div class="msg ${m.role === "user" ? "me" : "ai"}">${esc(m.content)}</div>`).join("")
     : `<div class="msg ai">${greet}</div>`;
-  box.scrollTop = box.scrollHeight;
+  /* A chat reply is a few lines and belongs at the bottom. A quiz or a deck is a whole screen, and scrolling
+     to the end of it drops the student at the last question with no idea where it began — so put the TOP of
+     the new block where they were reading instead. */
+  if (opts.top) { const last = box.lastElementChild; box.scrollTop = last ? Math.max(0, last.offsetTop - box.offsetTop - 8) : box.scrollHeight; }
+  else box.scrollTop = box.scrollHeight;
   if (t.some(m => needsMath(m.content))) { loadKatex(); typesetMath(box); }
 }
 /* A quiz is one assistant turn the student works through in place. Picks are saved with the thread, and the
@@ -2226,7 +2230,7 @@ async function tutorMake(id, kind, focus){
       t.pop();
       TUTOR.state = j.error === "allowance" ? "allowance" : (r.status === 503 ? "off" : TUTOR.state); if (j.error === "allowance") TUTOR.left = 0;
       bubble.classList.remove("thinking");
-      bubble.textContent = j.error === "allowance" ? "That's this week's messages used up." : j.error === "make" ? "That one didn't come out right. Try again; it won't count twice against you if it fails." : j.error === "network" ? "A lot of people on this network are using the tutor right now. Try again later." : "The tutor couldn't do that just now. Try again in a moment.";
+      bubble.textContent = j.error === "allowance" ? "That's today's units used up. They come back at midnight." : j.error === "make" ? "That one didn't come out right. Try again; it won't count twice against you if it fails." : j.error === "network" ? "A lot of people on this network are using the tutor right now. Try again later." : "The tutor couldn't do that just now. Try again in a moment.";
       tutorSave(id); tutorNote(); return;
     }
     TUTOR.state = "ok";
@@ -2236,7 +2240,7 @@ async function tutorMake(id, kind, focus){
       try { d.deck = saveDeck(e.course, d.title, d.cards); } catch(_){}   // it joins the review schedule from today
       t.push({role: "assistant", content: deckDigest(d), cards: d});
     }
-    tutorSave(id); tutorRenderThread(id); tutorNote();
+    tutorSave(id); tutorRenderThread(id, {top: true}); tutorNote();
   } catch(_) {
     t.pop(); bubble.classList.remove("thinking"); bubble.textContent = "Lost the connection. Try again.";
   } finally { TUTOR.busy = false; const b = document.getElementById("aiSend"); if (b) b.disabled = false; }
@@ -3235,13 +3239,14 @@ function renderPush(){
   if (!box) return;
   const possible = pushSupported() && !!pushKey() && !!(store.cloud && store.cloud.sid);
   const laptopCovered = EXT.present && !IS_MOBILE;
-  if (MODE !== "web" || laptopCovered || (!possible && PUSH.state !== "denied" && !IS_MOBILE)) { box.hidden = true; return; }
+  if (MODE !== "web" || (!possible && PUSH.state !== "denied" && !IS_MOBILE)) { box.hidden = true; return; }
   box.hidden = false; msg.textContent = "";
   const set = (t, label, act) => { why.textContent = t; btn.hidden = !label; if (label) { btn.textContent = label; btn.dataset.act = act; } };
   if (PUSH.state === "on") set("LMK wakes you with what today holds, at roughly the time you usually start. It never names an assignment on the way — the words are put together on this device.", "Turn it off", "push-off");
   else if (PUSH.state === "denied") set("Notifications are blocked for LMK in your browser or phone settings. Allow them there and come back — LMK cannot ask again.", "", "");
   else if (IS_MOBILE && !pushStandalone()) set("Add LMK to your home screen first: tap Share, then Add to Home Screen, then open LMK from the icon. A phone will not let a website send notifications until you do.", "", "");
   else if (!possible) set("Not available in this browser.", "", "");
+  else if (laptopCovered) set("This computer is already woken by the LMK extension each morning, so you do not need this here. Turn it on anyway if you want the note on this machine too — or set it up on your phone, where the extension cannot go.", "Turn it on here too", "push-on");
   else set("One line each morning telling you what today holds, so you do not have to open anything to find out. No assignment name ever leaves this device.", "Turn it on", "push-on");
 }
 async function pushRefresh(){
@@ -3299,7 +3304,7 @@ function cachePlanLine(days, today){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v47.0";
+const APP_BUILD = "v47.1";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -3505,13 +3510,14 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="adm-save-store") { adminSave({storeUrl: document.getElementById("admStore").value.trim().slice(0, 300)}); }
   else if (a==="adm-copy-csv") { adminCopyCsv(); }
   else if (a==="adm-pause") { adminSave({cloudPaused: !!act.checked}); }
-  else if (a==="adm-save-plus") { const g = id => document.getElementById(id); adminSave({plusLink: g("admPlusLink").value.trim().slice(0, 300), plusPortal: g("admPlusPortal").value.trim().slice(0, 300), plusPrice: g("admPlusPrice").value.trim().slice(0, 24), tutorPlusWeekly: Math.max(0, +g("admPlusWeekly").value || 0)}); }
-  else if (a==="adm-save-tutor") { const g = id => document.getElementById(id); adminSave({tutorOn: g("admTutorOn").checked, tutorWeekly: Math.max(0, +g("admTutorWeekly").value || 0), tutorDaily: Math.max(0, +g("admTutorDaily").value || 0), tutorPlusDaily: Math.max(0, +g("admTutorPlusDaily").value || 0), tutorIpDaily: Math.max(0, +g("admTutorIpDaily").value || 0), tutorModel: g("admTutorModel").value}); }
+  else if (a==="adm-save-plus") { const g = id => document.getElementById(id); adminSave({plusLink: g("admPlusLink").value.trim().slice(0, 300), plusPortal: g("admPlusPortal").value.trim().slice(0, 300), plusPrice: g("admPlusPrice").value.trim().slice(0, 24)}); }
+  else if (a==="adm-save-tutor") { const g = id => document.getElementById(id); adminSave({tutorOn: g("admTutorOn").checked, tutorDaily: Math.max(0, +g("admTutorDaily").value || 0), tutorPlusDaily: Math.max(0, +g("admTutorPlusDaily").value || 0), tutorIpDaily: Math.max(0, +g("admTutorIpDaily").value || 0), tutorModel: g("admTutorModel").value}); }
   else if (a==="adm-lookup") { adminLookup(); }
   else if (a==="adm-student") { adminStudent(act.dataset.sid, act.dataset.do, act.dataset.months, act.dataset.level); }
   else if (a==="adm-grant") { const g = id => document.getElementById(id); adminStudent((g("admGrantSid").value || "").trim(), "grant", g("admGrantMonths").value, g("admGrantLevel").value); }
   else if (a==="adm-save-tiers") { adminSaveTiers(); }
   else if (a==="adm-tab") { ADMIN.tab = act.dataset.tab; try { localStorage.setItem("lmk_admin_tab", ADMIN.tab); } catch(_){} animNext = true; render(); }
+  else if (a==="adm-sub") { ADMIN.sub = act.dataset.sub; try { localStorage.setItem("lmk_admin_sub", ADMIN.sub); } catch(_){} render(); }
   else if (a==="cap-close") { showCap = false; render(); }
   else if (a==="cap-edit") { showCap = !showCap; render(); }
   else if (a==="cap-bump") { store.capOv = store.capOv || {}; store.capOv[dayKey(now())] = capHours(now()) + 1; save(); render(); toast("Today got an extra hour. Just today."); }
@@ -4680,8 +4686,9 @@ function maybeAskReview(){
    Unlocked on a device by opening LMK once with #admin=<STATS_KEY> in the address. The key is the
    credential; the worker checks it on every request. Web mode only — the artifact cannot reach
    the worker, and there is nothing about any student to see: the server holds counts and settings. */
-const ADMIN = {key:null, data:null, at:0, loading:false, err:"", tab:"overview"};
+const ADMIN = {key:null, data:null, at:0, loading:false, err:"", tab:"overview", sub:"cost"};
 try { ADMIN.tab = localStorage.getItem("lmk_admin_tab") || "overview"; } catch(_){}
+try { ADMIN.sub = localStorage.getItem("lmk_admin_sub") || "cost"; } catch(_){}
 const apiUrl = path => LMK_CONFIG.statsUrl.replace(/\/$/, "") + path;
 /* The key rides in the synced store, so every device signed in as the admin gets the tab. */
 function adminApply(){
@@ -4930,11 +4937,17 @@ function renderAdmin(root){
   if (d.costError || d.revenueError) attention.push(["ops", "Cost or revenue tables failed to read: " + (d.costError || d.revenueError) + ". Apply schema.sql."]);
   if (CO && costGap > 0) attention.push(["tutor", `${n(costGap)} of ${n(msgs30)} tutor message${msgs30 === 1 ? "" : "s"} left no cost row, so what the tutor spends is unknown. Send one message and check the usage table.`]);
   if (CO && RV && spend30 > cash30 && spend30 > 1) attention.push(["revenue", `The tutor cost ${money(spend30)} in 30 days against ${money(cash30)} in cash.`]);
+  const TT = PL.tiers || {}, UN = PL.units || {};    // the tier table: read by the Tutor tab and the Plus tab
   const TABS = [["overview", "Overview", 0], ["revenue", "Revenue", 0], ["students", "Students", CL.errors || 0], ["tutor", "Tutor", 0], ["plus", "Plus", 0], ["ops", "Ops", (cronStale ? 1 : 0) + (errToday ? 1 : 0)]];
   if (!TABS.some(t => t[0] === ADMIN.tab)) ADMIN.tab = "overview";
   const tile = (k, v, s, extra) => `<div class="card tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div>${extra || ""}</div>`;
   const input = (id, val, w, attrs) => `<input id="${id}" ${attrs || 'type="number" min="0"'} value="${esc(String(val))}" class="adm-in" style="width:${w || 90}px">`;
-  const table = (head, rows) => rows.length ? `<div class="adm-tablewrap"><table class="adm-table"><thead><tr>${head.map(h => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table></div>` : "";
+  /* A header sits over its column, so a numeric column needs a right-aligned header: pass "3:Cost" (or
+     "num:Cost") to align one. Left-aligned words over right-aligned figures is what read as sloppy. */
+  const table = (head, rows) => rows.length ? `<div class="adm-tablewrap"><table class="adm-table"><thead><tr>${head.map(h => {
+    const m = /^num:(.*)$/.exec(String(h));
+    return m ? `<th class="num">${m[1]}</th>` : `<th>${h}</th>`;
+  }).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table></div>` : "";
   let html = `<div class="adm-head"><div><h1>Mission control</h1><span class="muted">worker v${esc(String(ops.version || "?"))} · read ${new Date(ADMIN.at).toLocaleTimeString(undefined, {hour:"numeric", minute:"2-digit"})} · lmktoday.app</span></div><span class="sp"></span>
     <button class="minibtn" data-act="adm-refresh">Refresh</button><button class="minibtn" data-act="adm-copy-csv">CSV</button></div>
     <nav class="adm-tabs" role="tablist" aria-label="Admin sections">${TABS.map(([id, label, badge]) => `<button role="tab" data-act="adm-tab" data-tab="${id}" aria-selected="${ADMIN.tab === id}">${label}${badge ? `<i class="badge">${badge}</i>` : ""}</button>`).join("")}</nav>`;
@@ -4969,10 +4982,10 @@ function renderAdmin(root){
       const cashBy = {}; (RV.daily || []).forEach(x => { cashBy[x.day] = x.usd; }); const costBy = {}; (CO.daily || []).forEach(x => { costBy[x.day] = x.usd; });
       html += chartCard("Cash in and tokens out, last 30 days", "Bars are Stripe payments (refunds subtract); the line is what Anthropic billed us for the tutor that day, from the real token counts.", keys, k => cashBy[k] || 0, k => costBy[k] || 0, "Cash in", "Tokens out", v => "$" + (v >= 10 ? v.toFixed(0) : v.toFixed(2)), k => `${k}: ${money(cashBy[k] || 0)} in, ${money(costBy[k] || 0)} out`);
       html += `<div class="card adm-card"><h3>Payments</h3><p class="sub2">Every Stripe payment the webhook has seen, newest first. Amounts are what the student paid; Stripe's fee comes off in Stripe.</p>
-        ${table(["When", "Code", "Kind", "Amount"], (RV.recent || []).map(r => `<tr><td>${FMT_DAY.format(new Date(r.at))}</td><td class="mono">${esc(r.code || "—")}</td><td>${esc(r.kind)}</td><td class="num ${r.usd < 0 ? "bad" : ""}">${money(r.usd)}${r.currency !== "usd" ? " " + esc(r.currency.toUpperCase()) : ""}</td></tr>`)) || `<p class="sub2" style="margin:0">No payments yet. The first one appears here the moment Stripe's webhook lands. Make sure the webhook sends invoice.paid, checkout.session.completed, customer.subscription.updated, customer.subscription.deleted and charge.refunded.</p>`}</div>`;
+        ${table(["When", "Code", "Kind", "num:Amount"], (RV.recent || []).map(r => `<tr><td>${FMT_DAY.format(new Date(r.at))}</td><td class="mono">${esc(r.code || "—")}</td><td>${esc(r.kind)}</td><td class="num ${r.usd < 0 ? "bad" : ""}">${money(r.usd)}${r.currency !== "usd" ? " " + esc(r.currency.toUpperCase()) : ""}</td></tr>`)) || `<p class="sub2" style="margin:0">No payments yet. The first one appears here the moment Stripe's webhook lands. Make sure the webhook sends invoice.paid, checkout.session.completed, customer.subscription.updated, customer.subscription.deleted and charge.refunded.</p>`}</div>`;
       html += `<div class="card adm-card"><h3>What costs what</h3><p class="sub2">Prices per million tokens as of ${esc(CO.pricesAsOf)}: ${Object.entries(CO.prices || {}).filter(([m]) => /opus-5$|sonnet-5$/.test(m)).map(([m, p]) => `<b>${esc(m.replace("claude-", "").replace("-", " "))}</b> $${p.in} in · $${p.out} out · $${p.cr} cached`).join(" · ")}. Every reply's real token counts are recorded; nothing here is estimated except Stripe's fee.</p>
-        ${table(["Model, 30 days", "Messages", "Cost", "Per message"], (CO.byModel || []).map(r => `<tr><td>${esc(r.model)}</td><td class="num">${n(r.n)}</td><td class="num">${money(r.usd)}</td><td class="num">${r.n ? (r.usd / r.n * 100).toFixed(2) + "¢" : "—"}</td></tr>`))}
-        ${table(["Kind, 30 days", "Messages", "Cost", "Per message"], (CO.byKind || []).map(r => `<tr><td>${esc(r.kind)}</td><td class="num">${n(r.n)}</td><td class="num">${money(r.usd)}</td><td class="num">${r.n ? (r.usd / r.n * 100).toFixed(2) + "¢" : "—"}</td></tr>`))}</div>`;
+        ${table(["Model, 30 days", "num:Messages", "num:Cost", "num:Per message"], (CO.byModel || []).map(r => `<tr><td>${esc(r.model)}</td><td class="num">${n(r.n)}</td><td class="num">${money(r.usd)}</td><td class="num">${r.n ? (r.usd / r.n * 100).toFixed(2) + "¢" : "—"}</td></tr>`))}
+        ${table(["Kind, 30 days", "num:Messages", "num:Cost", "num:Per message"], (CO.byKind || []).map(r => `<tr><td>${esc(r.kind)}</td><td class="num">${n(r.n)}</td><td class="num">${money(r.usd)}</td><td class="num">${r.n ? (r.usd / r.n * 100).toFixed(2) + "¢" : "—"}</td></tr>`))}</div>`;
     }
   }
   if (ADMIN.tab === "students") {
@@ -4986,32 +4999,71 @@ function renderAdmin(root){
       <div class="adm-row"><input id="admLookup" type="text" placeholder="support code" maxlength="64" class="adm-in" style="flex:1 1 160px"><button class="minibtn" data-act="adm-lookup">Look up</button></div>
       <p id="admLookupOut" class="sub2" style="margin:10px 0 0"></p></div>`;
     html += `<div class="card adm-card"><h3>Stuck or stale</h3><p class="sub2">${(CL.byErr || []).length ? "Errors: " + CL.byErr.map(x => `${esc(x.err)} (${x.n})`).join(" · ") + "." : "No sync errors right now."} Pause a code that hammers Canvas, forget one on request, retry one after a fix.</p>
-      ${table(["Code", "School", "Courses", "Last read", "Status", ""], probs.map(p => `<tr><td class="mono">${esc(p.sid.slice(0, 8))}</td><td>${esc(p.host)}</td><td>${p.courses}</td><td>${ago(p.synced_at)}</td><td>${!p.active ? "paused" : p.err ? `<span class="bad">${esc(p.err)}</span>` : "stale"}</td>
+      ${table(["Code", "School", "num:Courses", "Last read", "Status", ""], probs.map(p => `<tr><td class="mono">${esc(p.sid.slice(0, 8))}</td><td>${esc(p.host)}</td><td>${p.courses}</td><td>${ago(p.synced_at)}</td><td>${!p.active ? "paused" : p.err ? `<span class="bad">${esc(p.err)}</span>` : "stale"}</td>
         <td class="acts">${p.active ? `<button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="retry">Retry</button><button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="pause">Pause</button>` : `<button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="resume">Resume</button>`}<button class="minibtn drop" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="forget">Forget</button></td></tr>`)) || `<p class="sub2" style="margin:0">Everyone is syncing.</p>`}
       <div class="adm-row" style="margin-top:12px"><label class="ck"><input type="checkbox" id="admPaused" ${S.cloudPaused ? "checked" : ""} data-act="adm-pause"> Pause Sync from anywhere for everyone (kill switch: reads stop, phones keep their last copy, nothing is deleted)</label></div></div>`;
   }
 
   if (ADMIN.tab === "tutor") {
+    const SUBS = [["cost", "Cost"], ["ceilings", "Ceilings"], ["plans", "Plans vs budget"]];
+    if (!SUBS.some(x => x[0] === ADMIN.sub)) ADMIN.sub = "cost";
+    const U = PL.units || {chat: 1, quiz: 3, cards: 3, think: 6, file: 2, photo: 2};
+    const unitsOf = k => +U[k] || 1;
+    const kinds = (CO && CO.byKind) || [];
+    /* usage records what an action COST but not what it was CHARGED, so units are re-derived from the same
+       table the server prices with. Cost per unit is the only number that says whether a tier is profitable. */
+    const unitsBilled = kinds.reduce((t, r) => t + r.n * unitsOf(r.kind), 0);
+    const perUnit = unitsBilled ? spend30 / unitsBilled : 0;
+    const KIND_NAME = {chat: "Chat message", quiz: "Quiz", cards: "Flashcard deck", think: "Deep thinking", file: "Course material", photo: "Photograph"};
+
     html += `<div class="tiles">
-      ${tile("Messages today", n(T.tutor_msg), `of ${n(TU.tutorDaily)} free pot · ${n(TU.tutorPlusDaily)} member pot`)}
-      ${tile("This week", n(sum("tutor_msg", 23, 30)), `${n(sum("tutor_msg", 0, 30))} in 30 days`, delta(last7("tutor_msg"), prev7("tutor_msg")))}
-      ${tile("Spend", money(spend30), CO ? (costRows30 ? `last 30 days · ${(perMsg * 100).toFixed(2)}¢ a message across ${n(costRows30)}${costGap > 0 ? ` of ${n(msgs30)}` : ""}` : `last 30 days · ${n(msgs30)} message${msgs30 === 1 ? "" : "s"} sent, none costed yet`) : "no cost data yet", costGap > 0 ? `<span class="d down">${n(costGap)} without a cost row</span>` : "")}
-      ${tile("Model", TU.tutorModel === "claude-opus-5" ? "Opus 5" : "Sonnet 5", "chat · quizzes and decks always on Sonnet")}
-    </div>`;
-    html += `<div class="card adm-card"><h3>Ceilings</h3><p class="sub2">${TU.configured ? "" : "<b>Not configured:</b> set the ANTHROPIC_API_KEY secret on the worker and this turns on. "}Four checks run before any token is bought. The pots are shared daily counts: free accounts stop at the free pot, members keep going to the member pot. Set the Anthropic console's monthly limit to match.</p>
-      <div class="adm-grid">
-        <label class="ck"><input type="checkbox" id="admTutorOn" ${TU.tutorOn ? "checked" : ""}> Tutor on</label>
-        <label class="fld">Free messages a week, per student ${input("admTutorWeekly", +TU.tutorWeekly || 0)}</label>
-        <label class="fld">Plus messages a week, per member ${input("admPlusWeekly", +PL.tutorPlusWeekly || 40)}</label>
-        <label class="fld">Free pot, messages a day ${input("admTutorDaily", +TU.tutorDaily || 0, 100)}</label>
-        <label class="fld">Member pot, messages a day ${input("admTutorPlusDaily", +TU.tutorPlusDaily || 0, 100)}</label>
-        <label class="fld">Per network, a day ${input("admTutorIpDaily", +TU.tutorIpDaily || 0)}</label>
-        <label class="fld">Chat model <select id="admTutorModel" class="adm-in"><option value="claude-sonnet-5" ${TU.tutorModel === "claude-sonnet-5" ? "selected" : ""}>Claude Sonnet 5 · ≈0.7¢</option><option value="claude-opus-5" ${TU.tutorModel === "claude-opus-5" ? "selected" : ""}>Claude Opus 5 · ≈1.2¢</option></select></label>
-      </div>
-      <div class="adm-row" style="margin-top:12px;justify-content:flex-end"><button class="btn primary" data-act="adm-save-tutor">Save tutor settings</button></div></div>`;
-    if (CO && CO.top && CO.top.length) html += `<div class="card adm-card"><h3>Who costs what · 30 days</h3><p class="sub2">Real token spend per support code. A free account near the top of this list is the reason the weekly allowance exists; a member near the top is a happy customer.</p>
-      ${table(["Code", "Plan", "Messages", "Cost", "Per message", ""], CO.top.map(r => `<tr><td class="mono">${esc(r.code)}</td><td>${r.plan === "plus" ? "Plus" : r.plan === "granted" ? "granted" : "free"}</td><td class="num">${n(r.n)}</td><td class="num">${money(r.usd)}</td><td class="num">${r.n ? (r.usd / r.n * 100).toFixed(2) + "¢" : "—"}</td><td class="acts">${r.plan === "free" ? `<button class="minibtn" data-act="adm-student" data-sid="${esc(r.sid)}" data-do="grant" data-months="4" data-level="plus">Grant Plus</button>` : r.plan === "granted" ? `<button class="minibtn drop" data-act="adm-student" data-sid="${esc(r.sid)}" data-do="revoke">Revoke</button>` : ""}</td></tr>`))}</div>`;
-    html += `<div class="card adm-card"><h3>Unit economics</h3><p class="sub2" style="margin:0">A chat reply is about 0.45¢ on Sonnet and 1.1¢ on Opus; a 10-question quiz or a 16-card deck about 1.4¢ (always Sonnet). A member using all ${+PL.tutorPlusWeekly || 40} messages a week costs at most $${((+PL.tutorPlusWeekly || 40) * 4.33 * 0.014).toFixed(2)} a month against $${priceNum.toFixed(2)} in, $${(priceNum * 0.971 - 0.30).toFixed(2)} after Stripe. A free student costs at most $${((+TU.tutorWeekly || 0) * 4.33 * 0.014).toFixed(2)} a month.</p></div>`;
+      ${tile("Messages today", n(T.tutor_msg), `${n(T.tutor_msg_free || 0)} free · pots ${n(TU.tutorDaily)} free / ${n(TU.tutorPlusDaily)} member`)}
+      ${tile("Spend, 30 days", money(spend30), costRows30 ? `${n(costRows30)} costed message${costRows30 === 1 ? "" : "s"} · ${n(unitsBilled)} units` : `${n(msgs30)} sent, none costed yet`, costGap > 0 ? `<span class="d down">${n(costGap)} without a cost row</span>` : "")}
+      ${tile("A unit really costs", perUnit ? (perUnit * 100).toFixed(2) + "¢" : "—", perUnit ? "measured, not assumed" : "no measured cost yet")}
+      ${tile("Model", TU.tutorModel === "claude-opus-5" ? "Opus 5" : "Sonnet 5", "chat · quizzes and decks always Sonnet")}
+    </div>
+    <nav class="adm-tabs" role="tablist" aria-label="Tutor sections" style="margin:14px 0">${SUBS.map(([id, label]) => `<button role="tab" data-act="adm-sub" data-sub="${id}" aria-selected="${ADMIN.sub === id}">${label}</button>`).join("")}</nav>`;
+
+    if (ADMIN.sub === "cost") {
+      html += `<div class="card adm-card"><h3>What each thing costs</h3><p class="sub2">Every row is measured from Anthropic's own usage block, not estimated. <b>Units</b> is what the student was charged; <b>per unit</b> is what it actually cost, and it is the number that decides whether a plan makes money.</p>
+        ${table(["Action", "num:Units each", "num:Times", "num:Cost", "num:Per time", "num:Per unit"], kinds.slice().sort((a, b) => b.usd - a.usd).map(r => {
+          const pu = r.n ? r.usd / (r.n * unitsOf(r.kind)) : 0;
+          return `<tr><td>${esc(KIND_NAME[r.kind] || r.kind)}</td><td class="num">${unitsOf(r.kind)}</td><td class="num">${n(r.n)}</td><td class="num">${money(r.usd)}</td><td class="num">${r.n ? (r.usd / r.n * 100).toFixed(2) + "¢" : "—"}</td><td class="num ${pu > 0.01 ? "bad" : ""}">${pu ? (pu * 100).toFixed(2) + "¢" : "—"}</td></tr>`;
+        })) || `<p class="sub2" style="margin:0">Nothing costed yet. Send one chat and one quiz from lmktoday.app and this fills in.</p>`}
+        ${kinds.length ? `<p class="sub2" style="margin:10px 0 0">A unit is priced to be about half a cent of real spend. Anything above <b>1.00¢ per unit</b> is shown in red: that action is underpriced in units, and the fix is to raise its unit cost in <span class="mono">plus.js</span>, not to raise the plan price.</p>` : ""}</div>`;
+      html += `<div class="card adm-card"><h3>By model</h3>
+        ${table(["Model, 30 days", "num:Messages", "num:Cost", "num:Per message"], (CO && CO.byModel || []).map(r => `<tr><td>${esc(r.model)}</td><td class="num">${n(r.n)}</td><td class="num">${money(r.usd)}</td><td class="num">${r.n ? (r.usd / r.n * 100).toFixed(2) + "¢" : "—"}</td></tr>`)) || `<p class="sub2" style="margin:0">No model has answered yet.</p>`}</div>`;
+      if (CO && CO.top && CO.top.length) html += `<div class="card adm-card"><h3>Who costs what · 30 days</h3><p class="sub2">Real token spend per support code. A free account near the top is the reason the daily allowance exists; a member near the top is a happy customer.</p>
+        ${table(["Code", "Plan", "num:Messages", "num:Cost", "num:Per message", ""], CO.top.map(r => `<tr><td class="mono">${esc(r.code)}</td><td>${r.plan === "plus" ? "Plus" : r.plan === "granted" ? "granted" : "free"}</td><td class="num">${n(r.n)}</td><td class="num">${money(r.usd)}</td><td class="num">${r.n ? (r.usd / r.n * 100).toFixed(2) + "¢" : "—"}</td><td class="acts">${r.plan === "free" ? `<button class="minibtn" data-act="adm-student" data-sid="${esc(r.sid)}" data-do="grant" data-months="4" data-level="plus">Grant Plus</button>` : r.plan === "granted" ? `<button class="minibtn drop" data-act="adm-student" data-sid="${esc(r.sid)}" data-do="revoke">Revoke</button>` : ""}</td></tr>`))}</div>`;
+    }
+
+    if (ADMIN.sub === "ceilings") {
+      html += `<div class="card adm-card"><h3>Ceilings</h3><p class="sub2">${TU.configured ? "" : "<b>Not configured:</b> set the ANTHROPIC_API_KEY secret on the worker and this turns on. "}Three checks run before any token is bought: the student's own units for the day, their network's daily count, and one shared pot. The pots are counted in <b>requests</b>, not units, and are a spend brake, not the plan — the plan is the units-a-day column under <b>Plans vs budget</b>. Set the Anthropic console's monthly limit to match.</p>
+        <div class="adm-grid">
+          <label class="ck"><input type="checkbox" id="admTutorOn" ${TU.tutorOn ? "checked" : ""}> Tutor on</label>
+          <label class="fld">Free pot, requests a day ${input("admTutorDaily", +TU.tutorDaily || 0, 100)}</label>
+          <label class="fld">Member pot, requests a day ${input("admTutorPlusDaily", +TU.tutorPlusDaily || 0, 100)}</label>
+          <label class="fld">Per network, a day ${input("admTutorIpDaily", +TU.tutorIpDaily || 0)}</label>
+          <label class="fld">Chat model <select id="admTutorModel" class="adm-in"><option value="claude-sonnet-5" ${TU.tutorModel === "claude-sonnet-5" ? "selected" : ""}>Claude Sonnet 5</option><option value="claude-opus-5" ${TU.tutorModel === "claude-opus-5" ? "selected" : ""}>Claude Opus 5</option></select></label>
+        </div>
+        ${(() => { const free = (TT.free || {}).units || 3, covers = Math.floor((+TU.tutorDaily || 0) / Math.max(1, free));
+          return `<p class="sub2" style="margin:10px 0 0"${covers < installs ? ' class="bad"' : ""}>The free pot covers <b>${n(covers)}</b> students at the free allowance of ${free} a day. ${covers < installs ? `<span class="bad">You have ${n(installs)} devices, so the pot runs out before the allowance does and students are told the tutor is resting while their own units are untouched.</span>` : "That is comfortably above the number of devices you have."}</p>`; })()}
+        <div class="adm-row" style="margin-top:12px;justify-content:flex-end"><button class="btn primary" data-act="adm-save-tutor">Save tutor settings</button></div></div>`;
+    }
+
+    if (ADMIN.sub === "plans") {
+      const net = p => Math.max(0, p * 0.971 - 0.30);
+      html += `<div class="card adm-card"><h3>Do the plans pay for themselves?</h3><p class="sub2">Worst case is a student who spends every unit, every day, priced at the <b>measured</b> cost per unit${perUnit ? "" : " (no measured cost yet, so this uses 0.5¢ as the design target)"}. Anything red loses money at full use.</p>
+        ${table(["Plan", "num:Units a day", "num:Units a month", "num:Worst-case cost", "num:Price", "num:Net after Stripe", "num:Margin"], ["free", "plus", "pro"].map(lv => {
+          const t = TT[lv] || {}, u = +t.units || 0, mo = u * 30.4;
+          const cost = mo * (perUnit || 0.005);
+          const price = parseFloat(String(t.price || "").replace(/[^0-9.]/g, "")) || 0;
+          const nt = price ? net(price) : 0, margin = nt - cost;
+          return `<tr><td><b>${TIER_NAMES[lv]}</b></td><td class="num">${u}</td><td class="num">${n(Math.round(mo))}</td><td class="num">${money(cost)}</td><td class="num">${price ? money(price) : "—"}</td><td class="num">${price ? money(nt) : "—"}</td><td class="num ${margin < 0 ? "bad" : ""}">${price ? money(margin) : "-" + money(cost)}</td></tr>`;
+        }))}
+        <p class="sub2" style="margin:10px 0 0">Free has no price, so its row is pure cost: that is the marketing budget, and the free pot above is what caps it across everyone. Realistic use is far below worst case — the measured average is ${perUnit ? (perUnit * 100).toFixed(2) + "¢ a unit" : "not measured yet"} — but a plan should survive its own ceiling.</p></div>`;
+      html += `<div class="card adm-card"><h3>What the app promises</h3><p class="sub2" style="margin:0">These are the numbers students actually see, straight from the tier table: <b>${["free", "plus", "pro"].map(lv => `${TIER_NAMES[lv]} ${(TT[lv] || {}).units || 0} units a day`).join(" · ")}</b>. A message costs ${unitsOf("chat")} unit, a quiz ${unitsOf("quiz")}, a deck ${unitsOf("cards")}, deep thinking ${unitsOf("think")}, a photograph ${unitsOf("photo")}, course material ${unitsOf("file")}. Change them in the Plus tab; the server enforces exactly this and nothing else — there is no weekly allowance anywhere in the code.</p></div>`;
+    }
   }
 
   if (ADMIN.tab === "plus") {
@@ -5028,9 +5080,8 @@ function renderAdmin(root){
         <select id="admGrantMonths" class="adm-in"><option value="1">1 month</option><option value="4" selected>4 months · a semester</option><option value="12">12 months</option></select>
         <button class="btn primary" data-act="adm-grant">Grant</button></div></div>`;
     html += `<div class="card adm-card"><h3>Members</h3>${table(["Code", "Plan", "How", "Since", "Until", ""], members.map(m => `<tr><td class="mono">${esc(m.code)}</td><td>${esc(TIER_NAMES[m.level] || m.level || "plus")}</td><td>${m.how === "granted" ? "granted" : "Stripe"}</td><td>${m.since ? FMT_DAY.format(new Date(m.since)) : ""}</td><td>${m.until ? FMT_DAY.format(new Date(m.until)) : "open"}</td><td class="acts"><button class="minibtn drop" data-act="adm-student" data-sid="${esc(m.sid)}" data-do="revoke">Revoke</button></td></tr>`)) || `<p class="sub2" style="margin:0">No members yet. The first one shows up here the moment Stripe's webhook lands, or the moment you grant one.</p>`}</div>`;
-    const TT = PL.tiers || {}, UN = PL.units || {};
     html += `<div class="card adm-card"><h3>Plans</h3><p class="sub2">A unit is one tutor message; a quiz or a deck costs ${UN.quiz || 3}, deep thinking ${UN.think || 6}, a file or photo question ${UN.file || 2}. Units are priced to track real spend, so a daily allowance is also a cost ceiling. Sell a plan only when the features it names actually work.</p>
-      ${table(["Plan", "Units a day", "Quiz", "Cards", "Model", "Files", "Photo", "Think", "Price", "On sale"], ["free", "plus", "pro"].map(lv => { const t = TT[lv] || {};
+      ${table(["Plan", "num:Units a day", "num:Quiz", "num:Cards", "Model", "Files", "Photo", "Think", "Price", "On sale"], ["free", "plus", "pro"].map(lv => { const t = TT[lv] || {};
         return `<tr><td><b>${TIER_NAMES[lv]}</b></td>
           <td>${input("admT_" + lv + "_units", +t.units || 0, 70)}</td>
           <td>${input("admT_" + lv + "_quiz", +t.quiz || 0, 60)}</td>
@@ -5065,7 +5116,7 @@ function renderAdmin(root){
       ${tile("App errors", n(errToday), "today, from reportErr on real devices")}
       ${tile("Build", esc(APP_BUILD), `worker v${esc(String(ops.version || "?"))}`)}
     </div>`;
-    html += `<div class="card adm-card"><h3>App errors · last 7 days</h3>${table(["Build", "Message", "Count"], errs.map(e => `<tr><td class="mono">${esc(e.build)}</td><td>${esc(e.msg)}</td><td class="num">${e.n}</td></tr>`)) || `<p class="sub2" style="margin:0">Nothing caught. Every uncaught error on a real device lands here with a build and a message, nothing else.</p>`}</div>`;
+    html += `<div class="card adm-card"><h3>App errors · last 7 days</h3>${table(["Build", "Message", "num:Count"], errs.map(e => `<tr><td class="mono">${esc(e.build)}</td><td>${esc(e.msg)}</td><td class="num">${e.n}</td></tr>`)) || `<p class="sub2" style="margin:0">Nothing caught. Every uncaught error on a real device lands here with a build and a message, nothing else.</p>`}</div>`;
     const A = S.announce || {};
     html += `<div class="card adm-card"><h3>Announcement</h3><p class="sub2">A slim banner every student sees above their plan until they dismiss it. Plain text, one link at most.</p>
       <div class="adm-form">
