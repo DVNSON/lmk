@@ -3044,7 +3044,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v43.1";
+const APP_BUILD = "v43.2";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -4719,12 +4719,12 @@ function renderAdmin(root){
           <td>${input("admT_" + lv + "_price", t.price || "", 110, 'type="text" maxlength="24"')}</td>
           <td><input type="checkbox" id="admT_${lv}_sell" ${t.sell ? "checked" : ""} ${lv === "free" ? "disabled" : ""}></td></tr>`; }))}
       <div class="adm-grid" style="margin-top:12px">
-        <label class="fld wide">Top-up packs, as JSON <span class="muted" style="font-weight:400">(each Stripe product needs metadata.credits set to the same number of units)</span> ${input("admPacks", JSON.stringify(PL.packs || []), 0, 'type="text" placeholder=\'[{"units":60,"price":"$3","link":"https://buy.stripe.com/..."}]\'')}</label>
+        <label class="fld wide">Top-up packs, as JSON <span class="muted" style="font-weight:400">(the price must match the Stripe price exactly)</span> ${input("admPacks", JSON.stringify(PL.packs || []), 0, 'type="text" placeholder=\'[{"units":60,"price":"$3","link":"https://buy.stripe.com/..."}]\'')}</label>
         <label class="fld wide">Plus payment link ${input("admT_plus_link", (TT.plus || {}).link || "", 0, 'type="url" placeholder="https://buy.stripe.com/…"')}</label>
         <label class="fld wide">Pro payment link ${input("admT_pro_link", (TT.pro || {}).link || "", 0, 'type="url" placeholder="https://buy.stripe.com/… (create it in Stripe first)"')}</label>
         <label class="fld wide">Which payment buys which plan ${input("admTierMap", JSON.stringify(PL.tierMap || {}), 0, 'type="text" placeholder=\'{"1000":"pro","price_abc":"pro"}\'')}</label>
       </div>
-      <p class="sub2" style="margin:10px 0 0">A pack's Stripe product must set <span class="mono">metadata.credits</span> to the same number of units, in payment mode, or the webhook credits nothing. Map by amount in cents or by Stripe price id; anything unmapped counts as Plus. Upgrades keep their credit automatically when a student switches plan in the billing portal, so turn plan switching on there rather than selling a second link.</p>
+      <p class="sub2" style="margin:10px 0 0">Sell a pack as a one-off payment. The webhook matches what Stripe charged against the price written here to know how many units to add, so the two must agree to the cent; <span class="mono">metadata.credits</span> on the Stripe link overrides it. Map plans by amount in cents or by Stripe price id; anything unmapped counts as Plus. Upgrades keep their credit automatically when a student switches plan in the billing portal, so turn plan switching on there rather than selling a second link.</p>
       <div class="adm-row" style="margin-top:12px;justify-content:flex-end"><button class="btn primary" data-act="adm-save-tiers">Save plans</button></div></div>`;
     html += `<div class="card adm-card"><h3>Offer</h3><p class="sub2">${PL.webhook ? "" : "<b>Webhook secret not set:</b> run <span class=\"mono\">npx wrangler secret put STRIPE_WEBHOOK_SECRET</span> or payments can't be recognised. "}The link opens Stripe with the student's code attached; a plan's success page must send them to lmktoday.app/app/#plus=ok and a pack's to #credits=ok. The price here is what the app shows; change it in Stripe too.</p>
       <div class="adm-grid">
