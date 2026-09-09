@@ -973,6 +973,47 @@ let selCalDay = null;             // "YYYY-MM-DD"
 let selWeek = null;               // week index in radar
 let pendingUndated = null;        // undated-shelf item being given a deadline
 
+/* Where the student was, so a refresh does not throw it away: the tab, the course filter, the calendar month
+   and day, the exam week, and which piles were open. Per-device by nature — it never goes in `store`, which
+   would sync a laptop's Semester view onto a phone and need a mergeStores rule. It expires after eight hours,
+   because a filter restored days later would open the app on a near-empty list with no explanation. */
+const VIEW_KEY = "lmk_view", VIEW_TTL = 8 * 36e5;
+function saveView(){
+  try {
+    localStorage.setItem(VIEW_KEY, JSON.stringify({
+      tab: activeTab, course: courseFilter,
+      cal: calCursor ? dayKey(calCursor) : null, day: selCalDay, week: selWeek,
+      piles: [...openPiles], at: Date.now(),
+    }));
+  } catch(_){}
+}
+function readView(){
+  try {
+    const v = JSON.parse(localStorage.getItem(VIEW_KEY) || "null");
+    return v && typeof v === "object" && Date.now() - (+v.at || 0) < VIEW_TTL ? v : null;
+  } catch(_) { return null; }
+}
+/* Set the tab and the nav highlight together. renderInner never writes aria-selected, so a restore that only
+   assigned the variable would paint the Plan view under a highlighted Now. */
+function applyTab(name){
+  activeTab = name;
+  document.querySelectorAll("nav.tabs [data-tab]").forEach(x => x.setAttribute("aria-selected", x.dataset.tab === name ? "true" : "false"));
+}
+function setTab(name){ applyTab(name); saveView(); }
+/* Called once at boot, after loadData() so COURSES exists to check against, and before the first render() so
+   there is exactly one paint. Every field is validated against what is actually on screen now: a course that
+   left the semester, a pile that no longer exists or an admin tab without the key all fall back to today's
+   behaviour rather than rendering an empty screen. */
+function restoreView(){
+  const v = readView(); if (!v) return;
+  if (v.tab === "admin" ? !!ADMIN.key : ["now", "plan", "semester"].includes(v.tab)) applyTab(v.tab);
+  if (typeof v.course === "string" && COURSES.includes(v.course)) courseFilter = v.course;
+  if (typeof v.cal === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.cal)) { const d = new Date(v.cal + "T00:00:00"); if (!isNaN(d)) calCursor = new Date(d.getFullYear(), d.getMonth(), 1); }
+  if (typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day)) selCalDay = v.day;
+  if (Number.isFinite(+v.week)) selWeek = +v.week;
+  if (Array.isArray(v.piles)) v.piles.slice(0, 60).forEach(k => { if (typeof k === "string") openPiles.add(k); });
+}
+
 /* ================= data model ================= */
 function parseDT(v){
   if (!v) return null;
@@ -2212,7 +2253,7 @@ async function tutorSend(id, preset){
   const ta = document.getElementById("aiInput"); if (!ta || TUTOR.busy) return;
   const text = (preset || ta.value).trim(); if (!text) return;
   const e = studyTarget(id); if (!e) return;
-  const t = tutorThread(id); t.push({role:"user", content: text + (STUDY.image ? "  [photo attached]" : "")}); ta.value = ""; tutorSave(id); tutorRenderThread(id);
+  const t = tutorThread(id); t.push({role:"user", content: text + (STUDY.image ? "  [photo attached]" : "")}); ta.value = ""; try { localStorage.removeItem("lmk_draft_" + id); } catch(_){} tutorSave(id); tutorRenderThread(id);
   const box = document.getElementById("aiChat"); const bubble = document.createElement("div"); bubble.className = "msg ai thinking"; box.appendChild(bubble); box.scrollTop = box.scrollHeight;
   TUTOR.busy = true; document.getElementById("aiSend").disabled = true;
   try {
@@ -2370,9 +2411,16 @@ function openStudy(id, opts = {}){
   if (inApp && !locked) {
     tutorRenderThread(id); tutorNote(); tutorBalance();
     const ta = document.getElementById("aiInput");
+    /* A question typed and not yet sent is the sharpest thing to lose, because everything around it comes
+       back: the assignment, the thread and the mode chip all restore from #study= and localStorage. */
+    try { ta.value = localStorage.getItem("lmk_draft_" + id) || ""; } catch(_){}
+    if (ta.value) { ta.style.height = "auto"; ta.style.height = Math.min(140, ta.scrollHeight) + "px"; }
     document.getElementById("aiSend").onclick = () => tutorSend(id);
     ta.addEventListener("keydown", ev => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); tutorSend(id); } });
-    ta.addEventListener("input", () => { ta.style.height = "auto"; ta.style.height = Math.min(140, ta.scrollHeight) + "px"; });
+    ta.addEventListener("input", () => {
+      ta.style.height = "auto"; ta.style.height = Math.min(140, ta.scrollHeight) + "px";
+      try { ta.value ? localStorage.setItem("lmk_draft_" + id, ta.value.slice(0, 4000)) : localStorage.removeItem("lmk_draft_" + id); } catch(_){}
+    });
     document.getElementById("aiClear").onclick = () => { TUTOR.threads[id] = []; tutorSave(id); tutorRenderThread(id); };
     document.getElementById("aiChat").addEventListener("click", ev => {
       const turnEl = ev.target.closest("[data-turn]"); if (!turnEl) return;
@@ -2470,8 +2518,21 @@ function toast(msg, action){
 
 /* ================= focus sprint ================= */
 let sprint = null, sprintIv = null;
-function startSprint(id){ sprint = {end: Date.now() + 25*60*1000, at: Date.now(), id: id || null}; if (id) markStart(id); clearInterval(sprintIv); sprintIv = setInterval(tickSprint, 1000); render(); }
-function stopSprint(finished){ clearInterval(sprintIv); if (sprint && sprint.id) { const m = Math.min(25, Math.round((Date.now() - sprint.at) / 6e4)); if (m >= 3) { store.spent = store.spent || {}; store.spent[sprint.id] = (store.spent[sprint.id] || 0) + m; save(); } } sprint = null; render(); if (finished) toast("Sprint done — 25 focused minutes banked. Check something off?"); }
+/* A 25-minute clock is the one thing on screen a refresh must not silently cancel: the minutes are banked
+   into store.spent when it ends, so losing it loses real measured work as well as the countdown. */
+function saveSprint(){ try { sprint ? localStorage.setItem("lmk_sprint", JSON.stringify(sprint)) : localStorage.removeItem("lmk_sprint"); } catch(_){} }
+function startSprint(id){ sprint = {end: Date.now() + 25*60*1000, at: Date.now(), id: id || null}; saveSprint(); if (id) markStart(id); clearInterval(sprintIv); sprintIv = setInterval(tickSprint, 1000); render(); }
+function stopSprint(finished){ clearInterval(sprintIv); if (sprint && sprint.id) { const m = Math.min(25, Math.round((Date.now() - sprint.at) / 6e4)); if (m >= 3) { store.spent = store.spent || {}; store.spent[sprint.id] = (store.spent[sprint.id] || 0) + m; save(); } } sprint = null; saveSprint(); render(); if (finished) toast("Sprint done — 25 focused minutes banked. Check something off?"); }
+/* Pick a sprint back up after a reload. One that already ran out while the tab was closed is banked, not
+   resumed, so the minutes still count and the student is not handed a clock reading zero. */
+function restoreSprint(){
+  let v = null; try { v = JSON.parse(localStorage.getItem("lmk_sprint") || "null"); } catch(_){}
+  if (!v || !Number.isFinite(+v.end) || !Number.isFinite(+v.at)) { try { localStorage.removeItem("lmk_sprint"); } catch(_){} return; }
+  if (Date.now() - v.at > 60 * 60e3) { try { localStorage.removeItem("lmk_sprint"); } catch(_){} return; }   // an hour old is not a 25-minute sprint
+  sprint = {end: +v.end, at: +v.at, id: v.id || null};
+  if (sprint.end - Date.now() <= 0) { stopSprint(false); return; }
+  clearInterval(sprintIv); sprintIv = setInterval(tickSprint, 1000);
+}
 function tickSprint(){
   if (!sprint) return;
   const ms = sprint.end - Date.now();
@@ -3096,7 +3157,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v44.1";
+const APP_BUILD = "v45.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -3185,8 +3246,7 @@ function maybeHomeScreenHint(){
 function switchTab(e){
   const b = e.target.closest("[data-tab]"); if (!b) return;
   const order = ["now","plan","semester","admin"], from = order.indexOf(activeTab), to = order.indexOf(b.dataset.tab);
-  activeTab = b.dataset.tab;
-  document.querySelectorAll("nav.tabs [data-tab]").forEach(x=>x.setAttribute("aria-selected", x.dataset.tab === activeTab ? "true":"false"));
+  setTab(b.dataset.tab);
   document.getElementById("view-"+activeTab).style.setProperty("--dir", to > from ? 1 : to < from ? -1 : 0);
   animNext = true;
   render();
@@ -3223,6 +3283,7 @@ document.getElementById("courseChips").addEventListener("click", e=>{
   animNext = true;
   const b = e.target.closest("[data-course]"); if (!b) return;
   courseFilter = b.dataset.course || null;
+  saveView();
   render();
 });
 document.querySelector(".wrap").addEventListener("click", e=>{
@@ -3264,8 +3325,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
     addOverlay.classList.add("open");
   }
   else if (a==="goto-plan") {
-    activeTab = "plan";
-    document.querySelectorAll("nav.tabs [data-tab]").forEach(x=>x.setAttribute("aria-selected", x.dataset.tab==="plan" ? "true":"false"));
+    setTab("plan");
     render();
   }
   else if (a==="date-undated" || a==="del-undated") {
@@ -3325,11 +3385,12 @@ document.querySelector(".wrap").addEventListener("click", e=>{
     if (on) openPiles.delete(row.dataset.pile); else openPiles.add(row.dataset.pile);
     document.querySelectorAll(`[data-parent="${CSS.escape(row.dataset.pile)}"]`).forEach(el => el.hidden = on);
     const btn = row.querySelector("button[data-act=pile]"); if (btn) btn.textContent = on ? "Open pile" : "Hide";
+    saveView();
   }
-  else if (a==="cal-prev") { calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth()-1, 1); render(); }
-  else if (a==="cal-next") { calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth()+1, 1); render(); }
-  else if (a==="cal-day") { selCalDay = selCalDay===act.dataset.day ? null : act.dataset.day; render(); }
-  else if (a==="week") { selWeek = selWeek===+act.dataset.wk ? null : +act.dataset.wk; render(); }
+  else if (a==="cal-prev") { calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth()-1, 1); saveView(); render(); }
+  else if (a==="cal-next") { calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth()+1, 1); saveView(); render(); }
+  else if (a==="cal-day") { selCalDay = selCalDay===act.dataset.day ? null : act.dataset.day; saveView(); render(); }
+  else if (a==="week") { selWeek = selWeek===+act.dataset.wk ? null : +act.dataset.wk; saveView(); render(); }
 });
 
 document.querySelector(".wrap").addEventListener("keydown", e => {
@@ -3419,7 +3480,7 @@ function parseAndLoad(text){
   if (!rows.length){ msg.className="parse-msg err"; msg.textContent="No events found in that file."; return; }
   store.custom = {label:"Your calendar", rows, loadedAt:new Date().toLocaleDateString(undefined,{month:"short",day:"numeric"})};
   store.done = {}; store.dropped = {}; store.starred = {}; store.triaged = {};
-  save(); loadData(); courseFilter = null; selWeek = null; selCalDay = null;
+  save(); loadData(); courseFilter = null; selWeek = null; selCalDay = null; openPiles.clear(); saveView();
   msg.className = "parse-msg ok";
   msg.textContent = `Loaded ${rows.length} assignments across ${new Set(rows.map(r=>r[1])).size} courses. You’re in.`;
   render();
@@ -3427,7 +3488,7 @@ function parseAndLoad(text){
 document.getElementById("setupGuide").addEventListener("click", ()=>{ overlay.classList.remove("open"); openWelcome(); });
 document.getElementById("resetSample").addEventListener("click", ()=>{
   store.custom = null; store.done={}; store.dropped={}; store.starred={}; store.triaged={};
-  save(); loadData(); courseFilter=null; render();
+  save(); loadData(); courseFilter=null; saveView(); render();
   document.getElementById("parseMsg").className="parse-msg ok";
   document.getElementById("parseMsg").textContent="Back on the sample semester.";
 });
@@ -4452,8 +4513,7 @@ function adminForget(){
   store.adminKey = ""; save();
   ADMIN.key = null; ADMIN.data = null;
   for (const id of ["tabAdminTop","tabAdminBottom"]) { const el = document.getElementById(id); if (el) el.hidden = true; }
-  activeTab = "now";
-  document.querySelectorAll("nav.tabs [data-tab]").forEach(x=>x.setAttribute("aria-selected", x.dataset.tab === "now" ? "true":"false"));
+  setTab("now");
   render();
 }
 async function adminFetch(force){
@@ -4553,12 +4613,12 @@ document.querySelector(".wrap").addEventListener("change", e => {
 const REVIEW = {open: false, queue: [], at: 0, flip: false, done: 0, right: 0, course: null, pushed: false};
 function openReview(course, opts = {}){
   REVIEW.queue = dueCards(course).sort(() => Math.random() - 0.5).slice(0, 30);
-  if (!REVIEW.queue.length) { toast("Nothing due for review. Make a deck in the Study screen."); return; }
+  if (!REVIEW.queue.length) { if (!opts.quiet) toast("Nothing due for review. Make a deck in the Study screen."); return; }
   REVIEW.open = true; REVIEW.at = 0; REVIEW.flip = false; REVIEW.done = 0; REVIEW.right = 0; REVIEW.course = course || null;
   renderReview();
   reviewPage.hidden = false; document.documentElement.style.overflow = "hidden";
   REVIEW.pushed = false;
-  if (!opts.fromHistory) { try { history.pushState({review: true}, "", location.pathname + location.search + "#review"); REVIEW.pushed = true; } catch(_){} }
+  if (!opts.fromHistory) { try { history.pushState({review: true}, "", location.pathname + location.search + "#review" + (course ? "=" + encodeURIComponent(course) : "")); REVIEW.pushed = true; } catch(_){} }
 }
 function closeReview(opts = {}){
   if (reviewPage.hidden) return;
@@ -4898,12 +4958,22 @@ async function loadRemoteConfig(){
   } catch(_){}
 })();
 /* ================= boot ================= */
-loadData(); render();
+loadData(); restoreView(); restoreSprint(); render();
 crowdInit();
 pingDaily();
 loadRemoteConfig();
 (function studyFromHash(){
   try { const m = location.hash.match(/#study=([^&]+)/); if (!m) return; const raw = decodeURIComponent(m[1]); const id = /^c:/.test(raw) ? raw : "a" + raw; if (studyTarget(id)) { history.replaceState({study: id}, "", location.href); openStudy(id, {fromHistory: true}); } } catch(_){}
+})();
+/* Reviewing when the tab reloads: come back to the cards, not to a stale #review sitting in the address bar
+   for the rest of the session. The queue is rebuilt from the store, so only the tally starts fresh. */
+(function reviewFromHash(){
+  try {
+    const m = location.hash.match(/#review(?:=([^&]*))?/); if (!m) return;
+    history.replaceState({review: true}, "", location.href);
+    openReview(m[1] ? decodeURIComponent(m[1]) : null, {fromHistory: true, quiet: true});
+    if (!REVIEW.open) history.replaceState(null, "", location.pathname + location.search);
+  } catch(_){}
 })();
 setTimeout(maybeAskReview, 25000);
 /* The welcome asks for a name. Only show it once we're sure this is a new person: after the first
