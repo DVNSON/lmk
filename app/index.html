@@ -535,6 +535,20 @@
     .sp-head{padding:10px 14px}
     .sp-title b{font-size:15px}
   }
+  .chatextras{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .chatextras .minibtn{cursor:pointer}
+  .chatextras .minibtn[aria-pressed="true"]{background:var(--btn-bg);color:var(--btn-ink);border-color:var(--btn-bg)}
+  .matlist{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+  .mat{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
+  .mat span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mat small{color:var(--muted);font-size:11px}
+  .rv-body{display:flex;flex-direction:column;gap:16px;justify-content:center;width:100%;max-width:620px;margin:0 auto;padding:20px;flex:1}
+  .rv-card{min-height:230px;font-size:20px}
+  .rv-card .front{font-size:22px}
+  .rv-acts{display:flex;gap:10px;justify-content:center}
+  .rv-acts .btn{flex:1;max-width:220px;justify-content:center;padding:13px 18px;font-size:15px}
+  .rv-done{padding:20px;text-align:center}
+  .rv-done b{font:800 22px/1.2 "Bricolage Grotesque",sans-serif}
   .planbar{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);font-size:12.5px;color:var(--ink-2)}
   .planbar b{color:var(--ink)}
   .planbar .btn{padding:7px 12px;font-size:13px}
@@ -804,6 +818,7 @@
 <div class="overlay" id="detailOverlay" role="dialog" aria-modal="true" aria-labelledby="ddTitle"><div class="modal" id="detailModal"></div></div>
 <div class="overlay" id="planOverlay" role="dialog" aria-modal="true" aria-labelledby="ppTitle"><div class="modal" id="planModal"></div></div>
 <div class="studypage" id="studyPage" role="region" aria-labelledby="aiTitle" hidden></div>
+<div class="studypage" id="reviewPage" role="region" aria-label="Review" hidden></div>
 <div class="overlay" id="plusOverlay" role="dialog" aria-modal="true" aria-labelledby="plusTitle"><div class="modal" id="plusModal" style="max-width:540px"></div></div>
 <div class="overlay" id="addOverlay" role="dialog" aria-modal="true" aria-labelledby="addTitle">
   <div class="modal">
@@ -878,7 +893,34 @@ const fmtMins = m => m >= 60 ? (Math.round(m / 30) / 2) + "h" : m + "m";
 
 /* ================= state ================= */
 const LS_KEY = "duenorth_v1";
-let store = {done:{}, dropped:{}, starred:{}, triaged:{}, streakDays:[], custom:null, customRows:[], undated:[], itemNotes:{}, courseNotes:{}, grades:{}, deleted:{}, celebrated:{}, effortOv:{}, leadOv:{}, seriesRules:{}, kindOv:{}, extGraded:{}, ext:null, capacity:null, capOv:{}, dur:{}, spent:{}, tab:{}, anon:"", tutorCtx:{}, tutorLog:[]};
+/* Cards the tutor wrote, kept per course and scheduled so they come back.
+   Intervals in days after each "got it"; a miss sends a card back to tomorrow. Nothing here costs a token. */
+const REVIEW_STEPS = [1, 3, 7, 16, 35];
+function reviewDue(c, at){ return (c.due || 0) <= (at || Date.now()); }
+function decks(){ return store.decks || (store.decks = {}); }
+function saveDeck(course, title, cards){
+  const id = "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const now = Date.now();
+  decks()[id] = {id, course, title: String(title || "Cards").slice(0, 80), at: now,
+    cards: cards.slice(0, 40).map(c => ({front: c.front, back: c.back, step: -1, due: now, seen: 0}))};
+  save();
+  return id;
+}
+function dueCards(course){
+  const at = Date.now(), out = [];
+  for (const id in decks()) { const d = decks()[id]; if (course && d.course !== course) continue;
+    (d.cards || []).forEach((c, i) => { if (reviewDue(c, at)) out.push({deck: id, i, card: c, course: d.course, title: d.title}); }); }
+  return out;
+}
+function gradeCard(deckId, i, ok){
+  const d = decks()[deckId]; if (!d || !d.cards[i]) return;
+  const c = d.cards[i];
+  c.step = ok ? Math.min(REVIEW_STEPS.length - 1, (c.step < 0 ? 0 : c.step + 1)) : 0;
+  c.due = Date.now() + REVIEW_STEPS[c.step] * 864e5 * (ok ? 1 : 0.35);
+  c.seen = (c.seen || 0) + 1; c.last = ok;
+  save();
+}
+let store = {decks:{}, done:{}, dropped:{}, starred:{}, triaged:{}, streakDays:[], custom:null, customRows:[], undated:[], itemNotes:{}, courseNotes:{}, grades:{}, deleted:{}, celebrated:{}, effortOv:{}, leadOv:{}, seriesRules:{}, kindOv:{}, extGraded:{}, ext:null, capacity:null, capOv:{}, dur:{}, spent:{}, tab:{}, anon:"", tutorCtx:{}, tutorLog:[]};
 try { const raw = localStorage.getItem(LS_KEY); if (raw) store = Object.assign(store, JSON.parse(raw)); } catch(e){}
 function migrateIds(s){
   for (const mk of ["done","dropped","starred","triaged","itemNotes"]) {
@@ -1692,7 +1734,8 @@ const AI_TARGETS = [
   {id:"gemini",  name:"Gemini",  url: () => "https://gemini.google.com/app", copyFirst: true},
 ];
 const studyPage = document.getElementById("studyPage");
-const STUDY = {id: null, mode: "", pushed: false};   // pushed: this page added its own history entry, so closing pops it
+const reviewPage = document.getElementById("reviewPage");
+const STUDY = {id: null, mode: "", pushed: false, mat: "", think: false, image: null};   // pushed: this page added its own history entry, so closing pops it
 const STUDY_MODES = [
   {id:"explain", label:"Explain it",      starter:"Explain the core idea behind this to me, one step at a time."},
   {id:"outline", label:"Outline with me", starter:"Help me outline this. Ask me what I'm thinking first."},
@@ -1780,8 +1823,9 @@ function openPlus(){
     ? `<div class="plus-state">✓ <span><b>You're on ${TIER_NAMES[lvl]}${granted ? ", on the house" : ""}.</b>${me && me.until ? (granted ? " Until " + FMT_DAY.format(new Date(me.until)) : " Renews " + FMT_DAY.format(new Date(me.until - 3 * 864e5))) + "." : ""}${me && me.credits ? " " + me.credits + " extra credits." : ""}</span></div>`
     : canceled ? `<div class="plus-state" style="background:var(--surface-2);border-color:var(--line)"><span>Your plan ended. Everything free is still yours.</span></div>` : "";
   const card = x => {
-    const t = T[x] || {}, mine = x === lvl, link = tierLink(x), sell = !!t.sell && !!link && !mine && x !== "free";
-    const soon = !!t.sell === false && x !== "free" && !mine;
+    const t = T[x] || {}, mine = x === lvl, link = tierLink(x);
+    const sell = !!t.sell && !!link && !mine && x !== "free";     // on sale and payable
+    const soon = !mine && x !== "free" && !sell;                  // shown, but not yet buyable
     return `<div class="tier ${mine ? "mine" : ""}">
       <div class="tier-h"><b>${TIER_NAMES[x]}</b>${mine ? `<span class="tier-tag">your plan</span>` : t.price ? `<span class="tier-price">${esc(t.price)}</span>` : `<span class="tier-price">free</span>`}</div>
       <ul>${tierLines(x).map(l => `<li>${esc(l)}</li>`).join("")}</ul>
@@ -1870,21 +1914,117 @@ function tutorFacts(e){
     due: FMT_DAY.format(e.due) + " · " + FMT_TIME.format(e.due) + (days === 0 ? " (today)" : ` (${days} day${days === 1 ? "" : "s"} from now)`),
     standing: dueSoFar.length >= 3 ? `finished ${doneIn} of the ${dueSoFar.length} things due so far in this class` : ""};
 }
+/* The most recent thing an instructor wrote in this course, whichever assignment it was on. */
+function courseFeedback(course){
+  const items = (store.ext || {}).items || {};
+  let best = null;
+  EVENTS.filter(x => x.course === course).forEach(x => { const it = items[x.id.slice(1)]; if (it && it.fb && (!best || x.due > best.due)) best = {due: x.due, t: x.title, fb: it.fb}; });
+  return best ? `on "${best.t}": ${best.fb}` : "";
+}
 function tutorCtx(e){
   const f = tutorFacts(e);
+  const mat = STUDY.mat ? (matsFor(e.course).find(m => m.id === STUDY.mat) || null) : null;
   return {title: e.title, course: e.course, kind: KIND_WORD(e), due: f.due, standing: f.standing,
     worth: f.worth, est: f.est, plan: f.plan, grade: f.grade, rubric: f.rubric, mode: STUDY.mode || "",
+    feedback: (e.ext && e.ext.fb) || courseFeedback(e.course),
+    material: mat ? mat.text : "", matName: mat ? mat.name : "",
     desc: e.desc || "", notes: (store.itemNotes || {})[e.id] || "", syllabus: (store.courseNotes || {})[e.course] || ""};
+}
+/* Course material: a PDF or a text file the student attaches, read here on the device with pdf.js and kept in
+   their own store. Only the file they pick travels, and only when they ask about it. */
+const MAT_MAX = 60000, MAT_KEY = "lmk_material";
+/* Deliberately not in `store`: a lecture deck is large and belongs to the device that read it, so it never
+   rides to Drive with the rest of the sync and never needs a merge rule. */
+function materials(){ try { return JSON.parse(localStorage.getItem(MAT_KEY) || "{}") || {}; } catch(_) { return {}; } }
+function saveMaterials(m){ try { localStorage.setItem(MAT_KEY, JSON.stringify(m)); return true; } catch(_) { return false; } }
+function matsFor(course){ return (materials()[course] || []).slice().sort((a, b) => b.at - a.at); }
+function addMaterial(course, name, text){
+  const m = materials(), list = m[course] || [];
+  list.unshift({id: "m" + Date.now().toString(36), name: String(name || "file").slice(0, 80), at: Date.now(), text: String(text || "").slice(0, MAT_MAX)});
+  m[course] = list.slice(0, 4);                       // four files a course; the oldest falls off
+  if (!saveMaterials(m)) {                            // out of room: keep only the newest one and try again
+    m[course] = list.slice(0, 1);
+    if (!saveMaterials(m)) throw new Error("this browser is out of room for files");
+  }
+}
+let pdfState = 0;
+function loadPdfJs(){
+  return new Promise((res, rej) => {
+    if (pdfState === 2) return res();
+    if (MODE !== "web") return rej(new Error("web only"));
+    const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.min.mjs"; s.type = "module";
+    s.onload = () => { pdfState = 2; res(); }; s.onerror = () => rej(new Error("pdf.js did not load"));
+    document.head.appendChild(s);
+  });
+}
+async function readFileText(file){
+  const name = file.name || "file";
+  if (/\.(txt|md|csv|json)$/i.test(name) || /^text\//.test(file.type || "")) return (await file.text()).slice(0, MAT_MAX);
+  if (/\.pdf$/i.test(name) || file.type === "application/pdf") {
+    await loadPdfJs();
+    const lib = window.pdfjsLib || (window.pdfjsDistBuildPdf || {});
+    if (!lib.getDocument) throw new Error("pdf reader unavailable");
+    lib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.worker.min.mjs";
+    const doc = await lib.getDocument({data: new Uint8Array(await file.arrayBuffer())}).promise;
+    let out = "";
+    for (let i = 1; i <= Math.min(doc.numPages, 60) && out.length < MAT_MAX; i++) {
+      const page = await doc.getPage(i), tc = await page.getTextContent();
+      out += "\n\n[page " + i + "] " + tc.items.map(x => x.str).join(" ");
+    }
+    return out.replace(/\s+/g, " ").trim().slice(0, MAT_MAX);
+  }
+  throw new Error("that file type isn't readable here");
+}
+/* Formulas the tutor writes in LaTeX become real mathematics. KaTeX loads once, only in web mode, only when a
+   message actually contains a formula, and only from the allowlisted CDN. */
+let katexState = 0;
+function needsMath(t){ return /(^|[^\\])\$[^$\n]{1,200}\$|\$\$/.test(t || ""); }
+function loadKatex(){
+  if (katexState || MODE !== "web") return;
+  katexState = 1;
+  const css = document.createElement("link"); css.rel = "stylesheet"; css.href = "https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css"; document.head.appendChild(css);
+  const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js";
+  s.onload = () => { const a = document.createElement("script"); a.src = "https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js";
+    a.onload = () => { katexState = 2; typesetMath(); }; a.onerror = () => { katexState = 3; }; document.head.appendChild(a); };
+  s.onerror = () => { katexState = 3; };
+  document.head.appendChild(s);
+}
+function typesetMath(root){
+  if (katexState !== 2 || !window.renderMathInElement) return;
+  const box = root || document.getElementById("aiChat"); if (!box) return;
+  try { window.renderMathInElement(box, {delimiters: [{left: "$$", right: "$$", display: true}, {left: "$", right: "$", display: false}], throwOnError: false}); } catch(_){}
+}
+/* The tutor should arrive with a plan, not a blank box. This is written from the brief, costs nothing,
+   and gives the student two obvious next moves. */
+function openingProposal(e){
+  if (!e || !e.course) return `Hi. Ask me anything about this.`;
+  if (e.isCourse) return `Hi. I know your ${esc(e.course)}: your syllabus notes, what's coming up, and where you stand. Want a quiz for the exam, or shall we plan the week?`;
+  const f = (() => { try { return tutorFacts(e); } catch(_) { return {}; } })();
+  const kind = KIND_WORD(e), fb = courseFeedback(e.course);
+  const bits = [];
+  if (f.worth) bits.push(`It's worth ${f.worth.split(" · ")[0]}`);
+  if (f.days === 0) bits.push("it's due today");
+  else if (f.days === 1) bits.push("it's due tomorrow");
+  else if (f.days) bits.push(`you have ${f.days} days`);
+  if (f.today && f.today.cap) bits.push(`and about ${fmtMins(Math.max(0, f.today.cap - f.today.mins))} of study time left today`);
+  const opener = bits.length ? esc(bits.join(", ").replace(/^./, c => c.toUpperCase()) + ".") : `Let's look at this ${esc(kind)}.`;
+  const rub = (e.ext && e.ext.rub) ? String(e.ext.rub).split("; ")[0] : "";
+  const why = fb ? ` Last time your instructor said ${esc(fb.replace(/^on "[^"]*": /, ""))} — worth fixing here.`
+    : rub ? ` The rubric leads with ${esc(rub.replace(/\s*\(\d+ pts\)$/, ""))}, so that's where the marks are.` : "";
+  const move = e.exam ? "Want me to quiz you, or build a study plan for the days left?"
+    : f.days === 0 ? "Want the fastest path to finished, or a check of what you have?"
+    : e.effort === "big" ? "Want to outline it together, or talk through what you'd argue?"
+    : "Want me to explain the idea behind it, or quiz you first?";
+  return `${opener}${why} ${move}`;
 }
 function tutorRenderThread(id){
   const box = document.getElementById("aiChat"); if (!box) return;
   const t = tutorThread(id), e = studyTarget(id) || {title:"", course:"", due: now()};
-  const greet = e.isCourse
-    ? `Hi. I know your ${esc(e.course)}: the syllabus notes you've added, what's coming up, and where you stand. Ask about the course, or make a quiz or a deck for the exam.`
-    : `Hi. I've read this ${esc(KIND_WORD(e))}: what it asks, when it's due, and where you stand. Pick a way to work above, or just ask.`;
+  const greet = openingProposal(e);
   box.innerHTML = t.length ? t.map((m, i) => m.quiz ? quizHtml(m.quiz, i) : m.cards ? deckHtml(m.cards, i) : `<div class="msg ${m.role === "user" ? "me" : "ai"}">${esc(m.content)}</div>`).join("")
     : `<div class="msg ai">${greet}</div>`;
   box.scrollTop = box.scrollHeight;
+  if (t.some(m => needsMath(m.content))) { loadKatex(); typesetMath(box); }
 }
 /* A quiz is one assistant turn the student works through in place. Picks are saved with the thread, and the
    turn's text is rewritten as a digest so the next chat message knows how the quiz went. */
@@ -1907,7 +2047,7 @@ function deckHtml(d, i){
     <div class="deck-acts"><button class="minibtn" data-nav="-1" ${at === 0 ? "disabled" : ""}>‹ Back</button>
       ${d.flip ? `<button class="minibtn muted" data-know="0">Not yet</button><button class="minibtn keep" data-know="1">Got it</button>` : `<span class="privacy" style="margin:0">Tap the card to flip it</span>`}
       <button class="minibtn" data-nav="1" ${at >= d.cards.length - 1 ? "disabled" : ""}>Next ›</button></div>
-    ${finished ? `<div class="qz-foot"><b>${missedFronts.length ? `${missedFronts.length} to revisit.` : "You know the deck."}</b>${missedFronts.length ? `<button class="minibtn" data-again="cards" data-focus="${esc(missedFronts.join("; ").slice(0, 300))}">New cards on those · 1 message</button>` : `<button class="minibtn" data-again="cards" data-focus="deeper material not covered yet">Go deeper · 1 message</button>`}</div>` : ""}</div>`;
+    ${finished ? `<div class="qz-foot"><b>${missedFronts.length ? `${missedFronts.length} to revisit.` : "You know the deck."}</b><span style="color:var(--muted);font-size:12.5px">Saved · it comes back in your plan.</span>${missedFronts.length ? `<button class="minibtn" data-again="cards" data-focus="${esc(missedFronts.join("; ").slice(0, 300))}">New cards on those · 1 message</button>` : `<button class="minibtn" data-again="cards" data-focus="deeper material not covered yet">Go deeper · 1 message</button>`}</div>` : ""}</div>`;
 }
 function quizDigest(q){
   const picked = q.picked || [], missed = q.questions.map((x, j) => picked[j] != null && picked[j] !== x.answer ? `#${j + 1} ${x.q} (they chose "${x.choices[picked[j]]}", correct: "${x.choices[x.answer]}")` : "").filter(Boolean);
@@ -1940,7 +2080,11 @@ async function tutorMake(id, kind, focus){
     }
     TUTOR.state = "ok";
     if (kind === "quiz") { const q = Object.assign({picked: []}, j.quiz); t.push({role: "assistant", content: quizDigest(q), quiz: q}); }
-    else { const d = Object.assign({at: 0, known: [], flip: false}, j.cards); t.push({role: "assistant", content: deckDigest(d), cards: d}); }
+    else {
+      const d = Object.assign({at: 0, known: [], flip: false}, j.cards);
+      try { d.deck = saveDeck(e.course, d.title, d.cards); } catch(_){}   // it joins the review schedule from today
+      t.push({role: "assistant", content: deckDigest(d), cards: d});
+    }
     tutorSave(id); tutorRenderThread(id); tutorNote();
   } catch(_) {
     t.pop(); bubble.classList.remove("thinking"); bubble.textContent = "Lost the connection. Try again.";
@@ -1971,18 +2115,19 @@ async function tutorSend(id, preset){
   const ta = document.getElementById("aiInput"); if (!ta || TUTOR.busy) return;
   const text = (preset || ta.value).trim(); if (!text) return;
   const e = studyTarget(id); if (!e) return;
-  const t = tutorThread(id); t.push({role:"user", content:text}); ta.value = ""; tutorSave(id); tutorRenderThread(id);
+  const t = tutorThread(id); t.push({role:"user", content: text + (STUDY.image ? "  [photo attached]" : "")}); ta.value = ""; tutorSave(id); tutorRenderThread(id);
   const box = document.getElementById("aiChat"); const bubble = document.createElement("div"); bubble.className = "msg ai thinking"; box.appendChild(bubble); box.scrollTop = box.scrollHeight;
   TUTOR.busy = true; document.getElementById("aiSend").disabled = true;
   try {
     const r = await fetch(apiUrl("/tutor"), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"},
-      body: JSON.stringify({sid: store.cloud.sid, secret: store.cloud.secret, ctx: tutorCtx(e), messages: t.slice(-12)})});
+      body: JSON.stringify(Object.assign({sid: store.cloud.sid, secret: store.cloud.secret, ctx: tutorCtx(e), messages: t.slice(-12)},
+        STUDY.think ? {think: true} : {}, STUDY.image ? {image: STUDY.image} : {}))});
     if (!r.ok) {
       let j = {}; try { j = await r.json(); } catch(_){}
       t.pop(); ta.value = text;
       TUTOR.state = j.error === "allowance" ? "allowance" : (r.status === 503 ? "off" : TUTOR.state); if (j.error === "allowance") TUTOR.left = 0;
       bubble.classList.remove("thinking");
-      bubble.textContent = j.error === "allowance" ? "That's this week's free messages used up. The buttons below open your own AI with the same prompt, no limit." : j.error === "network" ? "A lot of people on this network are using the tutor right now. Try again later, or use your own AI below." : r.status === 503 ? "The tutor is resting right now. Your own AI below still works." : "The tutor couldn't answer just now. Try again in a moment.";
+      bubble.textContent = j.error === "tier" ? `That one needs a bigger plan: ${j.need === "vision" ? "photographs" : j.need === "files" ? "course material" : "deep thinking"} comes with Pro.` : j.error === "allowance" ? "Today's units are used up. More tomorrow; the buttons below open your own AI with the same brief, no limit." : j.error === "network" ? "A lot of people on this network are using the tutor right now. Try again later, or use your own AI below." : r.status === 503 ? "The tutor is resting right now. Your own AI below still works." : "The tutor couldn't answer just now. Try again in a moment.";
       tutorNote(); return;
     }
     TUTOR.left = +r.headers.get("x-lmk-left"); TUTOR.daily = +r.headers.get("x-lmk-daily"); TUTOR.level = r.headers.get("x-lmk-level") || TUTOR.level; TUTOR.plus = r.headers.get("x-lmk-plus") === "1"; TUTOR.credits = +(r.headers.get("x-lmk-credits") || 0); TUTOR.state = "ok"; tutorNote();
@@ -1990,11 +2135,28 @@ async function tutorSend(id, preset){
     const reader = r.body.getReader(), dec = new TextDecoder(); let out = "";
     for (;;) { const {value, done} = await reader.read(); if (done) break; out += dec.decode(value, {stream:true}); bubble.textContent = out; box.scrollTop = box.scrollHeight; }
     out = (out + dec.decode()).trim(); bubble.textContent = out;
+    if (needsMath(out)) { loadKatex(); typesetMath(box); }
     t.push({role:"assistant", content: out}); tutorSave(id);
   } catch(_) {
     bubble.classList.remove("thinking"); bubble.textContent = "Lost the connection. Your message is still in the box; send it again.";
     t.pop(); ta.value = text;
-  } finally { TUTOR.busy = false; const b = document.getElementById("aiSend"); if (b) b.disabled = false; }
+  } finally { TUTOR.busy = false; STUDY.image = null; STUDY.think = false; const b = document.getElementById("aiSend"); if (b) b.disabled = false; const p = document.getElementById("aiPhotoTag"); if (p) p.hidden = true; const th = document.getElementById("aiThink"); if (th) th.setAttribute("aria-pressed", "false"); }
+}
+/* A phone photo is downscaled here so a 4 MB picture becomes a few hundred kilobytes before it travels. */
+function shrinkImage(file){
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const max = 1280, sc = Math.min(1, max / Math.max(img.width, img.height));
+      const cv = document.createElement("canvas"); cv.width = Math.round(img.width * sc); cv.height = Math.round(img.height * sc);
+      cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(url);
+      const d = cv.toDataURL("image/jpeg", 0.82);
+      res({media_type: "image/jpeg", data: d.slice(d.indexOf(",") + 1)});
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("that image could not be read")); };
+    img.src = url;
+  });
 }
 function planChip(){
   const lvl = myLevel();
@@ -2023,6 +2185,8 @@ function openStudy(id, opts = {}){
   const f = tutorFacts(e);
   const g = (() => { try { return gradeFor(e.course); } catch(_) { return null; } })();
   const notes = e.isCourse ? ((store.courseNotes || {})[e.course] || "") : ((store.itemNotes || {})[e.id] || "");
+  const mats = matsFor(e.course);
+  if (STUDY.mat && !mats.some(m => m.id === STUDY.mat)) STUDY.mat = "";
   const ownAI = `<details class="ownai"${inApp ? "" : " open"}><summary>${inApp ? "Prefer your own AI? Open Claude, ChatGPT or Gemini with the same brief" : "Open it in your own AI, with a prompt that already knows this " + kind}</summary>
       <div class="row" style="margin-top:10px">
         ${order.map(t => `<a class="btn ${t.id === pref || (!pref && t.id === "claude") ? "primary" : "ghost"}" data-ai="${t.id}" href="${esc(t.url(prompt))}" target="_blank" rel="noopener">${t.name}${t.id === pref ? " · your usual" : ""}</a>`).join("")}
@@ -2052,6 +2216,12 @@ function openStudy(id, opts = {}){
         ${e.isCourse ? `<div class="card sp-block"><h4>Coming up</h4>${f.up && f.up.length ? `<ul>${f.up.map(y => `<li>${esc(y.title.slice(0, 60))} · ${FMT_DAY.format(y.due)}</li>`).join("")}</ul>` : `<p class="privacy" style="margin:0">Nothing else is due in this course.</p>`}</div>`
         : `<div class="card sp-block"><h4>Instructions from Canvas</h4>${e.desc ? `<div class="sp-scroll">${esc(e.desc)}</div>` : `<p class="privacy" style="margin:0">Nothing came through for this one yet. Open it in Canvas and paste what matters into your notes; the tutor reads them.</p>`}</div>`}
         ${rub.length ? `<div class="card sp-block"><h4>Rubric</h4><ul>${rub.map(r => `<li>${esc(r)}</li>`).join("")}</ul></div>` : ""}
+        <div class="card sp-block"><h4>Course material</h4>
+          ${tierOf(myLevel()).files ? `${mats.length ? `<div class="matlist">${mats.map(m => `<label class="mat"><input type="radio" name="spMat" value="${esc(m.id)}" ${STUDY.mat === m.id ? "checked" : ""}><span>${esc(m.name)}</span><small>${FMT_DAY.format(new Date(m.at))} · ${Math.round((m.text || "").length / 1000)}k</small></label>`).join("")}<label class="mat"><input type="radio" name="spMat" value="" ${STUDY.mat ? "" : "checked"}><span>Don't use any</span></label></div>` : `<p class="privacy" style="margin:0 0 8px">Attach the lecture slides or a reading and the tutor answers from them, quoting the page.</p>`}
+          <label class="minibtn" style="display:inline-block">＋ Attach a PDF or text file<input type="file" id="spMatFile" accept=".pdf,.txt,.md,.csv,application/pdf,text/plain" class="srconly"></label>
+          <span id="spMatMsg" class="privacy" style="margin-left:8px"></span>`
+          : `<p class="privacy" style="margin:0">Ask about your lecture slides and readings with <button class="minibtn" data-act="plus-open" style="padding:3px 8px">Pro</button>.</p>`}
+        </div>
         <div class="card sp-block"><h4>${e.isCourse ? "Syllabus and course notes" : "Your notes"}</h4><textarea id="spNotes" placeholder="${e.isCourse ? "Paste the syllabus, the exam format, the chapters covered, anything the tutor should know about this course…" : "What you've tried, what the professor said, anything the tutor should know…"}">${esc(notes)}</textarea><p class="privacy" style="margin:6px 0 0">Saved on this device and in your Drive. The tutor reads them.</p></div>
         <div class="row" style="margin:0">${e.url ? `<a class="btn ghost" href="${esc(e.url)}" target="_blank" rel="noopener">Open in Canvas ↗</a>` : ""}${e.isCourse ? "" : `<button class="btn ghost" id="spDone">${store.done[e.id] ? "Not done after all" : "Done ✓"}</button>`}</div>
       </aside></details>
@@ -2059,6 +2229,11 @@ function openStudy(id, opts = {}){
         ${inApp && !locked ? `<div class="modes" role="group" aria-label="How do you want to work?">${STUDY_MODES.map(m => `<button class="mode ${m.make ? "make" : ""}" data-mode="${m.id}" aria-pressed="${STUDY.mode === m.id}" ${m.title ? `title="${m.title}"` : ""}>${m.make ? "✦ " : ""}${m.label}</button>`).join("")}</div>
         <div class="chat card" id="aiChat" aria-live="polite" style="padding:10px"></div>
         <div class="chatbar"><textarea id="aiInput" rows="1" placeholder="Ask anything about it…" aria-label="Your message to the tutor"></textarea><button class="btn primary" id="aiSend">Send</button></div>
+        <div class="chatextras">
+          <label class="minibtn" title="${tierOf(myLevel()).vision ? "Photograph a problem and work it through · 2 units" : "Photographs come with Pro"}" ${tierOf(myLevel()).vision ? "" : "data-act=\"plus-open\""}>📷 Photo${tierOf(myLevel()).vision ? `<input type="file" id="aiPhoto" accept="image/*" capture="environment" class="srconly">` : ""}</label>
+          <button class="minibtn" id="aiThink" aria-pressed="false" title="${tierOf(myLevel()).think ? "Let it think the hard way · 6 units" : "Deep thinking comes with Pro"}" ${tierOf(myLevel()).think ? "" : `data-act="plus-open"`}>◈ Think it through</button>
+          <span id="aiPhotoTag" class="minibtn muted" hidden>Photo attached · <span data-act="ai-photo-clear" style="text-decoration:underline;cursor:pointer">remove</span></span>
+        </div>
         <div class="planbar"><span id="aiNote"></span><span id="aiUpsell"></span></div>
         <div class="chatnote"><span>Nothing here is graded or saved to your account. It coaches; it won't do the work for you.</span><button class="minibtn" id="aiClear" title="Start this conversation over">Start over</button></div>` : ""}
         ${inApp && locked ? `<div class="chat card" aria-live="polite" style="padding:10px;min-height:auto;flex:none"><div class="msg ai">Hi. I'm LMK's tutor. I already know this ${kind}: what it asks, when it's due, and where you stand in ${esc(e.course)}. I coach one step at a time and I won't do the graded work for you.</div></div>
@@ -2084,6 +2259,16 @@ function openStudy(id, opts = {}){
     save();
   });
   const dn = document.getElementById("spDone"); if (dn) dn.onclick = () => { toggleDone(e.id, null, "Marked done. Nice."); render(); dn.textContent = store.done[e.id] ? "Not done after all" : "Done ✓"; };
+  const mf = document.getElementById("spMatFile");
+  if (mf) mf.addEventListener("change", async () => {
+    const f = mf.files && mf.files[0]; if (!f) return;
+    const msg = document.getElementById("spMatMsg"); msg.textContent = "Reading…";
+    try { const text = await readFileText(f); if (!text.trim()) throw new Error("nothing readable in there");
+      addMaterial(e.course, f.name, text); STUDY.mat = (matsFor(e.course)[0] || {}).id || ""; msg.textContent = ""; openStudy(id, {replace: true}); toast("Attached. Ask about it and the tutor reads it."); }
+    catch(err) { msg.textContent = String((err && err.message) || err).slice(0, 60); }
+    mf.value = "";
+  });
+  studyPage.querySelectorAll('input[name="spMat"]').forEach(r => r.addEventListener("change", () => { STUDY.mat = r.value; toast(r.value ? "The tutor will read that file · 2 units a question" : "Not using a file."); }));
   document.getElementById("spScope").addEventListener("change", ev => { const to = ev.target.value; if (to && to !== id) openStudy(to, {replace: true}); });
   if (inApp && !locked) {
     tutorRenderThread(id); tutorNote(); tutorBalance();
@@ -2098,7 +2283,15 @@ function openStudy(id, opts = {}){
       const b = ev.target.closest("button"); if (!b) return;
       if (b.dataset.again) { tutorMake(id, b.dataset.again, b.dataset.focus || ""); return; }
       if (b.dataset.explain) { ta.value = "Explain question: " + b.dataset.explain; ta.focus(); ta.dispatchEvent(new Event("input")); return; }
-      if (m.quiz && b.dataset.q != null) { m.quiz.picked = m.quiz.picked || []; m.quiz.picked[+b.dataset.q] = +b.dataset.c; m.content = quizDigest(m.quiz); }
+      if (m.quiz && b.dataset.q != null) {
+        m.quiz.picked = m.quiz.picked || []; m.quiz.picked[+b.dataset.q] = +b.dataset.c; m.content = quizDigest(m.quiz);
+        // once every question is answered, what you got wrong becomes cards that come back
+        if (!m.quiz.saved && m.quiz.questions.every((_, j) => m.quiz.picked[j] != null)) {
+          const missed = m.quiz.questions.filter((x, j) => m.quiz.picked[j] !== x.answer);
+          if (missed.length) { try { m.quiz.saved = saveDeck(e.course, m.quiz.title + " · what I missed", missed.map(x => ({front: x.q, back: x.choices[x.answer] + (x.why ? " — " + x.why : "")}))); toast(`${missed.length} card${missed.length === 1 ? "" : "s"} added to your review.`); } catch(_){} }
+          else m.quiz.saved = "none";
+        }
+      }
       else if (m.cards) {
         const d = m.cards;
         if (b.dataset.flip) d.flip = !d.flip;
@@ -2122,6 +2315,19 @@ function openStudy(id, opts = {}){
       if (!tutorThread(id).length && m.starter && !TUTOR.busy) tutorSend(id, m.starter);
       else toast(m.label + ": on for your next messages.");
     }));
+    const ph = document.getElementById("aiPhoto");
+    if (ph) ph.addEventListener("change", async () => {
+      const f = ph.files && ph.files[0]; if (!f) return;
+      try { STUDY.image = await shrinkImage(f); document.getElementById("aiPhotoTag").hidden = false; toast("Photo ready. Ask your question and send."); ta.focus(); }
+      catch(err) { toast("That image couldn't be read."); }
+      ph.value = "";
+    });
+    const think = document.getElementById("aiThink");
+    if (think && tierOf(myLevel()).think) think.addEventListener("click", () => {
+      STUDY.think = !STUDY.think; think.setAttribute("aria-pressed", String(STUDY.think));
+      toast(STUDY.think ? "Deep thinking on for the next message · 6 units" : "Deep thinking off");
+    });
+    studyPage.addEventListener("click", ev => { if (ev.target.closest('[data-act="ai-photo-clear"]')) { STUDY.image = null; document.getElementById("aiPhotoTag").hidden = true; } });
     if (!IS_MOBILE) setTimeout(() => ta.focus(), 50);
   }
   studyPage.querySelectorAll("[data-ai]").forEach(b => b.addEventListener("click", ev => {
@@ -2146,8 +2352,9 @@ function closeStudy(opts = {}){
 }
 window.addEventListener("popstate", ev => {
   const st = ev.state || {};
-  if (st.study) { if (STUDY.id !== st.study) openStudy(st.study, {fromHistory: true}); }
-  else if (!studyPage.hidden) closeStudy({fromHistory: true});
+  if (!reviewPage.hidden && !st.review) { closeReview({fromHistory: true}); return; }
+  if (st.study) { if (STUDY.id !== st.study) openStudy(st.study, {fromHistory: true}); return; }
+  if (!studyPage.hidden) closeStudy({fromHistory: true});
 });
 let toastTimer = null;
 function toast(msg, action){
@@ -2435,6 +2642,17 @@ function renderNow(root){
     html += `<div class="card hero clear" style="--hero-tint:color-mix(in srgb, var(--good) 18%, transparent)"><div class="kicker">Next up</div><h1>All clear. Actually clear.</h1><div class="why">Every assignment in view is done or scheduled ahead. Go touch grass — you earned it.</div></div>`;
   }
 
+  // review first: it is short, it is free, and it is the reason to open LMK tomorrow
+  const due = dueCards(null);
+  if (due.length) {
+    const byCourse = {}; due.forEach(d => { byCourse[d.course] = (byCourse[d.course] || 0) + 1; });
+    const names = Object.keys(byCourse).sort((a, b) => byCourse[b] - byCourse[a]);
+    const mins = Math.max(1, Math.round(due.length * 0.4));
+    html += `<div class="card intro" data-i="1" style="border-color:color-mix(in srgb,var(--c3) 40%,var(--line));background:linear-gradient(120deg,color-mix(in srgb,var(--c3) 10%,var(--surface)),color-mix(in srgb,var(--c1) 8%,var(--surface)))">
+      <span class="ic" style="background:var(--c3)">↻</span>
+      <div class="txt"><b>Review ${due.length} card${due.length === 1 ? "" : "s"} · about ${mins} min</b>${names.slice(0, 3).map(c => `${esc(c)} ${byCourse[c]}`).join(" · ")}${names.length > 3 ? " · …" : ""}. Cards you missed come back sooner than the ones you knew.</div>
+      <div class="acts"><button class="btn grad" data-act="rv-open">Start review</button>${names.length > 1 ? `<button class="minibtn" data-act="rv-open" data-course="${esc(names[0])}">Just ${esc(names[0])}</button>` : ""}</div></div>`;
+  }
   // meet the tutor, once: the first time a student with classes sees it working
   if (tutorPossible() && plusTutorOn() && EVENTS.some(open)) {
     let seen = false; try { seen = localStorage.getItem("lmk_tutor_intro") === "1"; } catch(_){}
@@ -2781,7 +2999,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v40.0";
+const APP_BUILD = "v41.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -2974,6 +3192,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="reload") { location.reload(); }
   else if (a==="open-token") { const g = document.getElementById("gearBtn"); if (g) g.click(); const dt = document.getElementById("cloudTokenWay"); if (dt) { dt.hidden = false; dt.open = true; setTimeout(() => dt.scrollIntoView({block: "start"}), 100); } }
   else if (a==="plus-open") { openPlus(); }
+  else if (a==="rv-open") { openReview(act.dataset.course || null); }
   else if (a==="intro-dismiss") { try { localStorage.setItem("lmk_tutor_intro", "1"); } catch(_){} render(); }
   else if (a==="open-gear") { const g = document.getElementById("gearBtn"); if (g) g.click(); }
   else if (a==="web-signin") { webSignIn(); }
@@ -3044,7 +3263,22 @@ document.getElementById("gearBtn").addEventListener("click", ()=>{
 });
 document.getElementById("closeModal").addEventListener("click", ()=>overlay.classList.remove("open"));
 overlay.addEventListener("click", e=>{ if (e.target===overlay) overlay.classList.remove("open"); });
-document.addEventListener("keydown", e=>{ if (e.key==="Escape") { overlay.classList.remove("open"); ["addOverlay","planOverlay","detailOverlay","findOverlay","celebrateOverlay","plusOverlay"].forEach(x=>document.getElementById(x).classList.remove("open")); if (!studyPage.hidden && !TUTOR.busy) closeStudy(); } });
+reviewPage.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const a = b.dataset.act;
+  if (a === "rv-close") closeReview();
+  else if (a === "rv-flip") { REVIEW.flip = !REVIEW.flip; renderReview(); }
+  else if (a === "rv-got") reviewAnswer(true);
+  else if (a === "rv-miss") reviewAnswer(false);
+  else if (a === "rv-more") { const c = REVIEW.course; closeReview(); openReview(c); }
+});
+document.addEventListener("keydown", e => {
+  if (!REVIEW.open) return;
+  if (e.key === " " || e.key === "Enter") { e.preventDefault(); if (REVIEW.flip) return; REVIEW.flip = true; renderReview(); }
+  else if (REVIEW.flip && (e.key === "1" || e.key.toLowerCase() === "n")) reviewAnswer(false);
+  else if (REVIEW.flip && (e.key === "2" || e.key.toLowerCase() === "y")) reviewAnswer(true);
+});
+document.addEventListener("keydown", e=>{ if (e.key==="Escape") { overlay.classList.remove("open"); ["addOverlay","planOverlay","detailOverlay","findOverlay","celebrateOverlay","plusOverlay"].forEach(x=>document.getElementById(x).classList.remove("open")); if (REVIEW.open) closeReview(); else if (!studyPage.hidden && !TUTOR.busy) closeStudy(); } });
 
 const dz = document.getElementById("dropZone"), fi = document.getElementById("fileInput");
 dz.addEventListener("click", ()=>fi.click());
@@ -3586,6 +3820,15 @@ function mergeStores(a, b){
   m.tutorLog = [...new Map([...tLog(older.tutorLog), ...tLog(newer.tutorLog)]).values()];
   m.custom = newer.custom !== undefined && newer.custom !== null ? newer.custom : (older.custom || null);
   m.ext = (b.ext && (!a.ext || (b.ext.at || 0) >= (a.ext.at || 0))) ? b.ext : (a.ext || null);
+  // decks: union by id; for a deck both devices have, the copy reviewed more recently wins card by card
+  m.decks = Object.assign({}, older.decks || {}, newer.decks || {});
+  for (const id in (older.decks || {})) {
+    const o = older.decks[id], n = (newer.decks || {})[id]; if (!n) continue;
+    m.decks[id] = Object.assign({}, n, {cards: (n.cards || []).map((c, i) => {
+      const oc = (o.cards || [])[i]; if (!oc) return c;
+      return (oc.seen || 0) > (c.seen || 0) ? oc : c;
+    })});
+  }
   m.deleted = {};
   for (const src of [a.deleted || {}, b.deleted || {}])
     for (const k of Object.keys(src)) m.deleted[k] = Math.max(m.deleted[k] || 0, src[k]);
@@ -4201,6 +4444,52 @@ document.querySelector(".wrap").addEventListener("change", e => {
   const list = {}; document.querySelectorAll("[data-check]").forEach(c => { list[c.dataset.check] = c.checked ? 1 : 0; });
   adminSave({checklist: list});
 });
+/* Review: the cards the tutor wrote, coming back on schedule. No tokens, no limits, on every plan. */
+const REVIEW = {open: false, queue: [], at: 0, flip: false, done: 0, right: 0, course: null, pushed: false};
+function openReview(course, opts = {}){
+  REVIEW.queue = dueCards(course).sort(() => Math.random() - 0.5).slice(0, 30);
+  if (!REVIEW.queue.length) { toast("Nothing due for review. Make a deck in the Study screen."); return; }
+  REVIEW.open = true; REVIEW.at = 0; REVIEW.flip = false; REVIEW.done = 0; REVIEW.right = 0; REVIEW.course = course || null;
+  renderReview();
+  reviewPage.hidden = false; document.documentElement.style.overflow = "hidden";
+  REVIEW.pushed = false;
+  if (!opts.fromHistory) { try { history.pushState({review: true}, "", location.pathname + location.search + "#review"); REVIEW.pushed = true; } catch(_){} }
+}
+function closeReview(opts = {}){
+  if (reviewPage.hidden) return;
+  reviewPage.hidden = true; reviewPage.innerHTML = ""; REVIEW.open = false;
+  document.documentElement.style.overflow = ""; render();
+  const pushed = REVIEW.pushed; REVIEW.pushed = false;
+  if (!opts.fromHistory && pushed) { try { history.back(); return; } catch(_){} }
+  if (/#review/.test(location.hash)) { try { history.replaceState(null, "", location.pathname + location.search); } catch(_){} }
+}
+function renderReview(){
+  const q = REVIEW.queue, i = REVIEW.at, left = q.length - i;
+  if (i >= q.length) {
+    reviewPage.innerHTML = `<div class="sp-head"><button class="sp-back" data-act="rv-close">← Plan</button><div class="sp-title"><b>Done</b><span>${esc(REVIEW.course || "review")}</span></div></div>
+      <div class="rv-body"><div class="card rv-done"><b>${REVIEW.right} of ${REVIEW.done} right.</b>
+        <p class="sub2" style="margin:8px 0 0">${REVIEW.right === REVIEW.done ? "The ones you knew come back later; the rest come back sooner." : "What you missed comes back tomorrow. That is the whole trick."}</p>
+        <div class="row" style="margin-top:14px"><button class="btn primary" data-act="rv-close">Back to today</button>${dueCards(REVIEW.course).length ? `<button class="btn ghost" data-act="rv-more">Keep going · ${dueCards(REVIEW.course).length} left</button>` : ""}</div></div></div>`;
+    return;
+  }
+  const it = q[i];
+  reviewPage.innerHTML = `<div class="sp-head"><button class="sp-back" data-act="rv-close">← Plan</button>
+      <div class="sp-title"><b>Review · ${esc(it.course)}</b><span>${i + 1} of ${q.length} · ${esc(it.title)}</span></div></div>
+    <div class="rv-body">
+      <button class="fc rv-card ${REVIEW.flip ? "flipped" : ""}" data-act="rv-flip" aria-label="Flip the card">
+        <span class="fc-side front">${esc(it.card.front)}</span><span class="fc-side back">${esc(it.card.back)}</span></button>
+      <div class="rv-acts">${REVIEW.flip
+        ? `<button class="btn ghost" data-act="rv-miss">Not yet</button><button class="btn primary" data-act="rv-got">Got it</button>`
+        : `<button class="btn primary" data-act="rv-flip">Show the answer</button>`}</div>
+      <p class="privacy" style="text-align:center">${left} to go. Reviewing is free on every plan.</p>
+    </div>`;
+}
+function reviewAnswer(ok){
+  const it = REVIEW.queue[REVIEW.at]; if (!it) return;
+  gradeCard(it.deck, it.i, ok);
+  REVIEW.done++; if (ok) REVIEW.right++;
+  REVIEW.at++; REVIEW.flip = false; renderReview();
+}
 /* bars + a line over 30 day keys; used for opens/installs and for cash/tokens */
 function chartCard(title, sub, keys, bar, line, barLabel, lineLabel, fmt, tip){
   const W = 640, H = 210, padL = 40, padR = 12, padT = 12, padB = 26;
