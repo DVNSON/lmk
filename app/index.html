@@ -1882,6 +1882,45 @@ function openPlus(){
   document.getElementById("plusClose").onclick = () => plusOverlay.classList.remove("open");
   if (MODE === "web") plusRefresh(false);
 }
+/* Coming back from Stripe should feel like something happened. A toast at the bottom of the page is not
+   that: money changed hands and the app said nothing a student would notice. A payment that lands now
+   opens the sheet — what you are on, what it just unlocked, and a way straight into the thing you paid for. */
+function unlockedLines(level){
+  const t = tierOf(level), f = tierOf("free"), out = [];
+  out.push(["\u25c6", t.units + " tutor units a day", "Up from " + f.units + ". A message costs one; a quiz or a deck costs three."]);
+  if (t.quiz > f.quiz || t.cards > f.cards) out.push(["\u25ce", "Longer quizzes, bigger decks", "Quizzes of " + t.quiz + " questions and decks of " + t.cards + " cards."]);
+  if (t.think && !f.think) out.push(["\u2726", "Deep thinking on hard problems", "The tutor takes its time on the ones that deserve it."]);
+  if (t.files && !f.files) out.push(["\u25a4", "Your slides and readings", "Attach a lecture file and it answers from what your professor actually said."]);
+  if (t.vision && !f.vision) out.push(["\u25d0", "Photograph a problem", "Point your phone at the page and work through it together."]);
+  out.push(["\u21bb", "Review stays free, forever", "Every card you make comes back on schedule, on every plan, unmetered."]);
+  return out;
+}
+function openUnlocked(opt){
+  const credits = (opt || {}).credits || 0, lvl = (opt || {}).level || myLevel(), t = tierOf(lvl);
+  const first = (typeof EVENTS !== "undefined" && EVENTS ? EVENTS.filter(open).sort((a, b) => a.due - b.due) : [])[0];
+  const list = credits ? [] : unlockedLines(lvl);
+  const short = first ? (first.title.length > 26 ? first.title.slice(0, 26) + "\u2026" : first.title) : "";
+  document.getElementById("plusModal").innerHTML = `
+    <div class="confetti" aria-hidden="true" style="z-index:3">${Array.from({length: 14}, (_, i) => `<i style="--i:${i}"></i>`).join("")}</div>
+    <div class="plus-hero">
+      <div class="eyebrow">${credits ? "Top-up complete" : "Welcome to " + esc(TIER_NAMES[lvl] || "Plus")}</div>
+      <h3 id="plusTitle">${credits ? credits + " units added." : "You're on " + esc(TIER_NAMES[lvl] || "Plus") + "."}</h3>
+      <div class="price">${credits ? "Spent only after each day's allowance" : `<b>${t.units}</b> units a day`}</div>
+    </div>
+    <p style="margin:0 0 16px;font-size:14.5px;color:var(--ink-2);line-height:1.55">${credits
+      ? "They never expire. The day's allowance is always spent first, so a pack only gets touched on the days you go past it."
+      : "Thank you for backing LMK. This is what just opened up."}</p>
+    ${list.length ? `<ul class="plus-list">${list.map(x => `<li><span class="ic">${x[0]}</span><div><b>${esc(x[1])}</b><span>${esc(x[2])}</span></div></li>`).join("")}</ul>` : ""}
+    <div class="plus-cta">
+      ${first ? `<button class="btn grad" id="unlockGo">\u2726 Try it on ${esc(short)}</button>` : ""}
+      <button class="minibtn" id="plusClose">${first ? "Later" : "Close"}</button>
+    </div>
+    <p class="plus-note">Your plan lives on the server, not in this browser, so it follows you to every device you sign in on.${store.cloud && store.cloud.sid ? ` Support code <b style="font-family:'Spline Sans Mono',monospace">${esc(store.cloud.sid.slice(0, 8))}</b>.` : ""}</p>`;
+  plusOverlay.classList.add("open");
+  document.getElementById("plusClose").onclick = () => plusOverlay.classList.remove("open");
+  const go = document.getElementById("unlockGo");
+  if (go && first) go.onclick = () => { plusOverlay.classList.remove("open"); markStart(first.id); openStudy(first.id); };
+}
 plusOverlay.addEventListener("click", e => { if (e.target === plusOverlay) plusOverlay.classList.remove("open"); });
 document.getElementById("plusPill").addEventListener("click", openPlus);
 function renderPlusPill(){
@@ -1903,8 +1942,8 @@ function renderPlusPill(){
     const poll = async () => {
       tries++; await plusRefresh(true);
       const me = PLUS.me || {};
-      if (me.plus) { toast("Welcome to " + (TIER_NAMES[me.level] || "Plus") + ". Thank you for backing LMK."); TUTOR.state = "unknown"; return; }
-      if ((me.credits || 0) > wasCredits) { toast((me.credits - wasCredits) + " units added. They never expire."); TUTOR.state = "unknown"; return; }
+      if (me.plus) { TUTOR.state = "unknown"; render(); openUnlocked({level: me.level}); return; }
+      if ((me.credits || 0) > wasCredits) { TUTOR.state = "unknown"; render(); openUnlocked({credits: me.credits - wasCredits}); return; }
       if (tries < 6) setTimeout(poll, 3000); else toast("Payment received? It shows up here within a minute or two.");
     };
     setTimeout(poll, 1500);
@@ -3044,7 +3083,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v43.2";
+const APP_BUILD = "v44.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
