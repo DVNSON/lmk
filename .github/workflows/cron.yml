@@ -1,5 +1,7 @@
-# LMK's background sync tick. Cloudflare's own cron trigger never fires for the worker, so this job
-# calls a keyed route every five minutes instead. The key unlocks nothing but that route.
+# A BACKSTOP ONLY. Cloudflare's own cron fires every 3 minutes and is the real tick (worker.js scheduled()).
+# GitHub throttles */5 schedules hard: measured 2026-09-09, this workflow ran 8 times in 24 hours, not 288,
+# with a median gap of 3.5 hours — the runs start on time, GitHub simply does not create most of them.
+# So nothing time-sensitive may depend on this file. It exists to cover a Cloudflare outage, nothing more.
 name: LMK sync tick
 on:
   schedule:

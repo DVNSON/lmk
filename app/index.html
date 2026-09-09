@@ -1867,8 +1867,15 @@ function packsHtml(){
     <p class="privacy" style="margin:4px 0 8px">Units you buy never expire and are spent only after the day's allowance. No subscription needed.</p>
     <div class="row" style="margin:0">${list.map(p => `<a class="btn ghost" href="${esc(packLink(p))}" target="_blank" rel="noopener">${p.units} units · ${esc(p.price || "")}</a>`).join("")}</div></div>`;
 }
+/* Free is a one-off trial, the paid tiers are a daily allowance. Every sentence that quotes a number has to
+   say which, or a student reads "20 units" and expects them back tomorrow. */
+function unitPhrase(level, cap){
+  const t = tierOf(level);
+  const p = t.trial ? `${t.units} tutor units to try it, once` : `${t.units} tutor units a day`;
+  return cap ? p.charAt(0).toUpperCase() + p.slice(1) : p;
+}
 function tierLines(level){
-  const t = tierOf(level), out = [`${t.units} tutor units a day`, `Quizzes of ${t.quiz} · decks of ${t.cards}`];
+  const t = tierOf(level), out = [unitPhrase(level, true), `Quizzes of ${t.quiz} · decks of ${t.cards}`];
   if (level !== "free") out.push("Everything in " + TIER_NAMES[level === "pro" ? "plus" : "free"]);
   if (t.files) out.push("Ask about your lecture slides and readings");
   if (t.vision) out.push("Photograph a problem and work it through");
@@ -1894,9 +1901,9 @@ var renderPlus = function(){
   if (!plusPossible() || (!offer.link && !(me && me.plus) && !(offer.tiers))) { way.hidden = true; return; }
   const lvl = myLevel(), t = tierOf(lvl), nextT = tierOf(lvl === "free" ? "plus" : "pro");
   let html;
-  if (lvl !== "free") html = `<span>✓ <b>You're on ${TIER_NAMES[lvl]}${me && me.granted ? ", on the house" : ""}.</b> ${t.units} tutor units a day${me && me.credits ? ", plus " + me.credits + " credits" : ""}.${me && me.until ? (me.granted ? " Until " + FMT_DAY.format(new Date(me.until)) : " Renews " + FMT_DAY.format(new Date(me.until - 3 * 864e5))) + "." : ""}</span>${offer.portal && !(me && me.granted) ? `<a class="minibtn" href="${esc(offer.portal)}" target="_blank" rel="noopener">Manage or change plan</a>` : ""}<button class="minibtn" data-act="plus-open">See plans</button>`;
+  if (lvl !== "free") html = `<span>✓ <b>You're on ${TIER_NAMES[lvl]}${me && me.granted ? ", on the house" : ""}.</b> ${unitPhrase(lvl)}${me && me.credits ? ", plus " + me.credits + " credits" : ""}.${me && me.until ? (me.granted ? " Until " + FMT_DAY.format(new Date(me.until)) : " Renews " + FMT_DAY.format(new Date(me.until - 3 * 864e5))) + "." : ""}</span>${offer.portal && !(me && me.granted) ? `<a class="minibtn" href="${esc(offer.portal)}" target="_blank" rel="noopener">Manage or change plan</a>` : ""}<button class="minibtn" data-act="plus-open">See plans</button>`;
   else if (me && /^(canceled|revoked)$/.test(me.status || "")) html = `<span>Your plan ended. The free version keeps everything else.</span><button class="btn grad" data-act="plus-open">See plans</button>`;
-  else html = `<span><b>LMK plans</b> · ${t.units} tutor units a day free, ${nextT.units} on ${TIER_NAMES[lvl === "free" ? "plus" : "pro"]} for ${esc(nextT.price)}.</span><button class="btn grad" data-act="plus-open">See plans</button>`;
+  else html = `<span><b>LMK plans</b> · ${unitPhrase("free")}, then ${nextT.units} a day on ${TIER_NAMES[lvl === "free" ? "plus" : "pro"]} for ${esc(nextT.price)}.</span><button class="btn grad" data-act="plus-open">See plans</button>`;
   el.innerHTML = html; way.hidden = false;
 };
 /* keep the footer pill in step with whatever renderPlus learned */
@@ -1953,7 +1960,7 @@ function openPlus(){
    opens the sheet — what you are on, what it just unlocked, and a way straight into the thing you paid for. */
 function unlockedLines(level){
   const t = tierOf(level), f = tierOf("free"), out = [];
-  out.push(["\u25c6", t.units + " tutor units a day", "Up from " + f.units + ". A message costs one; a quiz or a deck costs three."]);
+  out.push(["\u25c6", t.units + " tutor units a day", (f.trial ? "The free trial was " + f.units + " units, once. This is every day." : "Up from " + f.units + ".") + " A message costs one; a quiz or a deck costs three."]);
   if (t.quiz > f.quiz || t.cards > f.cards) out.push(["\u25ce", "Longer quizzes, bigger decks", "Quizzes of " + t.quiz + " questions and decks of " + t.cards + " cards."]);
   if (t.think && !f.think) out.push(["\u2726", "Deep thinking on hard problems", "The tutor takes its time on the ones that deserve it."]);
   if (t.files && !f.files) out.push(["\u25a4", "Your slides and readings", "Attach a lecture file and it answers from what your professor actually said."]);
@@ -2252,9 +2259,12 @@ function tutorNote(){
   const next = lvl === "free" ? "plus" : lvl === "plus" ? "pro" : "";
   const nextT = next ? tierOf(next) : null, canSell = next && nextT && nextT.sell && tierLink(next);
   if (TUTOR.state === "off") { el.textContent = "The tutor is resting right now. Your own AI below still works."; if (up) up.innerHTML = ""; return; }
-  if (TUTOR.state === "allowance") el.innerHTML = `<b>Today's ${TUTOR.daily || ""} units are used.</b> More tomorrow${TUTOR.credits ? ` · ${TUTOR.credits} bought units left` : ""}; your own AI below is unlimited.`;
-  else if (TUTOR.left != null) el.innerHTML = `<b>${TUTOR.left} of ${TUTOR.daily} ${name} units</b> left today${TUTOR.credits ? ` · ${TUTOR.credits} credits after that` : ""}. <span title="A message costs 1, a quiz or a deck costs 3" style="border-bottom:1px dotted var(--line-strong);cursor:help">What's a unit?</span>`;
-  else el.innerHTML = `A few tutor units a day.`;
+  const isTrial = !!(PLUS.me && PLUS.me.trial) || tierOf(lvl).trial;
+  if (TUTOR.state === "allowance") el.innerHTML = isTrial
+    ? `<b>Your free trial is used up.</b> ${TUTOR.credits ? `${TUTOR.credits} bought units left · ` : ""}A plan brings the tutor back every day; your own AI below is unlimited either way.`
+    : `<b>Today's ${TUTOR.daily || ""} units are used.</b> More tomorrow${TUTOR.credits ? ` · ${TUTOR.credits} bought units left` : ""}; your own AI below is unlimited.`;
+  else if (TUTOR.left != null) el.innerHTML = `<b>${TUTOR.left} of ${TUTOR.daily} ${name} units</b> left ${isTrial ? "in your free trial" : "today"}${TUTOR.credits ? ` · ${TUTOR.credits} credits after that` : ""}. <span title="A message costs 1, a quiz or a deck costs 3" style="border-bottom:1px dotted var(--line-strong);cursor:help">What's a unit?</span>`;
+  else el.innerHTML = isTrial ? `A free trial of the tutor.` : `A few tutor units a day.`;
   const topUp = TUTOR.state === "allowance" && packList().some(p => packLink(p));
   if (up) { up.innerHTML = topUp ? `<button class="btn grad" data-act="plus-open">Buy more units</button>` : canSell && !(PLUS.me && PLUS.me.plus) ? `<button class="btn grad" data-act="plus-open">${TIER_NAMES[next]} · ${nextT.units} a day · ${esc(nextT.price)}</button>` : canSell ? `<button class="minibtn" data-act="plus-open">Change plan</button>` : ""; bind(); }
 }
@@ -2835,7 +2845,7 @@ function renderNow(root){
     if (!seen) {
       const first = EVENTS.filter(open).sort((a, b) => a.due - b.due)[0];
       const free = tierOf("free").units, pw = tierOf("plus").units;
-      html += `<div class="card intro" data-i="1"><span class="ic">✦</span><div class="txt"><b>New: a tutor that knows your assignments.</b>Open any assignment and ask. It's already read the instructions, your notes and your syllabus, and it coaches instead of doing the work. ${free} free tutor units a day; Plus gets ${pw}.</div>
+      html += `<div class="card intro" data-i="1"><span class="ic">✦</span><div class="txt"><b>New: a tutor that knows your assignments.</b>Open any assignment and ask. It's already read the instructions, your notes and your syllabus, and it coaches instead of doing the work. ${unitPhrase("free")}; Plus gets ${pw} a day.</div>
         <div class="acts">${first ? `<button class="btn grad" data-act="ai" data-id="${first.id}">Try it on ${esc(first.title.length > 22 ? first.title.slice(0, 22) + "…" : first.title)}</button>` : ""}<button class="minibtn" data-act="plus-open">See plans</button></div><button class="x" data-act="intro-dismiss" aria-label="Dismiss">✕</button></div>`;
     }
   }
@@ -3304,7 +3314,7 @@ function cachePlanLine(days, today){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v47.1";
+const APP_BUILD = "v48.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -4926,7 +4936,7 @@ function renderAdmin(root){
   const perMsg = costRows30 ? CO.d30.usd / costRows30 : 0;
   const attention = [];
   if (!TU.configured) attention.push(["tutor", "The tutor has no API key; students see only their own AI."]);
-  if (cronStale) attention.push(["ops", `Cron last ran ${ago(ops.cronAt)}; expected every 5 minutes. Check the Actions tab of DVNSON/lmk.`]);
+  if (cronStale) attention.push(["ops", `Cron last ran ${ago(ops.cronAt)}; Cloudflare fires it every 3 minutes. Check the worker triggers first; the Actions tick is only a backstop and GitHub throttles it to a few runs a day.`]);
   if (!PL.webhook) attention.push(["plus", "Stripe webhook secret is not set; payments can't be recognised."]);
   if (!PL.plusLink) attention.push(["plus", "No Payment Link saved; nobody can buy Plus."]);
   if ((CL.errors || 0) > 0) attention.push(["students", `${CL.errors} student sync${CL.errors === 1 ? " needs" : "s need"} attention.`]);
