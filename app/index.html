@@ -3164,7 +3164,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v46.0";
+const APP_BUILD = "v46.1";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -4756,7 +4756,12 @@ function renderAdmin(root){
   const priceNum = parseFloat(String(PL.plusPrice || "").replace(/[^0-9.]/g, "")) || 4;
   const mrr = RV ? RV.mrr : (PL.paying || 0) * priceNum;
   const spend30 = CO ? CO.d30.usd : 0, spendToday = CO ? CO.today.usd : 0, cash30 = RV ? RV.d30.usd : 0;
-  const perMsg = CO && CO.d30.n ? CO.d30.usd / CO.d30.n : 0;
+  /* Two independent counts of the same thing: `tutor_msg` is bumped by reserve() before a single token is
+     bought, and `usage.n` is incremented by recordUsage after a reply lands. They must agree by construction.
+     They differed by ten for two days and nothing on the page said so — which is how "0.00¢ a message,
+     measured" got printed as fact while the cost ledger had never once run. */
+  const msgs30 = sum("tutor_msg", 0, 30), costRows30 = CO ? CO.d30.n : 0, costGap = msgs30 - costRows30;
+  const perMsg = costRows30 ? CO.d30.usd / costRows30 : 0;
   const attention = [];
   if (!TU.configured) attention.push(["tutor", "The tutor has no API key; students see only their own AI."]);
   if (cronStale) attention.push(["ops", `Cron last ran ${ago(ops.cronAt)}; expected every 5 minutes. Check the Actions tab of DVNSON/lmk.`]);
@@ -4768,6 +4773,7 @@ function renderAdmin(root){
   if (installs >= 5 && syncs / installs < 0.5) attention.push(["students", `Only ${conv}% of devices ever reached Canvas. Activation, not features, is the bottleneck.`]);
   if (!TU.tutorOn) attention.push(["tutor", "The tutor is switched off."]);
   if (d.costError || d.revenueError) attention.push(["ops", "Cost or revenue tables failed to read: " + (d.costError || d.revenueError) + ". Apply schema.sql."]);
+  if (CO && costGap > 0) attention.push(["tutor", `${n(costGap)} of ${n(msgs30)} tutor message${msgs30 === 1 ? "" : "s"} left no cost row, so what the tutor spends is unknown. Send one message and check the usage table.`]);
   if (CO && RV && spend30 > cash30 && spend30 > 1) attention.push(["revenue", `The tutor cost ${money(spend30)} in 30 days against ${money(cash30)} in cash.`]);
   const TABS = [["overview", "Overview", 0], ["revenue", "Revenue", 0], ["students", "Students", CL.errors || 0], ["tutor", "Tutor", 0], ["plus", "Plus", 0], ["ops", "Ops", (cronStale ? 1 : 0) + (errToday ? 1 : 0)]];
   if (!TABS.some(t => t[0] === ADMIN.tab)) ADMIN.tab = "overview";
@@ -4834,7 +4840,7 @@ function renderAdmin(root){
     html += `<div class="tiles">
       ${tile("Messages today", n(T.tutor_msg), `of ${n(TU.tutorDaily)} free pot · ${n(TU.tutorPlusDaily)} member pot`)}
       ${tile("This week", n(sum("tutor_msg", 23, 30)), `${n(sum("tutor_msg", 0, 30))} in 30 days`, delta(last7("tutor_msg"), prev7("tutor_msg")))}
-      ${tile("Spend", money(spend30), CO ? `last 30 days · ${(perMsg * 100).toFixed(2)}¢ a message, measured` : "no cost data yet")}
+      ${tile("Spend", money(spend30), CO ? (costRows30 ? `last 30 days · ${(perMsg * 100).toFixed(2)}¢ a message across ${n(costRows30)}${costGap > 0 ? ` of ${n(msgs30)}` : ""}` : `last 30 days · ${n(msgs30)} message${msgs30 === 1 ? "" : "s"} sent, none costed yet`) : "no cost data yet", costGap > 0 ? `<span class="d down">${n(costGap)} without a cost row</span>` : "")}
       ${tile("Model", TU.tutorModel === "claude-opus-5" ? "Opus 5" : "Sonnet 5", "chat · quizzes and decks always on Sonnet")}
     </div>`;
     html += `<div class="card adm-card"><h3>Ceilings</h3><p class="sub2">${TU.configured ? "" : "<b>Not configured:</b> set the ANTHROPIC_API_KEY secret on the worker and this turns on. "}Four checks run before any token is bought. The pots are shared daily counts: free accounts stop at the free pot, members keep going to the member pot. Set the Anthropic console's monthly limit to match.</p>
