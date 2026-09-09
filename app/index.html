@@ -1450,17 +1450,25 @@ function gradeTone(pct){ return pct >= 90 ? "good" : pct >= 80 ? "" : pct >= 70 
 let GRADES = null;
 function buildGrades(){
   GRADES = {};
-  const ext = store.ext || {}, items = ext.items || {}, groupsByCourse = ext.groups || {};
+  const ext = store.ext || {}, items = ext.items || {}, groupsByCourse = ext.groups || {}, metas = ext.courses || [];
+  const num = v => (v === null || v === undefined || v === "" || !isFinite(+v)) ? null : Math.round(+v * 10) / 10;
   COURSES.forEach(c => {
     const scored = EVENTS.filter(e => e.course === c && !store.dropped[e.id])
       .map(e => ({e, g: (store.grades || {})[e.id]}))
       .filter(x => x.g && +x.g.max > 0);
-    if (!scored.length) { GRADES[c] = null; return; }
     // weights live per Canvas course id; find the one this course's items belong to
-    const cid = (items[(scored[0].e.id || "").slice(1)] || {}).cid || "";
+    const cid = (items[((scored[0] || {}).e || {}).id ? scored[0].e.id.slice(1) : ""] || {}).cid || "";
+    // Canvas's own grade for this course, which already knows about weights, drop rules, late policies
+    // and excused work. It is what the student sees in Canvas, so it is what LMK shows.
+    const cmeta = metas.find(x => x.tag === c) || metas.find(x => String(x.id) === String(cid));
+    const canvasPct = num(cmeta && cmeta.cur), everything = num(cmeta && cmeta.fin);
+    if (!scored.length) {
+      GRADES[c] = canvasPct === null ? null : {pct: canvasPct, letter: letterFor(canvasPct), n: 0, weighted: false, working: 0, src: "canvas", mine: null, everything};
+      return;
+    }
     // A course can define weights and still grade on total points — apply_assignment_group_weights
     // is the switch Canvas honours. Older payloads have no flag, so fall back to "weights if present".
-    const meta = ((store.ext || {}).courses || []).find(x => String(x.id) === String(cid));
+    const meta = ((store.ext || {}).courses || []).find(x => String(x.id) === String(cid)) || ((store.ext || {}).courses || []).find(x => x.tag === c);
     const useWeights = !meta || meta.wt === undefined || meta.wt === true;
     const weights = {};
     if (useWeights) (groupsByCourse[cid] || []).forEach(g => { if (+g.w > 0) weights[String(g.id)] = +g.w; });
@@ -1482,9 +1490,10 @@ function buildGrades(){
       if (!max) { GRADES[c] = null; return; }
       pct = scored.reduce((t, x) => t + +x.g.got, 0) / max * 100;
     }
-    pct = Math.round(pct * 10) / 10;
+    const mine = Math.round(pct * 10) / 10;
+    pct = canvasPct === null ? mine : canvasPct;
     const working = EVENTS.filter(e => e.course === c && !store.dropped[e.id] && extInProgress(items[e.id.slice(1)])).length;
-    GRADES[c] = {pct, letter: letterFor(pct), n: scored.length, weighted, working};
+    GRADES[c] = {pct, letter: letterFor(pct), n: scored.length, weighted, working, src: canvasPct === null ? "lmk" : "canvas", mine, everything};
   });
 }
 function gradeFor(c){ if (!GRADES) buildGrades(); return GRADES[c]; }
@@ -2733,7 +2742,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v38.0";
+const APP_BUILD = "v39.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -3074,6 +3083,8 @@ function openGradeDetail(course){
   const scored = EVENTS.filter(e => e.course === course && !store.dropped[e.id])
     .map(e => ({e, g:(store.grades||{})[e.id]})).filter(x => x.g && +x.g.max > 0);
   const cid = scored.length ? (items[scored[0].e.id.slice(1)] || {}).cid || "" : "";
+  const gap = g.mine != null && Math.abs(g.mine - g.pct) >= 0.5 ? g.mine : null;
+  const everything = g.everything != null && Math.abs(g.everything - g.pct) >= 0.5 ? g.everything : null;
   const gmeta = {}; (groupsByCourse[cid] || []).forEach(x => gmeta[String(x.id)] = x);
   // what is actually costing points, worst first
   const working = EVENTS.filter(e => e.course === course && !store.dropped[e.id] && extInProgress(items[e.id.slice(1)]))
@@ -3088,7 +3099,12 @@ function openGradeDetail(course){
     <h3 id="ddTitle" style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
       <span class="cdot" style="background:${COLOR[course]}"></span>${esc(course)}
       <span class="gbig ${gradeTone(g.pct)}" style="margin-left:auto">${g.pct}% <b>${g.letter}</b></span></h3>
-    <p class="sub2" style="margin:2px 0 14px">From <b>${g.n}</b> graded item${g.n > 1 ? "s" : ""}${g.weighted ? ", weighted by category" : " (no category weights, so straight points)"}${working.length ? ` · <b>${working.length} still working</b>, not counted yet` : ""}${ungraded ? ` · ${ungraded} not graded yet` : ""}.</p>
+    <p class="sub2" style="margin:2px 0 10px">${g.src === "canvas" ? "<b>Canvas's own number</b>, with your course's weights, drop rules and late policy already applied." : "<b>LMK's estimate</b> — Canvas isn't showing a total for this course, so this is from what LMK can see."} From <b>${g.n}</b> graded item${g.n > 1 ? "s" : ""}${g.weighted ? ", weighted by category" : " (no category weights, so straight points)"}${working.length ? ` · <b>${working.length} still working</b>, not counted yet` : ""}${ungraded ? ` · ${ungraded} not graded yet` : ""}.</p>
+    ${(gap !== null || everything !== null) ? `<div class="card" style="padding:12px 14px;margin-bottom:14px;font-size:13px;line-height:1.6">
+      <b style="font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">Other ways to count it</b>
+      ${everything !== null ? `<div style="display:flex;gap:10px;margin-top:8px"><span style="flex:1">If everything unfinished counted as a zero${g.src === "canvas" ? " (Canvas's “Total” column)" : ""}</span><b class="${gradeTone(everything)}" style="font-variant-numeric:tabular-nums">${everything}%</b></div>` : ""}
+      ${gap !== null ? `<div style="display:flex;gap:10px;margin-top:6px"><span style="flex:1">Finished work only, the way it should settle${working.length ? ` (${working.length} still in progress left out)` : ""}</span><b class="${gradeTone(gap)}" style="font-variant-numeric:tabular-nums">${gap}%</b></div>` : ""}
+    </div>` : ""}
     ${cats.length ? `<div class="card" style="padding:12px 14px;margin-bottom:14px">
       <b style="font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">By category</b>
       ${cats.map(gid => { const b = byGroup[gid], pc = Math.round(b.got / b.max * 1000) / 10;
@@ -3113,7 +3129,7 @@ function openGradeDetail(course){
           <b style="width:44px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums">${pc}%</b></div>`; }).join("")}
       <div style="padding:8px 14px 4px;font-size:12px;color:var(--muted)">These count once they're due or finished — so a partly-done set can't drag your grade down while you still have time.</div>
     </div>` : ""}
-    <p class="privacy">Only finished work counts, the same way your grade will settle once everything is turned in. LMK ignores zeros sitting on assignments that aren't due yet, and it can't see dropped scores, curves or extra credit — so your professor's gradebook is still the official one.</p>
+    <p class="privacy">${g.src === "canvas" ? "The number up top is read straight from Canvas, so it matches your gradebook. The categories and the list below are LMK's own reading of your scored work, which is why they can add up a little differently." : "Canvas isn't publishing a total for this course, so LMK adds up what it can see: finished work only. It ignores zeros sitting on assignments that aren't due yet, and it can't see dropped scores,"} curves or extra credit — so your professor's gradebook is still the official one.</p>
     <div class="row" style="margin-top:14px"><button class="btn ghost" id="ddClose">Close</button></div>`;
   detailOverlay.classList.add("open");
 }
