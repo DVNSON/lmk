@@ -693,11 +693,11 @@
 <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
   <div class="modal">
     <h3 id="modalTitle">Get your classes in</h3>
-    <p class="sub2">Three ways. The first one runs itself.</p>
+    <p class="sub2">A few ways. The first one runs itself.</p>
 
     <div class="setupway" id="setupExt">
       <h3 class="h4">Chrome extension</h3>
-      <p class="sub2">Add it to Chrome, then open Canvas once like you normally would. Come back to LMK and refresh; the first refresh or two can still be empty while it syncs, and that's normal. LMK learns every assignment, what's already submitted, your scores, and which items are in-class or not graded. It re-syncs whenever you're in Canvas.</p>
+      <p class="sub2">Add it to Chrome, then open Canvas once like you normally would. Come back to LMK and your classes appear on their own, usually within a few seconds. LMK learns every assignment, what's already submitted, your scores, and which items are in-class or not graded. It re-syncs whenever you're in Canvas.</p>
       <div class="row" style="margin-top:4px"><a class="btn grad" id="setupInstall" href="#" target="_blank" rel="noopener">Add to Chrome →</a></div>
       <p class="sub2" id="setupPhone" style="margin:10px 0 0;font-size:12.5px" hidden>On a phone? Set up on a laptop once, then sign in with Google (bottom of the page) and your plan appears here.</p>
       <p class="sub2" id="setupBg" style="margin:10px 0 0;font-size:12.5px" hidden></p>
@@ -772,7 +772,7 @@
     <div class="wstep"><span class="wnum">1</span><div><b>What should LMK call you?</b>
       <input id="wName" placeholder="First name" autocomplete="off"></div></div>
     <div class="wstep"><span class="wnum">2</span><div><b id="wHead2">Get your classes in.</b>
-      <span class="whint" id="wBody2">Add the LMK for Canvas extension to Chrome, then open Canvas once like you normally would. Come back here and your classes appear. Still empty? That's normal for the first minute: refresh this page a couple of times.</span>
+      <span class="whint" id="wBody2">Add the LMK for Canvas extension to Chrome, then open Canvas once like you normally would. Come back here and your classes appear by themselves; the first sync takes a few seconds.</span>
       <div class="wact">
         <a class="btn grad" id="wInstall" href="#" target="_blank" rel="noopener">Add to Chrome →</a>
         <button class="btn grad" id="wSignin" hidden>Sign in with Google</button>
@@ -899,6 +899,12 @@ function save(){
   catch(e){ if (!drive.ready) syncBadge("⚠ This browser blocks local saving — tap here to connect Drive sync"); }
   scheduleDrivePush();
 }
+/* for the minute tallies: on disk now, to Drive with the next real save or in ten minutes, whichever comes first */
+function saveQuiet(){
+  store.savedAt = Date.now();
+  try { localStorage.setItem(LS_KEY, JSON.stringify(store)); } catch(_){}
+  if (drive.ready && !drive.timer) drive.timer = setTimeout(() => { drive.timer = 0; (MODE === "web" ? gdrivePush : drivePush)(); }, 10 * 60e3);
+}
 
 let activeTab = "now";
 let courseFilter = null;          // course name or null
@@ -919,6 +925,7 @@ function parseDT(v){
   if (m[7] === "Z") return new Date(Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +(m[6]||0)));
   return new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +(m[6]||0));
 }
+const safeUrl = u => /^https?:\/\/[^\s"'<>]+$/i.test(String(u || "")) ? String(u) : "";
 function buildEvents(rows){
   return rows.map(r => {
     const [title, course, dt, courseId, aid, linkOv, effortOv, descRaw, leadAI, whyAI] = r;
@@ -928,8 +935,8 @@ function buildEvents(rows){
     return {
       id, title, course, due,
       allDay: dt.length === 8,
-      url: linkOv ? linkOv : (courseId ? `https://canvas.asu.edu/courses/${courseId}/assignments/${aid}` : null),
-      effort: (store.effortOv || {})["a" + aid] || ((store.seriesRules || {})[seriesKey(title, course) || ""] || {}).effort || effortOv || guessEffort(title),
+      url: safeUrl(linkOv) || (courseId ? `https://canvas.asu.edu/courses/${courseId}/assignments/${aid}` : null),
+      effort: (eff => EFFORT[eff] ? eff : "medium")((store.effortOv || {})["a" + aid] || ((store.seriesRules || {})[seriesKey(title, course) || ""] || {}).effort || effortOv || guessEffort(title)),
       exam: isExam(title),
       desc: descRaw || "",
       aiLead: leadAI ? +leadAI : null,
@@ -1085,7 +1092,7 @@ function absorbTracking(p){
   let changed = false;
   if (p.tab && typeof p.tab === "object") { store.tab = store.tab || {}; for (const aid in p.tab) { const id = "a" + aid, v = Math.round(p.tab[aid]); if (v > (store.tab[id] || 0)) { store.tab[id] = v; changed = true; } } }
   if (p.quizTime && typeof p.quizTime === "object") { for (const aid in p.quizTime) { const id = "a" + aid, m = p.quizTime[aid]; if (m >= 1 && !((store.dur||{})[id]||[]).some(x => x.src === "quiz")) { const e = EVENTS.find(x => x.id === id); recordDuration(id, m, "quiz", e ? learnedMins(e).mins : null); changed = true; } } }
-  if (changed) { save(); }
+  if (changed) { saveQuiet(); }
   return changed;
 }
 function applyCanvasPayload(p, opts = {}){
@@ -1184,20 +1191,22 @@ async function cloudPull(reason){
   if (reason !== "force" && Date.now() - CLOUD.lastPull < 4 * 60e3) return;
   CLOUD.busy = true; CLOUD.lastPull = Date.now();
   try {
-    const r = await cloudFetch("/sync/pull");
+    const r = await cloudFetch("/sync/pull?since=" + ((store.ext && store.ext.at) || 0));
     if (r.status === 401) { CLOUD.registered = false; return; }
     if (!r.ok) return;
     const j = await r.json();
     CLOUD.registered = true; CLOUD.at = j.at || 0; CLOUD.syncedAt = j.syncedAt || 0; CLOUD.err = j.err || "";
     if (j.payload) applyDriveCanvas(j.payload);
+    // `fresh` means the worker has a copy and this device already holds it — a copy exists either way
+    const hasCopy = !!j.payload || !!j.fresh;
     // the worker's copy is old (or missing): ask it to read Canvas now, a few courses per step
-    if (!j.err && (!j.payload || Date.now() - (j.at || 0) > 20 * 60e3) && (reason === "force" || Date.now() - CLOUD.lastRefresh > 10 * 60e3)) {
+    if (!j.err && (!hasCopy || Date.now() - (j.at || 0) > 20 * 60e3) && (reason === "force" || Date.now() - CLOUD.lastRefresh > 10 * 60e3)) {
       CLOUD.lastRefresh = Date.now();
       for (let i = 0; i < 6; i++) {
         const s = await cloudFetch("/sync/refresh", {method:"POST", body:"{}"}); if (!s.ok) break;
         const k = await s.json(); if (!k.ok) { if (k.error) CLOUD.err = k.error; break; } if (k.done) break;
       }
-      const r2 = await cloudFetch("/sync/pull");
+      const r2 = await cloudFetch("/sync/pull?since=" + ((store.ext && store.ext.at) || 0));
       if (r2.ok) { const j2 = await r2.json(); CLOUD.at = j2.at || 0; CLOUD.syncedAt = j2.syncedAt || 0; CLOUD.err = j2.err || ""; if (j2.payload) applyDriveCanvas(j2.payload); }
     }
   } catch(_){} finally { CLOUD.busy = false; renderCloudStatus(); }
@@ -1314,6 +1323,7 @@ function nudgeExtension(){
   }, 4000);
 }
 window.addEventListener("message", ev => {
+  if (ev.source !== window) return;   // the extension's content script posts from this window; an opener or a frame never gets in
   const d = ev.data;
   if (d && d.lmk === "canvas-payload" && d.payload) applyCanvasPayload(d.payload);
   if (d && d.lmk === "ext-hello" && !EXT.present) { EXT.present = true; EXT.version = String(d.version || ""); applyExtPresence(); renderDriveOffer(); if (store.onboarded) cloudEnsure(); renderCloudStatus(); if (!store.ext) render(); }
@@ -1343,6 +1353,14 @@ function loadData(){
       (store.custom ? store.custom.label : (SEED_EMPTY ? "Your Canvas" : SEED_LABEL)) + ` · ${EVENTS.length} assignments` +
       (store.custom ? (store.custom.loadedAt ? ` · uploaded ${store.custom.loadedAt}` : "") : (SEED_EMPTY ? "" : ` · auto-synced ${SYNCED_AT}`)) +
       (store.ext ? ` · Canvas via extension ${extAgo()}` : "");
+}
+/* the "5 min ago" in the footer must age with the page, not freeze at load */
+function refreshSrcAge(){
+  const el = document.getElementById("srcLabel"); if (!el || !store.ext) return;
+  el.textContent = el.textContent.replace(/Canvas via extension .*$/, "Canvas via extension " + extAgo());
+  const stale = Date.now() - (store.ext.at || 0) > 24 * 3600e3;
+  el.style.color = stale ? "var(--warn-text)" : "";
+  el.title = stale ? "Canvas hasn't been read in over a day. Open Canvas once, or check the extension." : "";
 }
 
 /* ================= helpers ================= */
@@ -1546,7 +1564,7 @@ function toggleDone(id, el, doneMsg){
     markDoneToday();
     if (el) { el.classList.add("popping"); burstAt(el.querySelector(".cbx")); }
     toast(doneMsg || "Marked done.", {label: "Undo", fn: () => {
-      delete store.done[id];
+      delete store.done[id]; delete (store.handDone || {})[id];
       store.deleted = store.deleted || {}; store.deleted["done:" + id] = Date.now();
       const today = dayKey(now());
       if (!Object.values(store.done).some(ts => dayKey(new Date(ts)) === today))
@@ -1580,7 +1598,9 @@ function maybeCelebrate(){
     <button class="btn primary" id="celebClose">Nice.</button>`;
   document.getElementById("celebrateOverlay").classList.add("open");
 }
-function toggleStar(id){ if (store.starred[id]) delete store.starred[id]; else store.starred[id] = 1; save(); render(); }
+function tomb(kind, id){ store.deleted = store.deleted || {}; store.deleted[kind + ":" + id] = Date.now(); }
+function untomb(kind, id){ if (store.deleted) delete store.deleted[kind + ":" + id]; }
+function toggleStar(id){ if (store.starred[id]) { delete store.starred[id]; tomb("starred", id); } else { store.starred[id] = Date.now(); untomb("starred", id); } save(); render(); }
 
 /* ================= syllabus intelligence ================= */
 const SEMESTER_WEEK1_MON = new Date(2026, 7, 17);   // Monday of ASU Fall C week 1
@@ -1640,7 +1660,7 @@ function studyPrompt(e){
   let p = assemble(700, 4000, 1000);
   if (encodeURIComponent(p).length > 7500) p = assemble(500, 1500, 600);
   if (encodeURIComponent(p).length > 7500) p = trimAt(p, 2400);
-  if ((store.lmkSyllabusIds||{})[e.course]) p += `\n\nMy complete ${e.course} syllabus is in my Google Drive as a doc titled "LMK syllabus — ${e.course}" — you have my Drive connected, so open and read it whenever the excerpt above isn't enough.`;
+  if (MODE === "artifact" && (store.lmkSyllabusIds||{})[e.course]) p += `\n\nMy complete ${e.course} syllabus is in my Google Drive as a doc titled "LMK syllabus — ${e.course}" — you have my Drive connected, so open and read it whenever the excerpt above isn't enough.`;
   return p;
 }
 const aiHref = e => "https://claude.ai/new?q=" + encodeURIComponent(studyPrompt(e));
@@ -2008,6 +2028,8 @@ function openStudy(id, opts = {}){
   document.getElementById("spBack").onclick = () => closeStudy();
   studyPage.querySelectorAll('[data-act="plus-open"]').forEach(b => b.addEventListener("click", openPlus));
   const nt = document.getElementById("spNotes");
+  let ntTimer = 0;
+  nt.addEventListener("input", () => { clearTimeout(ntTimer); ntTimer = setTimeout(() => nt.dispatchEvent(new Event("change")), 500); });
   nt.addEventListener("change", () => {
     if (e.isCourse) { store.courseNotes = store.courseNotes || {}; if (nt.value.trim()) store.courseNotes[e.course] = nt.value.trim(); else delete store.courseNotes[e.course]; }
     else { store.itemNotes = store.itemNotes || {}; if (nt.value.trim()) store.itemNotes[e.id] = nt.value.trim(); else delete store.itemNotes[e.id]; }
@@ -2129,7 +2151,7 @@ function itemRow(e, opts={}){
     </div>
     <div class="side">
       <button class="iconbtn ${store.starred[e.id]?"starred":""}" data-act="star" title="Flag as a big grade item" aria-label="Flag as big grade item">${ICON_STAR}</button>
-      ${e.url ? `<a class="iconbtn" href="${e.url}" target="_blank" rel="noopener" title="Open link" aria-label="Open link">${ICON_LINK}</a>` : ""}
+      ${e.url ? `<a class="iconbtn" href="${esc(e.url)}" target="_blank" rel="noopener" title="Open link" aria-label="Open link">${ICON_LINK}</a>` : ""}
       ${e.id.startsWith("acustom-") ? `<button class="iconbtn" data-act="del" title="Delete this one" aria-label="Delete this assignment">${ICON_TRASH}</button>` : ""}
     </div>
   </div>`;
@@ -2236,7 +2258,7 @@ function planRow(c, today){
       </div>
     </div>
     <div class="side">
-      ${e.url ? `<a class="iconbtn" href="${e.url}" target="_blank" rel="noopener" title="Open link" aria-label="Open link">${ICON_LINK}</a>` : ""}
+      ${e.url ? `<a class="iconbtn" href="${esc(e.url)}" target="_blank" rel="noopener" title="Open link" aria-label="Open link">${ICON_LINK}</a>` : ""}
     </div>
   </div>`;
 }
@@ -2263,8 +2285,9 @@ function capacityCard(){
   </div>`;
 }
 let showCap = false;
+const openPiles = new Set();   // which piles the student opened; kept in the HTML so the minute render never folds them
 function pileRow(b, today){
-  const hot = b.start <= today, openNow = false;   // the Today plan carries the "start now" items; piles stay folded
+  const hot = b.start <= today, openNow = openPiles.has(b.key);
   const names = b.items.map(e => e.title.length > 28 ? e.title.slice(0, 27) + "…" : e.title);
   return `<div class="item pile ${openNow ? "openpile" : ""}" data-pile="${esc(b.key)}" style="box-shadow:inset 3px 0 0 ${COLOR[b.course]}">
     <div class="body" style="padding-left:4px">
@@ -2332,7 +2355,7 @@ function renderNow(root){
       <div class="why">Why this: <b>${esc(whyTxt)}</b></div>
       <div class="actions">
         <button class="btn primary" data-act="done-submit" data-id="${e.id}">${e.url ? "Done ✓ — submit in Canvas ↗" : "Done — next ✓"}</button>
-        ${e.url?`<a class="btn ghost" href="${e.url}" target="_blank" rel="noopener">Open in Canvas ${"↗"}</a>`:""}
+        ${e.url?`<a class="btn ghost" href="${esc(e.url)}" target="_blank" rel="noopener">Open in Canvas ${"↗"}</a>`:""}
         <button class="btn grad" data-act="ai" data-id="${e.id}">✦ Ask the tutor</button>
         ${sprint ? `<span class="countchip soon" id="sprintClock">25:00</span><button class="btn ghost" data-act="sprint-stop">End sprint</button>` : `<button class="btn ghost" data-act="sprint" data-id="${e.id}">▶ 25-min sprint</button>`}
         <button class="btn ghost" data-act="skip" data-id="${e.id}">Not now — skip</button>
@@ -2346,15 +2369,15 @@ function renderNow(root){
         <div class="kicker">${installed ? "One step left" : "First run"}</div>
         <h1>${phone ? "Set up once on a laptop." : installed ? "Extension installed. Now open Canvas once." : "Let's get your classes in."}</h1>
         <div class="why">${phone
-          ? "Add the <b>LMK for Canvas</b> extension to Chrome on a laptop and open Canvas once. Then sign in with Google here and your plan appears on this phone. Still empty after signing in? Reload this page once or twice; the first sync takes a minute."
-          : installed ? "Open Canvas like you normally would, then come back to this tab. Your classes land here by themselves, usually within a few seconds; if it still looks empty, refresh this page a couple of times. Not at ASU? Open your own school's Canvas — any instructure.com address works."
-          : "Three steps, about a minute: <b>1.</b> Add the <b>LMK for Canvas</b> extension to Chrome. <b>2.</b> Open Canvas once like you normally would. <b>3.</b> Come back here and refresh. LMK stays empty until you've opened Canvas, and the first refresh or two can still show nothing while it syncs. That's normal."}</div>
+          ? "Add the <b>LMK for Canvas</b> extension to Chrome on a laptop and open Canvas once. Then sign in with Google here and your plan appears on this phone. The first sync takes a minute and this page picks it up by itself."
+          : installed ? "Open Canvas like you normally would, then come back to this tab. Your classes land here by themselves, usually within a few seconds. Still empty after a minute? Open Canvas once more. Not at ASU? Open your own school's Canvas — any instructure.com address works."
+          : "Three steps, about a minute: <b>1.</b> Add the <b>LMK for Canvas</b> extension to Chrome. <b>2.</b> Open Canvas once like you normally would. <b>3.</b> Come back here; your classes appear by themselves. LMK stays empty until you've opened Canvas, and the first refresh or two can still show nothing while it syncs. That's normal."}</div>
         <div class="actions">
           ${phone ? (gdReady() ? `<button class="btn grad" data-act="web-signin">Sign in with Google</button>` : "")
                   : installed ? `<a class="btn grad" href="${LMK_CONFIG.canvasUrl}" target="_blank" rel="noopener">Open Canvas →</a>`
                   : `<a class="btn grad" href="${LMK_CONFIG.storeUrl}" target="_blank" rel="noopener">Add to Chrome →</a>`}
           ${!phone && !installed ? `<a class="btn ghost" href="${LMK_CONFIG.canvasUrl}" target="_blank" rel="noopener" title="Already added the extension? This is the only other step.">Already added it? Open Canvas →</a>` : ""}
-          ${!phone ? `<button class="btn ghost" data-act="reload" title="Opened Canvas already? This checks again.">Refresh</button>` : ""}
+          ${phone ? `<button class="btn ghost" data-act="open-token" title="A Canvas access token lets LMK's server read Canvas for you">No laptop? Use a Canvas token</button>` : ""}
           ${!phone && MODE === "web" && gdReady() ? `<button class="btn ghost" data-act="web-signin">Sign in with Google</button>` : ""}
           <button class="btn ghost" data-act="open-gear">Other ways</button>
         </div>
@@ -2468,7 +2491,7 @@ function renderPlan(root){
     if (!evs.length) continue;
     any = true;
     const openCt = evs.filter(e=>!store.done[e.id]);
-    const mins = openCt.reduce((s,e)=>s+EFFORT[e.effort].mins,0);
+    const mins = openCt.reduce((s,e)=>s+learnedMins(e).mins,0);
     const label = i===0?"Today":i===1?"Tomorrow":FMT_DAY.format(d);
     const pd = PLAN[dayKey(d)];
     html += `<div class="dayhead"><span class="d">${label}</span><span class="m">${openCt.length} due · ~${mins>=60?Math.round(mins/60*10)/10+"h":mins+"m"}${pd && pd.items.length ? ` · plan ~${fmtMins(pd.mins)} of ${fmtMins(pd.cap)}${pd.mins > pd.cap ? " ⚠" : ""}` : ""}</span></div>`;
@@ -2530,9 +2553,10 @@ function renderPlan(root){
 /* ---------- SEMESTER ---------- */
 function weekBuckets(){
   if (!EVENTS.length) return [];
-  const first = startOfDay(EVENTS[0].due);
+  const today = startOfDay(now());
+  const first = new Date(Math.max(startOfDay(EVENTS[0].due), addDays(today, -56)));   // eight weeks back at most
   const start = addDays(first, -first.getDay());   // Sunday
-  const last = EVENTS[EVENTS.length-1].due;
+  const last = new Date(Math.min(EVENTS[EVENTS.length-1].due, addDays(today, 182)));   // and twenty-six ahead
   const weeks = [];
   for (let s = new Date(start); s <= last; s = addDays(s,7)){
     const e = addDays(s,7);
@@ -2586,7 +2610,7 @@ function renderSemester(root){
         <div class="body"><div class="t" style="font-weight:600">${esc(e.title)}</div>
         <div class="sub"><span class="cdot" style="background:${COLOR[e.course]}"></span><span class="ccode">${esc(e.course)}</span><span class="duelbl">${FMT_DAY.format(e.due)} · ${FMT_TIME.format(e.due)}</span></div></div>
         <button class="minibtn keep" data-act="examplan">Study plan</button>
-        ${e.url?`<a class="iconbtn" href="${e.url}" target="_blank" rel="noopener" aria-label="Open in Canvas">${ICON_LINK}</a>`:""}
+        ${e.url?`<a class="iconbtn" href="${esc(e.url)}" target="_blank" rel="noopener" aria-label="Open in Canvas">${ICON_LINK}</a>`:""}
       </div>`;
     }).join("") + `</div>`;
   } else html += `<div class="empty">No upcoming exams detected${courseFilter?" for this course":""}. Titles with “exam / midterm / final” land here automatically.</div>`;
@@ -2709,7 +2733,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v37.0";
+const APP_BUILD = "v38.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -2741,6 +2765,7 @@ function render(){
 }
 function renderInner(){
   if (typeof adminApply === "function") adminApply();
+  refreshSrcAge();
   computeBundles(); computePlan();
   renderHeader(); renderChips();
   const views = {now:renderNow, plan:renderPlan, semester:renderSemester, admin:renderAdmin};
@@ -2750,7 +2775,9 @@ function renderInner(){
     el.hidden = t !== activeTab;
   });
   const root = document.getElementById("view-"+activeTab);
-  views[activeTab](root);
+  const scratch = document.createElement("section");
+  views[activeTab](scratch);
+  if (scratch.innerHTML !== root.innerHTML) root.innerHTML = scratch.innerHTML;   // an unchanged view keeps its open piles, selection and taps
   if (animNext) {
     animNext = false;
     root.classList.add("anim");
@@ -2850,8 +2877,8 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="done" && id) toggleDone(id, row);
   else if (a==="star" && id) toggleStar(id);
   else if (a==="skip" && id) { skipped.add(id); render(); }
-  else if (a==="keep" && id) { store.triaged[id]=1; store.starred[id]=1; save(); render(); }
-  else if (a==="drop" && id) { store.dropped[id]=1; save(); render(); toast("Let go. It won't come back into the plan.", {label:"Undo", fn: () => { delete store.dropped[id]; save(); render(); }}); }
+  else if (a==="keep" && id) { store.triaged[id] = Date.now(); store.starred[id] = Date.now(); untomb("triaged", id); untomb("starred", id); save(); render(); }
+  else if (a==="drop" && id) { store.dropped[id] = Date.now(); untomb("dropped", id); save(); render(); toast("Let go. It won't come back into the plan.", {label:"Undo", fn: () => { delete store.dropped[id]; tomb("dropped", id); save(); render(); }}); }
   else if (a==="err-reload") { location.reload(); }
   else if (a==="err-dismiss") { const el = document.getElementById("errcard"); if (el) el.hidden = true; }
   else if (a==="del" && id) { store.customRows = (store.customRows||[]).filter(r => "a"+r[4] !== id); store.deleted = store.deleted || {}; store.deleted["custom:" + id.slice(1)] = Date.now(); delete store.done[id]; delete store.starred[id]; delete store.dropped[id]; save(); loadData(); render(); }
@@ -2897,6 +2924,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   }
   else if (a==="gbreak") openGradeDetail(act.dataset.course);
   else if (a==="reload") { location.reload(); }
+  else if (a==="open-token") { const g = document.getElementById("gearBtn"); if (g) g.click(); const dt = document.getElementById("cloudTokenWay"); if (dt) { dt.hidden = false; dt.open = true; setTimeout(() => dt.scrollIntoView({block: "start"}), 100); } }
   else if (a==="plus-open") { openPlus(); }
   else if (a==="intro-dismiss") { try { localStorage.setItem("lmk_tutor_intro", "1"); } catch(_){} render(); }
   else if (a==="open-gear") { const g = document.getElementById("gearBtn"); if (g) g.click(); }
@@ -2927,6 +2955,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="pile") {
     const row = act.closest("[data-pile]"); if (!row) return;
     const on = !row.classList.toggle("openpile");
+    if (on) openPiles.delete(row.dataset.pile); else openPiles.add(row.dataset.pile);
     document.querySelectorAll(`[data-parent="${CSS.escape(row.dataset.pile)}"]`).forEach(el => el.hidden = on);
     const btn = row.querySelector("button[data-act=pile]"); if (btn) btn.textContent = on ? "Open pile" : "Hide";
   }
@@ -3129,7 +3158,7 @@ function openDetail(id){
     </label>
     <div class="row" style="margin-top:14px">
       <button class="btn grad" id="ddStudy" data-act="ai" data-id="${e.id}">✦ Ask the tutor</button>
-      ${e.url?`<a class="btn ghost" href="${e.url}" target="_blank" rel="noopener">Open in Canvas ↗</a>`:""}
+      ${e.url?`<a class="btn ghost" href="${esc(e.url)}" target="_blank" rel="noopener">Open in Canvas ↗</a>`:""}
       <button class="btn ghost" id="ddClose">Close</button>
     </div>
     <p class="privacy" style="margin-top:12px">Notes save automatically and ride along in every ✦ Study with AI prompt for this assignment.</p>`;
@@ -3157,8 +3186,8 @@ function openDetail(id){
   const saveGrade = () => {
     const got = parseFloat(gG.value), max = parseFloat(gM.value);
     store.grades = store.grades || {};
-    if (!isNaN(got) && !isNaN(max) && max > 0) { store.grades[id] = {got, max}; document.getElementById("ddPct").textContent = Math.round(got / max * 100) + "%"; }
-    else { delete store.grades[id]; document.getElementById("ddPct").textContent = ""; }
+    if (!isNaN(got) && !isNaN(max) && max > 0) { store.grades[id] = {got, max, at: Date.now()}; untomb("grades", id); document.getElementById("ddPct").textContent = Math.round(got / max * 100) + "%"; }
+    else { delete store.grades[id]; tomb("grades", id); document.getElementById("ddPct").textContent = ""; }
     save();
   };
   gG.addEventListener("input", saveGrade); gM.addEventListener("input", saveGrade);
@@ -3229,7 +3258,7 @@ function openExamPlan(id){
       </div></div>`).join("") + `</div></div>
     ${related.length ? `<h2 class="sec" style="margin:16px 0 8px">Warm up by redoing these</h2><div class="card"><div class="list">` + related.map(r => `
       <div class="item"><div class="body" style="padding-left:4px"><div class="t" style="font-weight:500">${esc(r.title)}</div></div>
-      ${r.url?`<a class="iconbtn" href="${r.url}" target="_blank" rel="noopener" aria-label="Open in Canvas">${ICON_LINK}</a>`:""}</div>`).join("") + `</div></div>` : ""}
+      ${r.url?`<a class="iconbtn" href="${esc(r.url)}" target="_blank" rel="noopener" aria-label="Open in Canvas">${ICON_LINK}</a>`:""}</div>`).join("") + `</div></div>` : ""}
     <div class="row" style="margin-top:16px">
       <button class="btn primary" id="ppAdd">Add ${blocks.length} study block${blocks.length>1?"s":""} to my plan</button>
       <button class="btn ghost" id="ppClose">Not now</button>
@@ -3509,6 +3538,11 @@ function mergeStores(a, b){
     if (kind === "done") {
       if ((m.done[id] || 0) > m.deleted[k]) delete m.deleted[k];
       else delete m.done[id];
+    } else if (kind === "starred" || kind === "dropped" || kind === "triaged" || kind === "grades") {
+      // a removal beats a value unless the value was set later (values are timestamps; grades carry `at`)
+      const v = (m[kind] || {})[id], at = typeof v === "number" ? v : (v && v.at) || 0;
+      if (at > m.deleted[k]) delete m.deleted[k];
+      else if (m[kind]) delete m[kind][id];
     } else if (kind === "custom") m.customRows = m.customRows.filter(r => r[4] !== id);
     else if (kind === "undated") m.undated = m.undated.filter(u => u.id !== id);
     else if (kind === "tutor") m.tutorLog = m.tutorLog.filter(x => x.id !== id);
@@ -3718,7 +3752,7 @@ async function webSignIn(){
   }
 }
 async function driveCanvasPull(){
-  if (Date.now() - (drive.canvasCheckedAt || 0) < 30 * 60e3) return;
+  if (Date.now() - (drive.canvasCheckedAt || 0) < 5 * 60e3) return;
   drive.canvasCheckedAt = Date.now();
   try {
     const res = await drive.mcp.callTool(drive.server, "search_files",
@@ -3863,12 +3897,20 @@ async function initSync(){
     else syncBadge("☁ Sync unavailable right now — using this device's copy", (err && err.message) || "");
   }
 }
+/* one door for "push now" and "pull if it has been a while", whatever mode we are in */
+function pushNow(){ if (!drive.ready) return; clearTimeout(drive.timer); drive.timer = 0; (MODE === "web" ? gdrivePush : drivePush)().catch(() => {}); }
+async function pullMaybe(){
+  if (!drive.ready || drive.pulling || Date.now() - (drive.lastPull || 0) < 5 * 60e3) return;
+  drive.pulling = true;
+  try { await (MODE === "web" ? gdrivePull : drivePull)(); drive.lastPull = Date.now(); }
+  catch(err) { if (err && err.needsGesture) armGestureSync(); }
+  finally { drive.pulling = false; }
+}
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden" && drive.ready) { clearTimeout(drive.timer); drivePush(); }
+  if (document.visibilityState === "hidden") pushNow();
+  else pullMaybe();
 });
-window.addEventListener("pagehide", () => {
-  if (drive.ready) { clearTimeout(drive.timer); drivePush(); }
-});
+window.addEventListener("pagehide", pushNow);
 document.getElementById("syncBadge").style.cursor = "pointer";
 document.getElementById("syncBadge").title = "Tap to sync now";
 document.getElementById("syncBadge").addEventListener("click", () => {
@@ -3895,7 +3937,7 @@ function openWelcome(){
     set("wBody3", "You're in through your claude.ai account, and everything saves privately to your own Google Drive. LMK shares only anonymous minutes per assignment with other students in your courses — no names, no grades — so everyone's estimates get better.");
   } else if (IS_MOBILE) {
     set("wHead2", "Set up once on a laptop.");
-    set("wBody2", "Add the LMK for Canvas extension to Chrome there and open Canvas once. Then sign in with Google here and your plan appears on this phone. Still empty after signing in? Reload this page once or twice; the first sync takes a minute.");
+    set("wBody2", "Add the LMK for Canvas extension to Chrome there and open Canvas once. Then sign in with Google here and your plan appears on this phone. The first sync takes a minute and this page picks it up by itself.");
     show("wInstall", false); show("wSignin", gdReady()); show("wAct3", false);
   } else {
     show("wInstall", true); show("wSignin", false); show("wAct3", gdReady());
@@ -4040,9 +4082,12 @@ async function adminLookup(){
   try {
     const r = await fetch(apiUrl("/admin/student?key=" + encodeURIComponent(ADMIN.key) + "&sid=" + encodeURIComponent(q.trim())), {mode:"cors", credentials:"omit"});
     const j = await r.json(); const p = j.student;
-    if (!p) { out.textContent = "No student with that code."; return; }
+    const planTxt = j.plan ? (j.plan.plus ? (j.plan.granted ? "Plus, granted" : "Plus, paying") + (j.plan.until ? " until " + FMT_DAY.format(new Date(j.plan.until)) : "") : "free plan") : "";
+    const costTxt = j.cost ? ` · tutor ${j.cost.d30.n} msgs / $${j.cost.d30.usd.toFixed(2)} in 30 d, $${j.cost.all.usd.toFixed(2)} all time` : "";
+    const planBtn = j.sid ? (j.plan && j.plan.plus ? `<button class="minibtn drop" data-act="adm-student" data-sid="${esc(j.sid)}" data-do="revoke">Revoke Plus</button>` : `<button class="minibtn" data-act="adm-student" data-sid="${esc(j.sid)}" data-do="grant" data-months="4">Plus · 4 mo</button>`) : "";
+    if (!p) { out.innerHTML = j.sid ? `Known to the worker (${esc(planTxt)}${costTxt}) but not syncing from anywhere. ${planBtn}` : "No student with that code."; return; }
     const ago = t => t ? Math.round((Date.now() - t) / 60000) + " min ago" : "never";
-    out.innerHTML = `${esc(p.host)} · ${p.courses} courses · last read ${ago(p.synced_at)} · ${!p.active ? "paused" : p.err ? esc(p.err) : "healthy"} <button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="retry">Retry</button> <button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="grant" data-months="4">Plus · 4 mo</button> <button class="minibtn drop" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="forget">Forget</button>`;
+    out.innerHTML = `${esc(p.host)} · ${p.courses} courses · last read ${ago(p.synced_at)} · ${!p.active ? "paused" : p.err ? esc(p.err) : "healthy"} · ${esc(planTxt)}${costTxt} <button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="retry">Retry</button> ${planBtn} <button class="minibtn drop" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="forget">Forget</button>`;
   } catch(_) { if (out) out.textContent = "Couldn't reach the worker."; }
 }
 async function adminStudent(sid, action, months){
@@ -4078,6 +4123,27 @@ document.querySelector(".wrap").addEventListener("change", e => {
   const list = {}; document.querySelectorAll("[data-check]").forEach(c => { list[c.dataset.check] = c.checked ? 1 : 0; });
   adminSave({checklist: list});
 });
+/* bars + a line over 30 day keys; used for opens/installs and for cash/tokens */
+function chartCard(title, sub, keys, bar, line, barLabel, lineLabel, fmt, tip){
+  const W = 640, H = 210, padL = 40, padR = 12, padT = 12, padB = 26;
+  const rawMax = Math.max(1e-9, ...keys.map(k => Math.max(bar(k), line(k))));
+  const nice = v => { if (v <= 1) return v <= 0.1 ? 0.1 : v <= 0.5 ? 0.5 : 1; const p = Math.pow(10, Math.floor(Math.log10(v))), r = v / p; return (r <= 1 ? 1 : r <= 2 ? 2 : r <= 5 ? 5 : 10) * p; };
+  const top = nice(rawMax);
+  const x = i => padL + i * (W - padL - padR) / 30, slot = (W - padL - padR) / 30, bw = Math.max(4, slot - 3);
+  const y = v => padT + (H - padT - padB) * (1 - v / top);
+  let svg = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}">`;
+  for (const v of [0, top / 2, top]) svg += `<line class="grid" x1="${padL}" x2="${W - padR}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text x="${padL - 6}" y="${(y(v) + 3.5).toFixed(1)}" text-anchor="end">${esc(fmt(v))}</text>`;
+  keys.forEach((k, i) => {
+    const o = bar(k), h = Math.max(0, y(0) - y(o));
+    svg += `<rect x="${(x(i) + 1.5).toFixed(1)}" y="${(y(o)).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="var(--chart-a)" data-tip="${esc(tip(k))}"/>`;
+    if (i % 7 === 1) svg += `<text x="${(x(i) + slot / 2).toFixed(1)}" y="${H - 8}" text-anchor="middle">${k.slice(5).replace("-", "/")}</text>`;
+  });
+  const pts = keys.map((k, i) => `${(x(i) + slot / 2).toFixed(1)},${y(line(k)).toFixed(1)}`);
+  svg += `<polyline points="${pts.join(" ")}" fill="none" stroke="var(--chart-b)" stroke-width="2" stroke-linejoin="round"/>`;
+  keys.forEach((k, i) => { const v = line(k); if (v) svg += `<circle cx="${(x(i) + slot / 2).toFixed(1)}" cy="${y(v).toFixed(1)}" r="4" fill="var(--chart-b)" stroke="var(--surface)" stroke-width="2" data-tip="${esc(tip(k))}"/>`; });
+  svg += `</svg>`;
+  return `<div class="card adm-card"><h3>${esc(title)}</h3><p class="sub2">${sub}</p>${svg}<div class="legend"><span><i style="background:var(--chart-a)"></i>${esc(barLabel)}</span><span><i style="background:var(--chart-b)"></i>${esc(lineLabel)}</span></div></div>`;
+}
 function renderAdmin(root){
   if (!ADMIN.key) { root.innerHTML = `<div class="empty">Admin unlocks when you open LMK once with your admin link.</div>`; return; }
   if (MODE !== "web") {
@@ -4090,6 +4156,8 @@ function renderAdmin(root){
   if (!ADMIN.data) { root.innerHTML = `<div class="empty" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${esc(ADMIN.err)} <button class="minibtn" data-act="adm-refresh">Try again</button> <button class="minibtn drop" data-act="adm-logout">Forget admin key</button></div>`; return; }
   const d = ADMIN.data, days = d.days || {}, S = d.settings || {}, tot = d.totals || {};
   const CL = d.cloud || {}, T = d.today || {}, ops = d.ops || {}, PL = d.plus || {}, TU = d.tutor || {}, errs = d.errs || [], probs = d.problems || [];
+  const CO = d.cost || null, RV = d.revenue || null;
+  const money = v => "$" + (+v || 0).toFixed(2);
   const ago = t => { if (!t) return "never"; const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 1440 ? Math.round(m / 60) + " h ago" : Math.round(m / 1440) + " d ago"; };
   const n = v => (+v || 0).toLocaleString();
   const reqToday = (T.sync_pull || 0) + (T.sync_refresh || 0) + (T.sync_register || 0) + (T.cron_step || 0) + (T.open || 0) + (T.install || 0) + (T.firstsync || 0) + (T.err || 0) + (T.tutor_msg || 0);
@@ -4102,10 +4170,11 @@ function renderAdmin(root){
   const installs = tot.install || 0, syncs = tot.firstsync || 0, conv = installs ? Math.round(syncs / installs * 100) : null;
   const openToday = get(today, "open"), avg7 = Math.round(last7("open") / 7 * 10) / 10;
   const delta = (a, b) => { if (!b && !a) return ""; if (!b) return `<span class="d up">new</span>`; const p = Math.round((a - b) / b * 100); return `<span class="d ${p >= 0 ? "up" : "down"}">${p >= 0 ? "▲" : "▼"} ${Math.abs(p)}% vs prior week</span>`; };
-  // money: what a message costs us and what Plus brings in
-  const perMsg = TU.tutorModel === "claude-opus-5" ? 0.012 : 0.007;   // blended chat + quizzes, quizzes always on Sonnet
+  // money: real cost from Anthropic's usage blocks (worker `usage` table) and real cash from Stripe (`payments`)
   const priceNum = parseFloat(String(PL.plusPrice || "").replace(/[^0-9.]/g, "")) || 4;
-  const mrr = (PL.paying || 0) * priceNum, spend30 = sum("tutor_msg", 0, 30) * perMsg, spendToday = (T.tutor_msg || 0) * perMsg;
+  const mrr = RV ? RV.mrr : (PL.paying || 0) * priceNum;
+  const spend30 = CO ? CO.d30.usd : 0, spendToday = CO ? CO.today.usd : 0, cash30 = RV ? RV.d30.usd : 0;
+  const perMsg = CO && CO.d30.n ? CO.d30.usd / CO.d30.n : 0;
   const attention = [];
   if (!TU.configured) attention.push(["tutor", "The tutor has no API key; students see only their own AI."]);
   if (cronStale) attention.push(["ops", `Cron last ran ${ago(ops.cronAt)}; expected every 5 minutes. Check the Actions tab of DVNSON/lmk.`]);
@@ -4115,7 +4184,9 @@ function renderAdmin(root){
   if (T.err) attention.push(["ops", `${T.err} app error${T.err === 1 ? "" : "s"} reported today.`]);
   if (S.cloudPaused) attention.push(["students", "Sync from anywhere is paused (kill switch on)."]);
   if (!TU.tutorOn) attention.push(["tutor", "The tutor is switched off."]);
-  const TABS = [["overview", "Overview", 0], ["students", "Students", CL.errors || 0], ["tutor", "Tutor", 0], ["plus", "Plus", 0], ["ops", "Ops", (cronStale ? 1 : 0) + (T.err ? 1 : 0)]];
+  if (d.costError || d.revenueError) attention.push(["ops", "Cost or revenue tables failed to read: " + (d.costError || d.revenueError) + ". Apply schema.sql."]);
+  if (CO && RV && spend30 > cash30 && spend30 > 1) attention.push(["revenue", `The tutor cost ${money(spend30)} in 30 days against ${money(cash30)} in cash.`]);
+  const TABS = [["overview", "Overview", 0], ["revenue", "Revenue", 0], ["students", "Students", CL.errors || 0], ["tutor", "Tutor", 0], ["plus", "Plus", 0], ["ops", "Ops", (cronStale ? 1 : 0) + (T.err ? 1 : 0)]];
   if (!TABS.some(t => t[0] === ADMIN.tab)) ADMIN.tab = "overview";
   const tile = (k, v, s, extra) => `<div class="card tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div>${extra || ""}</div>`;
   const input = (id, val, w, attrs) => `<input id="${id}" ${attrs || 'type="number" min="0"'} value="${esc(String(val))}" class="adm-in" style="width:${w || 90}px">`;
@@ -4130,32 +4201,35 @@ function renderAdmin(root){
       ${tile("Installs", installs, `${last7("install")} this week`, delta(last7("install"), prev7("install")))}
       ${tile("Reached Canvas", syncs, conv === null ? "no installs yet" : `${conv}% of installs`)}
       ${tile("Plus members", (PL.paying || 0) + (PL.granted || 0), `${PL.paying || 0} paying · ${PL.granted || 0} granted`)}
-      ${tile("Tutor today", n(T.tutor_msg), `≈ $${spendToday.toFixed(2)} · ${n(sum("tutor_msg", 23, 30))} this week`)}
-      ${tile("Month", `$${mrr.toFixed(0)}`, `MRR · tutor spend ≈ $${spend30.toFixed(2)} last 30 d`)}
+      ${tile("Tutor today", n(T.tutor_msg), `${money(spendToday)} in tokens · ${n(sum("tutor_msg", 23, 30))} this week`)}
+      ${tile("30 days", money(cash30), `cash in · ${money(spend30)} tokens out · MRR ${money(mrr)}`)}
     </div>`;
     html += `<div class="card adm-card"><h3>Needs attention</h3>${attention.length ? `<ul class="attn">${attention.map(([tab, msg]) => `<li><span>${esc(msg)}</span><button class="minibtn" data-act="adm-tab" data-tab="${tab}">Open</button></li>`).join("")}</ul>` : `<p class="sub2" style="margin:0">Nothing. The machine is running, the money side is wired, and no one is stuck.</p>`}</div>`;
-    // chart: opens as bars, installs as a line
-    const W = 640, H = 210, padL = 34, padR = 12, padT = 12, padB = 26;
-    const rawMax = Math.max(1, ...keys.map(k => Math.max(get(k, "open"), get(k, "install"))));
-    const step = rawMax <= 5 ? 1 : rawMax <= 20 ? 5 : rawMax <= 50 ? 10 : rawMax <= 200 ? 50 : 100;
-    const top = Math.ceil(rawMax / step) * step;
-    const x = i => padL + i * (W - padL - padR) / 30, slot = (W - padL - padR) / 30, bw = Math.max(4, slot - 3);
-    const y = v => padT + (H - padT - padB) * (1 - v / top);
-    let svg = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Daily opens and installs, last 30 days">`;
-    for (const v of [0, top / 2, top]) svg += `<line class="grid" x1="${padL}" x2="${W - padR}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text x="${padL - 6}" y="${(y(v) + 3.5).toFixed(1)}" text-anchor="end">${v}</text>`;
-    keys.forEach((k, i) => {
-      const o = get(k, "open"), h = Math.max(0, y(0) - y(o));
-      svg += `<rect x="${(x(i) + 1.5).toFixed(1)}" y="${(y(o)).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="var(--chart-a)" data-tip="${k}: ${o} open${o === 1 ? "" : "s"}, ${get(k, "install")} install${get(k, "install") === 1 ? "" : "s"}, ${get(k, "tutor_msg")} tutor msgs"/>`;
-      if (i % 7 === 1) svg += `<text x="${(x(i) + slot / 2).toFixed(1)}" y="${H - 8}" text-anchor="middle">${k.slice(5).replace("-", "/")}</text>`;
-    });
-    const pts = keys.map((k, i) => `${(x(i) + slot / 2).toFixed(1)},${y(get(k, "install")).toFixed(1)}`);
-    svg += `<polyline points="${pts.join(" ")}" fill="none" stroke="var(--chart-b)" stroke-width="2" stroke-linejoin="round"/>`;
-    keys.forEach((k, i) => { const v = get(k, "install"); if (v) svg += `<circle cx="${(x(i) + slot / 2).toFixed(1)}" cy="${y(v).toFixed(1)}" r="4" fill="var(--chart-b)" stroke="var(--surface)" stroke-width="2" data-tip="${k}: ${v} install${v === 1 ? "" : "s"}"/>`; });
-    svg += `</svg>`;
-    html += `<div class="card adm-card"><h3>Last 30 days</h3><p class="sub2">One device counts once a day. Your own devices, test renders and copies running anywhere but lmktoday.app are never counted.</p>${svg}
-      <div class="legend"><span><i style="background:var(--chart-a)"></i>Daily opens</span><span><i style="background:var(--chart-b)"></i>Installs</span></div></div>`;
+    html += chartCard("Last 30 days", "One device counts once a day. Your own devices, test renders and copies running anywhere but lmktoday.app are never counted.", keys, k => get(k, "open"), k => get(k, "install"), "Daily opens", "Installs", v => String(v), k => `${k}: ${get(k, "open")} opens, ${get(k, "install")} installs, ${get(k, "tutor_msg")} tutor msgs`);
   }
-
+  if (ADMIN.tab === "revenue") {
+    if (!RV || !CO) html += `<div class="card adm-card"><h3>Revenue</h3><p class="sub2" style="margin:0">The worker hasn't answered with cost and revenue yet${d.costError || d.revenueError ? ": " + esc(d.costError || d.revenueError) : ""}. Deploy worker v10 and apply schema.sql (usage and payments tables).</p></div>`;
+    else {
+      const net30 = cash30 - RV.fees30 - spend30, margin = cash30 > 0 ? Math.round(net30 / cash30 * 100) : null;
+      html += `<div class="tiles">
+        ${tile("MRR", money(RV.mrr), `${RV.paying} paying × ${esc(PL.plusPrice || "$4/month")}`)}
+        ${tile("Cash, 30 days", money(cash30), `${RV.d30.pays} payment${RV.d30.pays === 1 ? "" : "s"} · ${money(RV.d7.usd)} this week · ${money(RV.today.usd)} today`)}
+        ${tile("Tokens, 30 days", money(spend30), `${n(CO.d30.n)} messages · ${CO.students} student${CO.students === 1 ? "" : "s"} used the tutor`)}
+        ${tile("Net, 30 days", money(net30), `after ≈ ${money(RV.fees30)} Stripe fees${margin !== null ? " · " + margin + "% margin" : ""}`, margin !== null ? `<span class="d ${net30 >= 0 ? "up" : "down"}">${net30 >= 0 ? "▲ in the black" : "▼ in the red"}</span>` : "")}
+        ${tile("All time", money(RV.all.usd), `cash in · ${money(CO.all.usd)} tokens out · ${money(RV.all.usd - CO.all.usd)} kept before fees`)}
+        ${tile("ARPU", money(RV.arpu30), "cash per paying member, 30 days")}
+        ${tile("Churn", `${RV.churn30}%`, `${RV.gone30} ended · ${RV.started30} started, 30 days`)}
+        ${tile("Conversion", `${RV.conversion}%`, `${RV.paying} paying of ${n(RV.owners)} accounts the worker has met`)}
+      </div>`;
+      const cashBy = {}; (RV.daily || []).forEach(x => { cashBy[x.day] = x.usd; }); const costBy = {}; (CO.daily || []).forEach(x => { costBy[x.day] = x.usd; });
+      html += chartCard("Cash in and tokens out, last 30 days", "Bars are Stripe payments (refunds subtract); the line is what Anthropic billed us for the tutor that day, from the real token counts.", keys, k => cashBy[k] || 0, k => costBy[k] || 0, "Cash in", "Tokens out", v => "$" + (v >= 10 ? v.toFixed(0) : v.toFixed(2)), k => `${k}: ${money(cashBy[k] || 0)} in, ${money(costBy[k] || 0)} out`);
+      html += `<div class="card adm-card"><h3>Payments</h3><p class="sub2">Every Stripe payment the webhook has seen, newest first. Amounts are what the student paid; Stripe's fee comes off in Stripe.</p>
+        ${table(["When", "Code", "Kind", "Amount"], (RV.recent || []).map(r => `<tr><td>${FMT_DAY.format(new Date(r.at))}</td><td class="mono">${esc(r.code || "—")}</td><td>${esc(r.kind)}</td><td class="num ${r.usd < 0 ? "bad" : ""}">${money(r.usd)}${r.currency !== "usd" ? " " + esc(r.currency.toUpperCase()) : ""}</td></tr>`)) || `<p class="sub2" style="margin:0">No payments yet. The first one appears here the moment Stripe's webhook lands. Make sure the webhook sends invoice.paid, checkout.session.completed, customer.subscription.updated, customer.subscription.deleted and charge.refunded.</p>`}</div>`;
+      html += `<div class="card adm-card"><h3>What costs what</h3><p class="sub2">Prices per million tokens as of ${esc(CO.pricesAsOf)}: ${Object.entries(CO.prices || {}).filter(([m]) => /opus-5$|sonnet-5$/.test(m)).map(([m, p]) => `<b>${esc(m.replace("claude-", "").replace("-", " "))}</b> $${p.in} in · $${p.out} out · $${p.cr} cached`).join(" · ")}. Every reply's real token counts are recorded; nothing here is estimated except Stripe's fee.</p>
+        ${table(["Model, 30 days", "Messages", "Cost", "Per message"], (CO.byModel || []).map(r => `<tr><td>${esc(r.model)}</td><td class="num">${n(r.n)}</td><td class="num">${money(r.usd)}</td><td class="num">${r.n ? (r.usd / r.n * 100).toFixed(2) + "¢" : "—"}</td></tr>`))}
+        ${table(["Kind, 30 days", "Messages", "Cost", "Per message"], (CO.byKind || []).map(r => `<tr><td>${esc(r.kind)}</td><td class="num">${n(r.n)}</td><td class="num">${money(r.usd)}</td><td class="num">${r.n ? (r.usd / r.n * 100).toFixed(2) + "¢" : "—"}</td></tr>`))}</div>`;
+    }
+  }
   if (ADMIN.tab === "students") {
     html += `<div class="tiles">
       ${tile("Sync from anywhere", `${CL.active || 0}<span class="of"> / ${CL.students || 0}</span>`, d.cloud ? `${CL.syncedToday || 0} read in 24 h` : "not deployed yet")}
@@ -4176,7 +4250,7 @@ function renderAdmin(root){
     html += `<div class="tiles">
       ${tile("Messages today", n(T.tutor_msg), `of ${n(TU.tutorDaily)} free pot · ${n(TU.tutorPlusDaily)} member pot`)}
       ${tile("This week", n(sum("tutor_msg", 23, 30)), `${n(sum("tutor_msg", 0, 30))} in 30 days`, delta(last7("tutor_msg"), prev7("tutor_msg")))}
-      ${tile("Spend", `$${spend30.toFixed(2)}`, `last 30 days at ≈ ${(perMsg * 100).toFixed(1)}¢ a message`)}
+      ${tile("Spend", money(spend30), CO ? `last 30 days · ${(perMsg * 100).toFixed(2)}¢ a message, measured` : "no cost data yet")}
       ${tile("Model", TU.tutorModel === "claude-opus-5" ? "Opus 5" : "Sonnet 5", "chat · quizzes and decks always on Sonnet")}
     </div>`;
     html += `<div class="card adm-card"><h3>Ceilings</h3><p class="sub2">${TU.configured ? "" : "<b>Not configured:</b> set the ANTHROPIC_API_KEY secret on the worker and this turns on. "}Four checks run before any token is bought. The pots are shared daily counts: free accounts stop at the free pot, members keep going to the member pot. Set the Anthropic console's monthly limit to match.</p>
@@ -4190,6 +4264,8 @@ function renderAdmin(root){
         <label class="fld">Chat model <select id="admTutorModel" class="adm-in"><option value="claude-sonnet-5" ${TU.tutorModel === "claude-sonnet-5" ? "selected" : ""}>Claude Sonnet 5 · ≈0.7¢</option><option value="claude-opus-5" ${TU.tutorModel === "claude-opus-5" ? "selected" : ""}>Claude Opus 5 · ≈1.2¢</option></select></label>
       </div>
       <div class="adm-row" style="margin-top:12px;justify-content:flex-end"><button class="btn primary" data-act="adm-save-tutor">Save tutor settings</button></div></div>`;
+    if (CO && CO.top && CO.top.length) html += `<div class="card adm-card"><h3>Who costs what · 30 days</h3><p class="sub2">Real token spend per support code. A free account near the top of this list is the reason the weekly allowance exists; a member near the top is a happy customer.</p>
+      ${table(["Code", "Plan", "Messages", "Cost", "Per message", ""], CO.top.map(r => `<tr><td class="mono">${esc(r.code)}</td><td>${r.plan === "plus" ? "Plus" : r.plan === "granted" ? "granted" : "free"}</td><td class="num">${n(r.n)}</td><td class="num">${money(r.usd)}</td><td class="num">${r.n ? (r.usd / r.n * 100).toFixed(2) + "¢" : "—"}</td><td class="acts">${r.plan === "free" ? `<button class="minibtn" data-act="adm-student" data-sid="${esc(r.sid)}" data-do="grant" data-months="4">Grant Plus</button>` : r.plan === "granted" ? `<button class="minibtn drop" data-act="adm-student" data-sid="${esc(r.sid)}" data-do="revoke">Revoke</button>` : ""}</td></tr>`))}</div>`;
     html += `<div class="card adm-card"><h3>Unit economics</h3><p class="sub2" style="margin:0">A chat reply is about 0.45¢ on Sonnet and 1.1¢ on Opus; a 10-question quiz or a 16-card deck about 1.4¢ (always Sonnet). A member using all ${+PL.tutorPlusWeekly || 40} messages a week costs at most $${((+PL.tutorPlusWeekly || 40) * 4.33 * 0.014).toFixed(2)} a month against $${priceNum.toFixed(2)} in, $${(priceNum * 0.971 - 0.30).toFixed(2)} after Stripe. A free student costs at most $${((+TU.tutorWeekly || 0) * 4.33 * 0.014).toFixed(2)} a month.</p></div>`;
   }
 
@@ -4334,7 +4410,7 @@ setTimeout(maybeWelcome, 9000);
 (MODE === "web" ? initWebSync() : initSync()).catch(() => {}).finally(() => { maybeWelcome(); if (store.onboarded) cloudEnsure(); cloudPull("boot"); plusRefresh(false); });
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") cloudPull("visible"); });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
-setInterval(() => { render(); cloudPull("tick"); }, 60000);
+setInterval(() => { if (document.hidden) return; render(); cloudPull("tick"); pullMaybe(); }, 60000);
 </script>
 </body>
 </html>
