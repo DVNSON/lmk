@@ -723,9 +723,9 @@
 
     <div class="setupway" id="setupExt">
       <h3 class="h4">Chrome extension</h3>
-      <p class="sub2">Add it to Chrome, then open Canvas once like you normally would. Come back to LMK and your classes appear on their own, usually within a few seconds. LMK learns every assignment, what's already submitted, your scores, and which items are in-class or not graded. It re-syncs whenever you're in Canvas.</p>
+      <p class="sub2">On a computer, add it to Chrome, then open Canvas once like you normally would. Come back to LMK and your classes appear on their own, usually within a few seconds. LMK learns every assignment, what's already submitted, your scores, and which items are in-class or not graded. It re-syncs whenever you're in Canvas.</p>
       <div class="row" style="margin-top:4px"><a class="btn grad" id="setupInstall" href="#" target="_blank" rel="noopener">Add to Chrome →</a></div>
-      <p class="sub2" id="setupPhone" style="margin:10px 0 0;font-size:12.5px" hidden>On a phone? Set up on a laptop once, then sign in with Google (bottom of the page) and your plan appears here.</p>
+      <p class="sub2" id="setupPhone" style="margin:10px 0 0;font-size:12.5px" hidden>On a phone? The extension is a Chrome extension, so it has to go on a computer first. Add it there and open Canvas once; then sign in with Google (bottom of this page) and your plan appears here. No computer at all? Use the access token way below.</p>
       <p class="sub2" id="setupBg" style="margin:10px 0 0;font-size:12.5px" hidden></p>
       <div class="adm-row" id="setupInstallApp" style="margin:12px 0 0;font-size:13px;color:var(--ink-2)" hidden></div>
       <div class="adm-row" id="setupDrive" style="margin:12px 0 0;font-size:13px;color:var(--ink-2)" hidden></div>
@@ -805,7 +805,7 @@
         <button class="btn grad" id="wSignin" hidden>Sign in with Google</button>
         <button class="minibtn" id="wOther">Other ways</button>
       </div></div></div>
-    <div class="wstep"><span class="wnum">3</span><div><b>Private by design.</b>
+    <div class="wstep"><span class="wnum">3</span><div><b id="wHead3">Private by design.</b>
       <span class="whint" id="wBody3">No account, no password. Everything saves on this device; sign in with Google and it follows you to your phone through your own Drive. LMK times your work quietly so its estimates get honest — no names, no grades, ever.</span>
       <div class="wact" id="wAct3" hidden><button class="btn grad" id="wSignin3">Sign in with Google</button><span class="whint" style="font-size:12.5px">Already used LMK on another device? This brings it back.</span></div></div></div>
     <div class="row" style="margin-top:16px"><button class="btn primary" id="wGo">Let's go →</button></div>
@@ -2657,9 +2657,9 @@ function renderNow(root){
       const installed = EXT.present && !phone;
       html += `<div class="card hero" style="--hero-tint:color-mix(in srgb, var(--c1) 20%, transparent)">
         <div class="kicker">${installed ? "One step left" : "First run"}</div>
-        <h1>${phone ? "Set up once on a laptop." : installed ? "Extension installed. Now open Canvas once." : "Let's get your classes in."}</h1>
+        <h1>${phone ? "Start on a computer, not here." : installed ? "Extension installed. Now open Canvas once." : "Let's get your classes in."}</h1>
         <div class="why">${phone
-          ? "Add the <b>LMK for Canvas</b> extension to Chrome on a laptop and open Canvas once. Then sign in with Google here and your plan appears on this phone. The first sync takes a minute and this page picks it up by itself."
+          ? "LMK reads Canvas through a Chrome extension, and a phone can't install one. On a computer, add the <b>LMK for Canvas</b> extension to Chrome and open Canvas once. Then sign in with Google here and your plan arrives on this phone by itself."
           : installed ? "Open Canvas like you normally would, then come back to this tab. Your classes land here by themselves, usually within a few seconds. Still empty after a minute? Open Canvas once more. Not at ASU? Open your own school's Canvas — any instructure.com address works."
           : "Three steps, about a minute: <b>1.</b> Add the <b>LMK for Canvas</b> extension to Chrome. <b>2.</b> Open Canvas once like you normally would. <b>3.</b> Come back here; your classes appear by themselves. LMK stays empty until you've opened Canvas, and the first refresh or two can still show nothing while it syncs. That's normal."}</div>
         <div class="actions">
@@ -3034,7 +3034,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v42.0";
+const APP_BUILD = "v43.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -4272,14 +4272,18 @@ function openWelcome(){
     show("wInstall", true); show("wSignin", false);
     set("wBody3", "You're in through your claude.ai account, and everything saves privately to your own Google Drive. LMK shares only anonymous minutes per assignment with other students in your courses — no names, no grades — so everyone's estimates get better.");
   } else if (IS_MOBILE) {
-    set("wHead2", "Set up once on a laptop.");
-    set("wBody2", "Add the LMK for Canvas extension to Chrome there and open Canvas once. Then sign in with Google here and your plan appears on this phone. The first sync takes a minute and this page picks it up by itself.");
-    show("wInstall", false); show("wSignin", gdReady()); show("wAct3", false);
+    // on a phone the computer comes first: signing in before anything has read Canvas shows an empty plan
+    set("wHead2", "Start on a computer, not here.");
+    set("wBody2", "LMK reads Canvas through a Chrome extension, and a phone can't install one. On a laptop or desktop, add the LMK for Canvas extension to Chrome and open Canvas once. That takes a minute and only happens once.");
+    set("wHead3", "Then sign in here.");
+    set("wBody3", "Once the computer has read Canvas, sign in with Google on this phone and your plan arrives through your own Drive. No account, no password; LMK never sees your name or your grades.");
+    show("wInstall", false); show("wSignin", false); show("wAct3", gdReady());
   } else {
     show("wInstall", true); show("wSignin", false); show("wAct3", gdReady());
   }
   if (MODE === "artifact") show("wAct3", false);
-  if (MODE === "web" && !gdReady()) set("wBody3", "No account, no password. Everything you do here saves privately on this device. Nothing is sent anywhere.");
+  if (MODE === "web" && IS_MOBILE) { /* the phone's step 3 is written above and must not be overwritten */ }
+  else if (MODE === "web" && !gdReady()) set("wBody3", "No account, no password. Everything you do here saves privately on this device. Nothing is sent anywhere.");
   else if (MODE === "web" && !IS_MOBILE && cloudPossible()) set("wBody3", "No account, no password. Everything saves on this device; sign in with Google and it follows you to your phone through your own Drive. With the extension, LMK also keeps an encrypted copy of your Canvas sync on its server so your phone stays fresh while your laptop is closed (off any time under the gear). And every assignment comes with a tutor that has already read it: a couple of free messages a week, more on Plus. LMK never sees names or grades.");
   document.getElementById("wName").value = (store.profile && store.profile.name) || "";
   welcomeOverlay.classList.add("open");
