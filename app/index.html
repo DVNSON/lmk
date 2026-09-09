@@ -1376,7 +1376,9 @@ function renderCloudStatus(){
     else html = `<span><b>Sync from anywhere</b> is on.</span><button class="minibtn" data-act="cloud-now">Refresh now</button>`;
   }
   el.innerHTML = html; el.hidden = false;
-  if (way) way.hidden = !(MODE === "web" && !EXT.present && !(cloudOn() && CLOUD.registered));
+  /* The one student who needs this is the one whose extension is installed and reading nothing, so
+     "hide it whenever the extension is present" hid it from exactly them. */
+  if (way) way.hidden = !(MODE === "web" && (!EXT.present || !store.ext) && !(cloudOn() && CLOUD.registered));
 }
 document.getElementById("plusStatus").addEventListener("click", e => { if (e.target.closest('[data-act="plus-open"]')) openPlus(); });
 document.getElementById("setupCloud").addEventListener("click", e => {
@@ -1442,11 +1444,18 @@ function applyExtPresence(){
    has. The extension answers a "canvas-ping" with its latest payload, so the sync the student just
    did in the Canvas tab shows up here without a manual refresh. Stops itself once classes arrive. */
 let nudgeTimer = 0;
+let extStuck = false;
+/* The extension only injects into canvas.asu.edu and *.instructure.com. A student whose school runs Canvas on
+   its own address — canvas.uw.edu, bruinlearn.ucla.edu, canvas.harvard.edu and most large universities — gets
+   NOTHING: no collector, no error, no console line. This is the deadline that turns that silence into a
+   sentence, and points at the access-token route, which the worker accepts for any host. */
 function nudgeExtension(){
   if (nudgeTimer) return;
+  let tries = 0;
   nudgeTimer = setInterval(() => {
-    if (store.ext || !EXT.present) { clearInterval(nudgeTimer); nudgeTimer = 0; return; }
+    if (store.ext || !EXT.present) { clearInterval(nudgeTimer); nudgeTimer = 0; extStuck = false; return; }
     try { window.postMessage({lmk:"canvas-ping"}, "*"); } catch(_){}
+    if (++tries >= 15 && !extStuck) { extStuck = true; render(); }      // a minute of silence is an answer
   }, 4000);
 }
 window.addEventListener("message", ev => {
@@ -2811,6 +2820,7 @@ function renderNow(root){
         <h1>${phone ? "Start on a computer, not here." : installed ? "Extension installed. Now open Canvas once." : "Let's get your classes in."}</h1>
         <div class="why">${phone
           ? "LMK reads Canvas through a Chrome extension, and a phone can't install one. On a computer, add the <b>LMK for Canvas</b> extension to Chrome and open Canvas once. Then sign in with Google here and your plan arrives on this phone by itself."
+          : installed && extStuck ? "LMK can see the extension, but nothing has come back from Canvas. Almost always one of three things. <b>1.</b> You haven't opened Canvas in this browser yet — do that and come straight back. <b>2.</b> You're signed out of Canvas. <b>3.</b> Your school runs Canvas on its own address, like <b>canvas.uw.edu</b> or <b>bruinlearn.ucla.edu</b>, which the extension can't read yet — it currently reads <b>canvas.asu.edu</b> and any <b>*.instructure.com</b> address. If that's you, the Canvas token below works on <i>any</i> school and takes a minute."
           : installed ? "Open Canvas like you normally would, then come back to this tab. Your classes land here by themselves, usually within a few seconds. Still empty after a minute? Open Canvas once more. Not at ASU? Open your own school's Canvas — any instructure.com address works."
           : "Three steps, about a minute: <b>1.</b> Add the <b>LMK for Canvas</b> extension to Chrome. <b>2.</b> Open Canvas once like you normally would. <b>3.</b> Come back here; your classes appear by themselves. LMK stays empty until you've opened Canvas, and the first refresh or two can still show nothing while it syncs. That's normal."}</div>
         <div class="actions">
@@ -2818,7 +2828,8 @@ function renderNow(root){
                   : installed ? `<a class="btn grad" href="${esc(canvasHref())}" target="_blank" rel="noopener">Open Canvas →</a>`
                   : `<a class="btn grad" href="${LMK_CONFIG.storeUrl}" target="_blank" rel="noopener">Add to Chrome →</a>`}
           ${!phone && !installed ? `<a class="btn ghost" href="${esc(canvasHref())}" target="_blank" rel="noopener" title="Already added the extension? This is the only other step.">Already added it? Open Canvas →</a>` : ""}
-          ${phone ? `<button class="btn ghost" data-act="open-token" title="A Canvas access token lets LMK's server read Canvas for you">No laptop? Use a Canvas token</button>` : ""}
+          ${phone ? `<button class="btn ghost" data-act="open-token" title="A Canvas access token lets LMK's server read Canvas for you">No laptop? Use a Canvas token</button>`
+                  : extStuck ? `<button class="btn ghost" data-act="open-token" title="Works on any school's Canvas, whatever its address">Use a Canvas token instead</button>` : ""}
           ${!phone && MODE === "web" && gdReady() ? `<button class="btn ghost" data-act="web-signin">Sign in with Google</button>` : ""}
           <button class="btn ghost" data-act="open-gear">Other ways</button>
         </div>
@@ -3314,7 +3325,7 @@ function cachePlanLine(days, today){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v48.0";
+const APP_BUILD = "v48.1";
 let lastErr = null;
 function reportErr(e, where){
   try {
