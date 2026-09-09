@@ -743,10 +743,10 @@
     </div>
 
     <details class="setupway" id="cloudTokenWay" hidden>
-      <summary class="h4">Or connect Canvas with an access token</summary>
-      <p class="sub2">For a phone with no laptop around: in Canvas open Account → Settings → <b>New Access Token</b>, copy it, and paste it here. LMK's server then reads your Canvas for you and this phone stays fresh by itself. Delete the token in Canvas any time to stop.</p>
+      <summary class="h4">Connect any school's Canvas</summary>
+      <p class="sub2">Two reasons to use this: your phone has no laptop around, or your school's Canvas lives at its own address — <b>canvas.uw.edu</b>, <b>bruinlearn.ucla.edu</b> and most large universities — which the extension can't read yet. This route works at <b>every</b> school. In Canvas open Account → Settings → <b>New Access Token</b>, copy it, paste it here, and LMK's server keeps your assignments fresh by itself. Delete the token in Canvas any time to stop.</p>
       <div class="fgrid">
-        <label class="field">Your Canvas address<input id="ctHost" placeholder="canvas.asu.edu" autocomplete="off"></label>
+        <label class="field">Your Canvas address<input id="ctHost" placeholder="canvas.uw.edu" autocomplete="off"></label>
         <label class="field">Access token<input id="ctToken" placeholder="paste it here" autocomplete="off"></label>
       </div>
       <div class="row"><button class="btn primary" id="ctSave">Connect</button><span class="parse-msg" id="ctMsg" role="status"></span></div>
@@ -754,7 +754,11 @@
 
     <div class="setupway">
       <h3 class="h4">Or paste a page</h3>
-      <p class="sub2">Open a course in Canvas → <b>Assignments</b> → select the whole page (Ctrl/Cmd-A), copy, paste it here. On a phone, the <b>LMK sync</b> bookmark copies it for you.</p>
+      <p class="sub2">Open a course in Canvas → <b>Assignments</b> → select the whole page (Ctrl/Cmd-A), copy, paste it here.</p>
+      <p class="sub2" style="margin:6px 0 10px">Faster, and it reads your <i>whole</i> semester rather than one page: drag this to your bookmarks bar, then click it while you're on any Canvas page. It works at every school, because it reads whatever Canvas it is standing on.<br>
+        <a class="btn ghost" id="bmkLink" draggable="true" style="margin-top:8px;display:inline-flex">⇱ LMK sync</a>
+        <button class="minibtn" id="bmkCopy" style="margin-left:6px">Copy it instead</button>
+        <span class="parse-msg" id="bmkMsg" role="status"></span></p>
       <label class="field" style="margin-bottom:10px">Which course is that page from?<input id="impCourse" list="courseList2" placeholder="BIO 101"><datalist id="courseList2"></datalist></label>
       <textarea id="impPaste" placeholder="Paste the LMK sync from your phone, or a whole Assignments page — messy is fine, I’ll sort it out."></textarea>
       <div class="row">
@@ -1455,6 +1459,7 @@ function nudgeExtension(){
   nudgeTimer = setInterval(() => {
     if (store.ext || !EXT.present) { clearInterval(nudgeTimer); nudgeTimer = 0; extStuck = false; return; }
     try { window.postMessage({lmk:"canvas-ping"}, "*"); } catch(_){}
+    if (tries === 5) { try { syncNote(`Still quiet. If your school's Canvas isn't <b>canvas.asu.edu</b> or an <b>instructure.com</b> address, there's a route below that works everywhere.`, true); } catch(_){} }
     if (++tries >= 15 && !extStuck) { extStuck = true; render(); }      // a minute of silence is an answer
   }, 4000);
 }
@@ -3325,7 +3330,10 @@ function cachePlanLine(days, today){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v48.1";
+/* The sync bookmarklet, generated from ~/lmk-extension/bookmarklet.txt — regenerate both together.
+   It works on ANY school's Canvas, which is the whole point: it takes the origin from the page it runs on. */
+const LMK_SYNC_BOOKMARKLET = "javascript:(function(){\n  let BASE = \"\";\n  async function getJSON(path){\n    const out = [];\n    let url = BASE + path + (path.includes(\"?\") ? \"&\" : \"?\") + \"per_page=100\";\n    for (let hop = 0; url && hop < 20; hop++){\n      const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000);\n      let r; try { r = await fetch(url, {credentials:\"include\", headers:{\"Accept\":\"application/json\"}, signal: ctl.signal}); } finally { clearTimeout(timer); }\n      if (!r.ok) throw new Error(r.status + \" \" + path);\n      let txt = await r.text();\n      if (txt.startsWith(\"while(1);\")) txt = txt.slice(9);\n      const data = JSON.parse(txt);\n      if (Array.isArray(data)) out.push(...data); else return data;\n      const link = r.headers.get(\"Link\") || \"\";\n      const m = link.match(/<([^>]+)>;%5Cs*rel=\"next\"/);\n      url = m ? m[1] : null;\n    }\n    return out;\n  }\n  const strip = h => (h || \"\").replace(/<[^>]+>/g, \" \").replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/%5Cs+/g, \" \").trim();\n  /* Canvas's own grade for this course: exactly what the student sees, with group weights, drop rules,\n     late policies and excused work already applied. Null when the instructor hides totals. */\n  function courseScores(c){\n    const num = v => (v === null || v === undefined || v === \"\" || !isFinite(+v)) ? null : +v;\n    const es = (c.enrollments || []).filter(e => /student/i.test(e.type || e.role || \"\"));\n    const e = es.find(x => x.computed_current_score != null) || es[0] || {};\n    return {cur: num(e.computed_current_score), fin: num(e.computed_final_score)};\n  }\n  function courseTag(c){\n    const s = (c.course_code || c.name || \"\");\n    if (/asuready/i.test(s)) return \"ASU Ready\";\n    const m = s.match(/([A-Z]{2,4})%5Cs?-?(%5Cd{2,3}[A-Z]?)/);\n    return m ? m[1] + \" \" + m[2] : s.slice(0, 18);\n  }\n  function rubricText(a){\n    const r = Array.isArray(a.rubric) ? a.rubric : [];\n    return r.slice(0, 12).map(c => String(c.description || \"\").replace(/%5Cs+/g, \" \").trim().slice(0, 80) + (c.points != null ? \" (\" + c.points + \" pts)\" : \"\")).filter(x => x.trim() && x.trim() !== \"(0 pts)\").join(\"; \").slice(0, 900);\n  }\n  function kindHint(a){\n    const st = a.submission_types || [];\n    if (a.grading_type === \"not_graded\" || (a.points_possible === 0 && !st.includes(\"online_quiz\"))) return \"fyi\";\n    if (st.includes(\"none\") || st.includes(\"on_paper\")) return \"inclass\";\n    if (/attendance|participation|in.?class|clicker/i.test(a.name || \"\")) return \"inclass\";\n    if (st.includes(\"online_quiz\")) return \"quiz\";\n    if (st.includes(\"discussion_topic\")) return \"discussion\";\n    return \"\";\n  }\n  (typeof window !== \"undefined\" ? window : self).lmkCollect = async function(base){\n    BASE = (base || location.origin).replace(/%5C/$/, \"\");\n    const HOST = BASE.replace(/^https?:%5C/%5C//, \"\");\n    const courses = (await getJSON(\"/api/v1/courses?enrollment_state=active&include[]=term&include[]=total_scores\")).filter(c => c.name && !c.access_restricted_by_date);\n    const items = {};\n    const groups = {};\n    for (const c of courses){\n      const tag = courseTag(c);\n      let list = [];\n      try { list = await getJSON(`/api/v1/courses/${c.id}/assignments?include[]=submission&order_by=due_at`); } catch(e){ continue; }\n      /* What the instructor actually wrote back. One request per course, only this student's submissions,\n         only comments from someone who is not the student. It is the most useful thing LMK can know. */\n      let fb = {};\n      try {\n        const subs = await getJSON(`/api/v1/courses/${c.id}/students/submissions?student_ids[]=self&include[]=submission_comments&per_page=100`);\n        for (const sub of (Array.isArray(subs) ? subs : [])) {\n          const mine = String(sub.user_id || \"\");\n          const notes = (sub.submission_comments || []).filter(x => x && x.comment && String(x.author_id || \"\") !== mine);\n          if (notes.length) fb[String(sub.assignment_id)] = strip(notes[notes.length - 1].comment).slice(0, 400);\n        }\n      } catch(e){}\n      try {\n        const g = await getJSON(`/api/v1/courses/${c.id}/assignment_groups`);\n        groups[c.id] = g.map(x => ({id:x.id, name:x.name, w:x.group_weight}));\n      } catch(e){}\n      for (const a of list){\n        if (a.only_visible_to_overrides && !a.due_at && !a.has_overrides) continue;\n        const s = a.submission || {};\n        items[String(a.id)] = {\n          t: a.name, c: tag, cid: String(c.id),\n          due: a.due_at || \"\", lock: a.lock_at || \"\",\n          pts: a.points_possible, gt: a.grading_type, st: (a.submission_types || []).join(\",\"),\n          grp: a.assignment_group_id, k: kindHint(a),\n          sub: s.workflow_state || \"\", subAt: s.submitted_at || \"\", score: s.score == null ? null : s.score,\n          late: !!s.late, missing: !!s.missing, excused: !!s.excused,\n          url: a.html_url || \"\",\n          desc: strip(a.description).slice(0, 1200),\n          rub: rubricText(a),\n          fb: fb[String(a.id)] || \"\",\n          qid: a.quiz_id ? String(a.quiz_id) : \"\",\n        };\n      }\n    }\n    // Canvas keeps seconds spent on every quiz attempt %E2%80%94 exact durations, no sensor needed.\n    const quizTime = {}, quizMap = {};\n    const quizzes = Object.entries(items).filter(([aid, x]) => x.qid && /^(submitted|graded|pending_review)$/.test(x.sub)).slice(0, 40);\n    for (const [aid, x] of quizzes){\n      quizMap[x.cid + \"/\" + x.qid] = aid;\n      try {\n        const r = await getJSON(`/api/v1/courses/${x.cid}/quizzes/${x.qid}/submissions`);\n        const subs = (r && r.quiz_submissions) || [];\n        const secs = subs.map(q => +q.time_spent || 0).filter(v => v > 0);\n        if (secs.length) quizTime[aid] = Math.round(Math.max(...secs) / 60);\n      } catch(e){}\n    }\n    for (const aid in items) if (items[aid].qid) quizMap[items[aid].cid + \"/\" + items[aid].qid] = aid;\n    // apply_assignment_group_weights is the course-level switch: when it is false Canvas ignores\n    // the group weights entirely and grades on total points, however the weights are set.\n    return {lmk:\"canvas\", v:3, at: Date.now(), host: HOST,\n      courses: courses.map(c => Object.assign({id:String(c.id), tag:courseTag(c), name:c.name, wt: !!c.apply_assignment_group_weights}, courseScores(c))),\n      groups, items, quizTime, quizMap};\n  };\n})();\n\n(async()=>{try{const p=await window.lmkCollect();const s=JSON.stringify(p);const n=Object.keys(p.items).length;\nlet ok=false;try{await navigator.clipboard.writeText(s);ok=true}catch(e){}\nif(!ok){const ta=document.createElement(\"textarea\");ta.value=s;ta.style.cssText=\"position:fixed;top:8px;left:8px;width:90vw;height:40vh;z-index:99999;font-size:12px\";document.body.appendChild(ta);ta.focus();ta.select();try{ok=document.execCommand(\"copy\")}catch(e){}if(ok)ta.remove();else alert(\"Select all + copy the box, then paste it into LMK (gear %E2%86%92 Paste from Canvas).\")}\nif(ok)alert(\"LMK: copied \"+n+\" assignments. Open LMK %E2%86%92 gear %E2%86%92 Paste from Canvas %E2%86%92 paste.\")}catch(e){alert(\"LMK: could not read Canvas %E2%80%94 are you logged in on this tab? \"+e)}})();";
+const APP_BUILD = "v49.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -5216,6 +5224,19 @@ async function loadRemoteConfig(){
   renderInstall();
   /* Course stats need Claude's own storage, which a normal web page cannot reach — crowdInit() returns on its
      second line in web mode. The footer must not claim sharing that only the artifact copy can do. */
+  /* The bookmarklet is the one route that reaches every school with no permission and no token, so it is
+     worth surfacing properly. Set the href here, never in the literal HTML above the script block. */
+  try {
+    const bl = document.getElementById("bmkLink");
+    if (bl) { bl.href = LMK_SYNC_BOOKMARKLET; bl.title = "Drag me to your bookmarks bar, then click me on any Canvas page"; }
+    const bc = document.getElementById("bmkCopy"), bm = document.getElementById("bmkMsg");
+    if (bc) bc.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(LMK_SYNC_BOOKMARKLET);
+        bm.className = "parse-msg ok"; bm.textContent = "Copied. Make a new bookmark and paste that as its address.";
+      } catch(_) { bm.className = "parse-msg err"; bm.textContent = "Couldn't copy — drag the button instead."; }
+      setTimeout(() => { bm.textContent = ""; }, 6000);
+    });
+  } catch(_){}
   const ll = document.getElementById("learnLabel");
   if (ll && MODE === "artifact") { ll.textContent = "· learning from you + anonymous course stats"; ll.title = "Anonymous: assignment id + minutes only. No names, no grades."; }
   const $ = id => document.getElementById(id);
