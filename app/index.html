@@ -1241,7 +1241,7 @@ function applyCanvasPayload(p, opts = {}){
   if (!n) { if (!opts.quiet) toast("Canvas answered, but no active courses came back. Are you signed in to the right Canvas account?"); return null; }
   store.ext = {at:p.at || Date.now(), host:p.host || "", items, courses:(p.courses && p.courses.length) ? p.courses : ((store.ext || {}).courses || []), groups:p.groups || (store.ext || {}).groups || {}};
   save(); loadData(); render();
-  if (firstSync) { ping("firstsync"); ping("synced"); }
+  if (firstSync) { ping("firstsync"); ping("synced"); try { localStorage.setItem("lmk_ping_synced", utcDayKey()); } catch(_){} }
   syncNote(`<b>Canvas synced.</b> ${n} assignment${n === 1 ? "" : "s"}${newDone ? ` · ${newDone} marked done` : ""}${unDone ? ` · ${unDone} back to in progress` : ""}${newGrades ? ` · ${newGrades} grade${newGrades === 1 ? "" : "s"} in` : ""}${shelfAdd ? ` · ${shelfAdd} undated on the shelf` : ""}`, !!(newDone || unDone || newGrades || shelfAdd));
   if (!opts.quiet) toast(`Canvas synced: ${n} assignments${newDone ? ` · ${newDone} marked done` : ""}${unDone ? ` · ${unDone} back to in-progress` : ""}${newGrades ? ` · ${newGrades} grades` : ""}${shelfAdd ? ` · ${shelfAdd} undated on the shelf` : ""}.`);
   return {n, newDone, newGrades, shelfAdd};
@@ -3157,7 +3157,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v45.1";
+const APP_BUILD = "v45.2";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -4471,14 +4471,26 @@ function pingAllowed(){
    The gate is one getItem and a string compare, so it is cheap enough for the minute tick. */
 function pingDaily(){
   const k = utcDayKey();
-  let last = null, stored = false;
+  let last = null;
   try { last = localStorage.getItem("lmk_ping_day"); } catch(_) { return; }   // no storage means no honest gate: send nothing rather than send every minute
-  if (last === k) return;
-  try { localStorage.setItem("lmk_ping_day", k); stored = true; } catch(_){}
-  if (!stored) return;                                                       // a write that failed would repeat the day's events forever
-  if (!last) ping("install");                                                // a browser opening the app for the first time
-  ping("open");                                                              // one device, one day
-  if (store.ext && Object.keys(store.ext.items || {}).length) ping("synced");
+  if (last !== k) {
+    let stored = false;
+    try { localStorage.setItem("lmk_ping_day", k); stored = true; } catch(_){}
+    if (stored) {                                                            // a write that failed would repeat the day's events forever
+      if (!last) ping("install");                                            // a browser opening the app for the first time
+      ping("open");                                                          // one device, one day
+    }
+  }
+  /* `synced` gets its own gate, and this is why it had never fired once in production despite twelve devices
+     holding Canvas data. Canvas arrives from the extension bridge, from Drive or from the cloud a moment
+     AFTER boot, so asking the question on the open/install gate asked it at the single instant it was least
+     likely to be true — and then never asked again that day. Now the minute tick asks until it is true. */
+  if (!store.ext || !Object.keys(store.ext.items || {}).length) return;
+  let lastSync = null;
+  try { lastSync = localStorage.getItem("lmk_ping_synced"); } catch(_) { return; }
+  if (lastSync === k) return;
+  try { localStorage.setItem("lmk_ping_synced", k); } catch(_) { return; }
+  ping("synced");
 }
 /* After ten finished things and five days, ask once for a store review. Laptops only — that is where the store is. */
 function maybeAskReview(){
