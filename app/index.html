@@ -479,8 +479,24 @@
   .sp-title{flex:1;min-width:0}
   .sp-title b{display:block;font:700 16px/1.25 "Bricolage Grotesque",sans-serif;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .sp-title span{font:500 11.5px/1.4 "Spline Sans Mono",monospace;color:var(--muted);letter-spacing:.03em}
-  .sp-body{display:grid;grid-template-columns:340px minmax(0,1fr);gap:20px;width:100%;max-width:1140px;margin:0 auto;padding:18px 20px 24px;flex:1;min-height:0}
-  .sp-brief{display:flex;flex-direction:column;gap:12px;min-height:0;overflow-y:auto;padding-right:2px}
+  /* grid-template-rows:minmax(0,1fr) is the load-bearing bit. A grid row defaults to auto, so it grew to the
+     tallest child — a long Canvas description made .sp-brief 1154px inside a 686px box, its overflow-y:auto
+     never engaged, and the whole page overflowed a container set to overflow:hidden, pushing the top of the
+     brief hundreds of pixels above the fold with no way to scroll to it. */
+  /* Flex, not grid. A grid row defaults to auto so it grew to the tallest child, and even with
+     minmax(0,1fr) a percentage height on the pane would not resolve reliably against a flex-sized area —
+     the brief stayed 1154px inside a 686px box and its overflow-y:auto never engaged, so a long Canvas
+     description pushed the whole screen past a container that cannot scroll. A flex line is the container's
+     height by definition, so min-height:0 on the panes clamps them and each one scrolls on its own. */
+  .sp-body{display:flex;gap:20px;width:100%;max-width:1140px;margin:0 auto;padding:18px 20px 24px;flex:1;min-height:0;overflow:hidden}
+  /* The left column is the <details class="sp-more"> wrapper, NOT .sp-brief — that is what took three
+     attempts to see. Constraining .sp-brief alone did nothing, because its parent was the unconstrained
+     flex child and grew to fit the whole Canvas description. */
+  /* The scroll goes on the element that is actually constrained. <details class="sp-more"> is the flex child
+     and gets a real 644px; .sp-brief inside it stays its full content height, so putting overflow-y:auto on
+     the brief did nothing and overflow:hidden on the wrapper simply CLIPPED the rest of the assignment. */
+  .sp-body > .sp-more{flex:0 0 340px;min-width:0;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-right:4px}
+  .sp-brief{display:flex;flex-direction:column;gap:12px;padding-right:2px}
   .sp-more>summary{display:none}
   .sp-facts{padding:6px 14px;display:grid;grid-template-columns:auto 1fr;column-gap:14px;row-gap:0;font-size:13px}
   .sp-facts>div{display:contents}
@@ -492,8 +508,8 @@
   .sp-scroll{max-height:220px;overflow-y:auto;font-size:13.5px;line-height:1.55;color:var(--ink-2);white-space:pre-line}
   .sp-block ul{margin:0;padding-left:18px;font-size:13px;color:var(--ink-2);line-height:1.5}
   .sp-block textarea{width:100%;min-height:80px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:9px 10px;font:inherit;font-size:13.5px;resize:vertical}
-  .sp-chat{display:flex;flex-direction:column;min-height:0;gap:8px}
-  .sp-chat .chat{flex:1;max-height:none;min-height:220px;margin:0;padding:6px 4px}
+  .sp-chat{flex:1 1 auto;display:flex;flex-direction:column;min-width:0;min-height:0;gap:8px}
+  .sp-chat .chat{flex:1 1 auto;max-height:none;min-height:0;margin:0;padding:6px 4px;overscroll-behavior:contain}
   .modes{display:flex;gap:6px;flex-wrap:wrap}
   .mode.make{border-color:color-mix(in srgb,var(--c5) 45%,var(--line))}
   .sp-scope{display:block;margin-top:2px}
@@ -528,10 +544,11 @@
   @media (min-width:801px){ .studypage{overflow:hidden} }
   @media (max-width:800px){
     .studypage{padding-bottom:env(safe-area-inset-bottom)}
-    .sp-body{grid-template-columns:1fr;padding:14px 16px 28px;flex:none;min-height:auto}
-    .sp-brief{overflow:visible;order:2}
-    .sp-chat{order:1}
-    .sp-chat .chat{min-height:160px}
+    .sp-body{flex-direction:column;padding:14px 16px 28px;flex:none;min-height:auto;overflow:visible}
+    .sp-body > .sp-more{flex:none;overflow:visible;order:2}
+    .sp-brief{flex:none;overflow:visible}
+    .sp-chat{flex:none;order:1}
+    .sp-chat .chat{min-height:160px;max-height:60vh}
     .sp-more>summary{display:flex;align-items:center;gap:8px;cursor:pointer;list-style:none;font-weight:700;font-size:14px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
     .sp-more>summary::-webkit-details-marker{display:none}
     .sp-more>summary::after{content:"›";margin-left:auto;font-size:20px;color:var(--muted);transition:transform .2s}
@@ -3342,7 +3359,7 @@ function cachePlanLine(days, today){
 /* The sync bookmarklet, generated from ~/lmk-extension/bookmarklet.txt — regenerate both together.
    It works on ANY school's Canvas, which is the whole point: it takes the origin from the page it runs on. */
 const LMK_SYNC_BOOKMARKLET = "javascript:(function(){\n  let BASE = \"\";\n  async function getJSON(path){\n    const out = [];\n    let url = BASE + path + (path.includes(\"?\") ? \"&\" : \"?\") + \"per_page=100\";\n    for (let hop = 0; url && hop < 20; hop++){\n      const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000);\n      let r; try { r = await fetch(url, {credentials:\"include\", headers:{\"Accept\":\"application/json\"}, signal: ctl.signal}); } finally { clearTimeout(timer); }\n      if (!r.ok) throw new Error(r.status + \" \" + path);\n      let txt = await r.text();\n      if (txt.startsWith(\"while(1);\")) txt = txt.slice(9);\n      const data = JSON.parse(txt);\n      if (Array.isArray(data)) out.push(...data); else return data;\n      const link = r.headers.get(\"Link\") || \"\";\n      const m = link.match(/<([^>]+)>;%5Cs*rel=\"next\"/);\n      url = m ? m[1] : null;\n    }\n    return out;\n  }\n  const strip = h => (h || \"\").replace(/<[^>]+>/g, \" \").replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/%5Cs+/g, \" \").trim();\n  /* Canvas's own grade for this course: exactly what the student sees, with group weights, drop rules,\n     late policies and excused work already applied. Null when the instructor hides totals. */\n  function courseScores(c){\n    const num = v => (v === null || v === undefined || v === \"\" || !isFinite(+v)) ? null : +v;\n    const es = (c.enrollments || []).filter(e => /student/i.test(e.type || e.role || \"\"));\n    const e = es.find(x => x.computed_current_score != null) || es[0] || {};\n    return {cur: num(e.computed_current_score), fin: num(e.computed_final_score)};\n  }\n  function courseTag(c){\n    const s = (c.course_code || c.name || \"\");\n    if (/asuready/i.test(s)) return \"ASU Ready\";\n    const m = s.match(/([A-Z]{2,4})%5Cs?-?(%5Cd{2,3}[A-Z]?)/);\n    return m ? m[1] + \" \" + m[2] : s.slice(0, 18);\n  }\n  function rubricText(a){\n    const r = Array.isArray(a.rubric) ? a.rubric : [];\n    return r.slice(0, 12).map(c => String(c.description || \"\").replace(/%5Cs+/g, \" \").trim().slice(0, 80) + (c.points != null ? \" (\" + c.points + \" pts)\" : \"\")).filter(x => x.trim() && x.trim() !== \"(0 pts)\").join(\"; \").slice(0, 900);\n  }\n  function kindHint(a){\n    const st = a.submission_types || [];\n    if (a.grading_type === \"not_graded\" || (a.points_possible === 0 && !st.includes(\"online_quiz\"))) return \"fyi\";\n    if (st.includes(\"none\") || st.includes(\"on_paper\")) return \"inclass\";\n    if (/attendance|participation|in.?class|clicker/i.test(a.name || \"\")) return \"inclass\";\n    if (st.includes(\"online_quiz\")) return \"quiz\";\n    if (st.includes(\"discussion_topic\")) return \"discussion\";\n    return \"\";\n  }\n  (typeof window !== \"undefined\" ? window : self).lmkCollect = async function(base){\n    BASE = (base || location.origin).replace(/%5C/$/, \"\");\n    const HOST = BASE.replace(/^https?:%5C/%5C//, \"\");\n    const courses = (await getJSON(\"/api/v1/courses?enrollment_state=active&include[]=term&include[]=total_scores\")).filter(c => c.name && !c.access_restricted_by_date);\n    const items = {};\n    const groups = {};\n    for (const c of courses){\n      const tag = courseTag(c);\n      let list = [];\n      try { list = await getJSON(`/api/v1/courses/${c.id}/assignments?include[]=submission&order_by=due_at`); } catch(e){ continue; }\n      /* What the instructor actually wrote back. One request per course, only this student's submissions,\n         only comments from someone who is not the student. It is the most useful thing LMK can know. */\n      let fb = {};\n      try {\n        const subs = await getJSON(`/api/v1/courses/${c.id}/students/submissions?student_ids[]=self&include[]=submission_comments&per_page=100`);\n        for (const sub of (Array.isArray(subs) ? subs : [])) {\n          const mine = String(sub.user_id || \"\");\n          const notes = (sub.submission_comments || []).filter(x => x && x.comment && String(x.author_id || \"\") !== mine);\n          if (notes.length) fb[String(sub.assignment_id)] = strip(notes[notes.length - 1].comment).slice(0, 400);\n        }\n      } catch(e){}\n      try {\n        const g = await getJSON(`/api/v1/courses/${c.id}/assignment_groups`);\n        groups[c.id] = g.map(x => ({id:x.id, name:x.name, w:x.group_weight}));\n      } catch(e){}\n      for (const a of list){\n        if (a.only_visible_to_overrides && !a.due_at && !a.has_overrides) continue;\n        const s = a.submission || {};\n        items[String(a.id)] = {\n          t: a.name, c: tag, cid: String(c.id),\n          due: a.due_at || \"\", lock: a.lock_at || \"\",\n          pts: a.points_possible, gt: a.grading_type, st: (a.submission_types || []).join(\",\"),\n          grp: a.assignment_group_id, k: kindHint(a),\n          sub: s.workflow_state || \"\", subAt: s.submitted_at || \"\", score: s.score == null ? null : s.score,\n          late: !!s.late, missing: !!s.missing, excused: !!s.excused,\n          url: a.html_url || \"\",\n          desc: strip(a.description).slice(0, 1200),\n          rub: rubricText(a),\n          fb: fb[String(a.id)] || \"\",\n          qid: a.quiz_id ? String(a.quiz_id) : \"\",\n        };\n      }\n    }\n    // Canvas keeps seconds spent on every quiz attempt %E2%80%94 exact durations, no sensor needed.\n    const quizTime = {}, quizMap = {};\n    const quizzes = Object.entries(items).filter(([aid, x]) => x.qid && /^(submitted|graded|pending_review)$/.test(x.sub)).slice(0, 40);\n    for (const [aid, x] of quizzes){\n      quizMap[x.cid + \"/\" + x.qid] = aid;\n      try {\n        const r = await getJSON(`/api/v1/courses/${x.cid}/quizzes/${x.qid}/submissions`);\n        const subs = (r && r.quiz_submissions) || [];\n        const secs = subs.map(q => +q.time_spent || 0).filter(v => v > 0);\n        if (secs.length) quizTime[aid] = Math.round(Math.max(...secs) / 60);\n      } catch(e){}\n    }\n    for (const aid in items) if (items[aid].qid) quizMap[items[aid].cid + \"/\" + items[aid].qid] = aid;\n    // apply_assignment_group_weights is the course-level switch: when it is false Canvas ignores\n    // the group weights entirely and grades on total points, however the weights are set.\n    return {lmk:\"canvas\", v:3, at: Date.now(), host: HOST,\n      courses: courses.map(c => Object.assign({id:String(c.id), tag:courseTag(c), name:c.name, wt: !!c.apply_assignment_group_weights}, courseScores(c))),\n      groups, items, quizTime, quizMap};\n  };\n})();\n\n(async()=>{try{const p=await window.lmkCollect();const s=JSON.stringify(p);const n=Object.keys(p.items).length;\nlet ok=false;try{await navigator.clipboard.writeText(s);ok=true}catch(e){}\nif(!ok){const ta=document.createElement(\"textarea\");ta.value=s;ta.style.cssText=\"position:fixed;top:8px;left:8px;width:90vw;height:40vh;z-index:99999;font-size:12px\";document.body.appendChild(ta);ta.focus();ta.select();try{ok=document.execCommand(\"copy\")}catch(e){}if(ok)ta.remove();else alert(\"Select all + copy the box, then paste it into LMK (gear %E2%86%92 Paste from Canvas).\")}\nif(ok)alert(\"LMK: copied \"+n+\" assignments. Open LMK %E2%86%92 gear %E2%86%92 Paste from Canvas %E2%86%92 paste.\")}catch(e){alert(\"LMK: could not read Canvas %E2%80%94 are you logged in on this tab? \"+e)}})();";
-const APP_BUILD = "v50.1";
+const APP_BUILD = "v51.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
