@@ -221,7 +221,7 @@
   .minibtn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 11px;font-size:12.5px;font-weight:600}
   .minibtn:hover{background:var(--surface-2)}
   .minibtn.keep{color:var(--good-text)}
-  .minibtn.drop{color:var(--muted)}
+  .minibtn.drop{color:var(--muted);border:1px solid var(--line);padding:6px 11px;margin:0;font-size:12.5px;text-align:center;cursor:pointer}   /* wins over the .drop file-zone style */
   .minibtn.muted{color:var(--muted)}
 
   /* ---------- semester: radar ---------- */
@@ -568,7 +568,34 @@
   .errcard{border-color:color-mix(in srgb,var(--critical) 45%,var(--line));background:color-mix(in srgb,var(--critical) 7%,var(--surface));flex-wrap:wrap}
   .errcard .minibtn{text-decoration:none}
   /* ---------- admin ---------- */
-  .adm-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:4px 0 14px}
+  .adm-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:4px 0 12px}
+  .adm-head .muted{display:block;margin-top:3px}
+  .adm-tabs{display:flex;gap:4px;padding:4px;margin:0 0 16px;border:1px solid var(--line);border-radius:999px;background:var(--surface);box-shadow:var(--shadow);width:fit-content;max-width:100%;overflow-x:auto;scrollbar-width:none}
+  .adm-tabs::-webkit-scrollbar{display:none}
+  .adm-tabs button{position:relative;border-radius:999px;padding:8px 16px;font-weight:600;font-size:13.5px;color:var(--muted);white-space:nowrap;flex:none}
+  .adm-tabs button:hover{color:var(--ink);background:var(--surface-2)}
+  .adm-tabs button[aria-selected="true"]{background:var(--btn-bg);color:var(--btn-ink)}
+  .adm-tabs .badge{position:absolute;top:2px;right:6px;min-width:16px;height:16px;padding:0 4px;border-radius:99px;background:var(--critical);color:#fff;font:700 10px/16px "Spline Sans Mono",monospace;text-align:center;font-style:normal}
+  .tile .d{display:inline-block;margin-top:6px;font:600 11px/1 "Spline Sans Mono",monospace;padding:3px 7px;border-radius:99px;background:var(--surface-2);color:var(--muted)}
+  .tile .d.up{color:var(--good-text);background:color-mix(in srgb,var(--good) 12%,var(--surface))}
+  .tile .d.down{color:var(--critical-text);background:color-mix(in srgb,var(--critical) 10%,var(--surface))}
+  .tile .of{font-size:14px;color:var(--muted)}
+  .attn{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+  .attn li{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:12px;border:1px solid color-mix(in srgb,var(--warn) 45%,var(--line));background:color-mix(in srgb,var(--warn) 8%,var(--surface));font-size:13.5px}
+  .adm-in{border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:8px 10px;font:inherit;font-size:14px}
+  .adm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px 16px;align-items:end}
+  .adm-grid .fld{display:flex;flex-direction:column;gap:5px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+  .adm-grid .fld.wide{grid-column:1 / -1}
+  .adm-grid .fld .adm-in{width:100%!important}
+  .adm-grid .ck{align-self:center}
+  .adm-tablewrap{overflow-x:auto}
+  .adm-table{width:100%;border-collapse:collapse;font-size:13px}
+  .adm-table th{text-align:left;color:var(--muted);font:600 11px/1.4 "Spline Sans Mono",monospace;letter-spacing:.06em;text-transform:uppercase;padding:6px 8px}
+  .adm-table td{padding:8px;border-top:1px solid var(--line);vertical-align:middle}
+  .adm-table .mono,.mono{font-family:"Spline Sans Mono",monospace;font-size:12.5px}
+  .adm-table .num{text-align:right;font-variant-numeric:tabular-nums}
+  .adm-table .acts{white-space:nowrap;text-align:right} .adm-table .acts .minibtn{margin-left:4px}
+  .bad{color:var(--critical-text)}
   .adm-head h1{margin:0;font:800 24px/1.1 "Bricolage Grotesque",sans-serif;letter-spacing:-.02em}
   .adm-head .muted{color:var(--muted);font-size:12.5px}
   .adm-head .sp{flex:1}
@@ -1665,8 +1692,7 @@ var renderPlus = function(){
   if (!plusPossible() || (!offer.link && !(me && me.plus))) { way.hidden = true; return; }
   const weekly = offer.weekly || (me && me.weekly) || 40, price = offer.price || (me && me.price) || "";
   let html;
-  if (me && me.plus && me.early && !me.paid) html = `<span>✓ <b>Plus is yours free, for as long as LMK exists.</b> You were here before it existed. That means ${weekly} tutor messages a week and whatever comes next.</span>${plusLink() ? `<a class="minibtn" href="${esc(plusLink())}" target="_blank" rel="noopener" title="Plus is already yours; paying funds the tutor for everyone">Back LMK · ${esc(price)}</a>` : ""}`;
-  else if (me && me.plus) html = `<span>✓ <b>You're on Plus.</b> ${weekly} tutor messages a week${me.credits ? ", plus " + me.credits + " credits" : ""}.${me.until ? " Renews " + FMT_DAY.format(new Date(me.until - 3 * 864e5)) + "." : ""}</span>${offer.portal ? `<a class="minibtn" href="${esc(offer.portal)}" target="_blank" rel="noopener">Manage billing</a>` : ""}`;
+  if (me && me.plus) html = `<span>✓ <b>You're on Plus${me.granted ? ", on the house" : ""}.</b> ${weekly} tutor messages a week${me.credits ? ", plus " + me.credits + " credits" : ""}.${me.until ? (me.granted ? " Until " + FMT_DAY.format(new Date(me.until)) : " Renews " + FMT_DAY.format(new Date(me.until - 3 * 864e5))) + "." : ""}</span>${offer.portal && !me.granted ? `<a class="minibtn" href="${esc(offer.portal)}" target="_blank" rel="noopener">Manage billing</a>` : ""}`;
   else if (me && me.status === "canceled") html = `<span>Your Plus subscription ended. The free version keeps everything else.</span>${plusLink() ? `<a class="btn grad" href="${esc(plusLink())}" target="_blank" rel="noopener">Get Plus again · ${esc(price)}</a>` : ""}`;
   else html = `<span><b>LMK Plus</b> · ${esc(price)}. ${weekly} tutor messages a week instead of ${offer.freeWeekly != null ? offer.freeWeekly : "a few"}, and first access to what's next.</span><button class="btn grad" data-act="plus-open">See Plus</button>`;
   el.innerHTML = html; way.hidden = false;
@@ -1683,16 +1709,14 @@ function openPlus(){
   const offer = PLUS.offer || {}, me = PLUS.me;
   const weekly = offer.weekly || (me && me.weekly) || 40, free = offer.freeWeekly != null ? offer.freeWeekly : 2, price = offer.price || (me && me.price) || "$4/month";
   const [amount, per] = /\//.test(price) ? price.split("/") : [price, "month"];
-  const isPlus = !!(me && me.plus), early = !!(me && me.early && !me.paid), canceled = !!(me && me.status === "canceled" && !me.plus);
+  const isPlus = !!(me && me.plus), granted = !!(me && me.granted), canceled = !!(me && /^(canceled|revoked)$/.test(me.status || "") && !me.plus);
   const cta = MODE !== "web"
     ? `<a class="btn grad" href="${esc(LMK_CONFIG.appUrl)}" target="_blank" rel="noopener">Open LMK on the web →</a><span class="privacy" style="margin:0">Plus and the tutor live on lmktoday.app; this copy runs inside claude.ai.</span>`
-    : isPlus && early && plusLink() ? `<a class="btn grad" href="${esc(plusLink())}" target="_blank" rel="noopener">Back LMK · ${esc(price)}</a><span class="privacy" style="margin:0">Plus is already yours. Paying anyway funds the tutor for everyone; cancel any time.</span>`
-    : isPlus ? (offer.portal && !early ? `<a class="btn ghost" href="${esc(offer.portal)}" target="_blank" rel="noopener">Manage billing</a>` : "")
+    : isPlus ? (offer.portal && !granted ? `<a class="btn ghost" href="${esc(offer.portal)}" target="_blank" rel="noopener">Manage billing</a>` : "")
     : plusLink() ? `<a class="btn grad" href="${esc(plusLink())}" target="_blank" rel="noopener">Get Plus · ${esc(price)}</a><span class="privacy" style="margin:0">Card by Stripe. Cancel any time.</span>`
-    : `<span class="privacy" style="margin:0">Plus opens for purchase very soon. Everyone using LMK before it does gets it free, for as long as LMK exists.</span>`;
-  const state = early ? `<div class="plus-state">✓ <span><b>Plus is yours, free for life.</b> You were here before it existed. Thank you.</span></div>`
-    : isPlus ? `<div class="plus-state">✓ <span><b>You're on Plus.</b>${me.until ? " Renews " + FMT_DAY.format(new Date(me.until - 3 * 864e5)) + "." : ""}${me.credits ? " " + me.credits + " extra credits." : ""}</span></div>`
-    : canceled ? `<div class="plus-state" style="background:var(--surface-2);border-color:var(--line)"><span>Your subscription ended. Everything free is still yours.</span></div>` : "";
+    : `<span class="privacy" style="margin:0">Plus opens for purchase very soon.</span>`;
+  const state = isPlus ? `<div class="plus-state">✓ <span><b>You're on Plus${granted ? ", on the house" : ""}.</b>${me.until ? (granted ? " Until " + FMT_DAY.format(new Date(me.until)) : " Renews " + FMT_DAY.format(new Date(me.until - 3 * 864e5))) + "." : ""}${me.credits ? " " + me.credits + " extra credits." : ""}</span></div>`
+    : canceled ? `<div class="plus-state" style="background:var(--surface-2);border-color:var(--line)"><span>Your Plus ended. Everything free is still yours.</span></div>` : "";
   document.getElementById("plusModal").innerHTML = `
     <div class="plus-hero"><div class="eyebrow">LMK Plus</div><h3 id="plusTitle">A tutor that knows your assignments.</h3><div class="price"><b>${esc(amount.trim())}</b> / ${esc((per || "month").trim())}</div></div>
     ${state}
@@ -1702,7 +1726,7 @@ function openPlus(){
       <li><span class="ic">◇</span><div><b>First access to what's next</b><span>Morning notifications, shared course stats, and whatever the ten of us building this decide on. You'll hear first.</span></div></li>
     </ul>
     <div class="plus-cta">${cta}</div>
-    <p class="plus-note">Nothing about you is stored but a random id. Stripe keeps your card and email; LMK never sees them. Everything free stays free: the plan, the estimates, the extension, the sync.</p>
+    <p class="plus-note">Nothing about you is stored but a random id. Stripe keeps your card and email; LMK never sees them. Everything free stays free: the plan, the estimates, the extension, the sync.${store.cloud && store.cloud.sid ? ` Your support code is <b style="font-family:'Spline Sans Mono',monospace">${esc(store.cloud.sid.slice(0, 8))}</b>; quote it if you write in.` : ""}</p>
     <div class="foot"><span></span><button class="minibtn" id="plusClose">Close</button></div>`;
   plusOverlay.classList.add("open");
   document.getElementById("plusClose").onclick = () => plusOverlay.classList.remove("open");
@@ -1715,7 +1739,7 @@ function renderPlusPill(){
   const show = !!(LMK_CONFIG.statsUrl && cloudPossible() && (PLUS.offer || (PLUS.me && PLUS.me.plus) || MODE !== "web"));
   pill.hidden = !show; if (!show) return;
   const me = PLUS.me;
-  txt.textContent = me && me.plus ? (me.early && !me.paid ? "Plus · free for life" : "Plus ✓") : "LMK Plus";
+  txt.textContent = me && me.plus ? "Plus ✓" : "LMK Plus";
 }
 /* Back from Stripe: the link's success page sends the student to #plus=ok; ask the worker a few times, since the webhook can lag a moment. */
 (function plusReturn(){
@@ -1858,8 +1882,7 @@ function tutorNote(){
   if (TUTOR.state === "off") { el.textContent = "The tutor is resting right now. Your own AI below still works."; if (up) up.innerHTML = ""; return; }
   if (TUTOR.plus) {
     el.innerHTML = TUTOR.state === "allowance" ? `<b>All ${TUTOR.weekly} Plus messages used this week.</b> Resets Monday.${TUTOR.credits ? " " + TUTOR.credits + " credits left." : ""}` : `<b>${TUTOR.left != null ? TUTOR.left : "…"} of ${TUTOR.weekly || plusWeekly} Plus messages</b> left this week${TUTOR.credits ? " · " + TUTOR.credits + " credits after that" : ""}.`;
-    // free-for-life members still get a quiet way to pay: it funds the tutor for everyone
-    if (up) { up.innerHTML = PLUS.me && PLUS.me.early && !PLUS.me.paid && plusLink() ? `<button class="minibtn" data-act="plus-open" title="Plus is already yours; paying funds the tutor">Back LMK · ${esc(price)}</button>` : ""; bind(); }
+    if (up) up.innerHTML = "";
     return;
   }
   if (TUTOR.state === "allowance") el.innerHTML = `<b>This week's ${TUTOR.weekly || ""} free messages are used.</b> Resets Monday; your own AI below is unlimited.`;
@@ -1907,7 +1930,7 @@ async function tutorSend(id, preset){
 }
 function planChip(){
   const me = PLUS.me, offer = PLUS.offer || {};
-  if (me && me.plus) return `<button class="planchip plus" data-act="plus-open" title="Your plan">✦ ${me.early && !me.paid ? "Plus · free for life" : "Plus"}</button>`;
+  if (me && me.plus) return `<button class="planchip plus" data-act="plus-open" title="Your plan">✦ Plus</button>`;
   return `<button class="planchip" data-act="plus-open" title="See what Plus adds">Free plan · <span style="color:var(--c1)">See Plus</span></button>`;
 }
 /* The Study screen. One assignment, full page: the brief on the left (what it is, what it is worth, the rubric,
@@ -2686,7 +2709,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v36.0";
+const APP_BUILD = "v37.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -2886,10 +2909,12 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="adm-save-store") { adminSave({storeUrl: document.getElementById("admStore").value.trim().slice(0, 300)}); }
   else if (a==="adm-copy-csv") { adminCopyCsv(); }
   else if (a==="adm-pause") { adminSave({cloudPaused: !!act.checked}); }
-  else if (a==="adm-save-plus") { const g = id => document.getElementById(id); adminSave({plusLink: g("admPlusLink").value.trim().slice(0, 300), plusPortal: g("admPlusPortal").value.trim().slice(0, 300), plusPrice: g("admPlusPrice").value.trim().slice(0, 24), plusLaunch: g("admPlusLaunch").value, tutorPlusWeekly: Math.max(0, +g("admPlusWeekly").value || 0)}); }
-  else if (a==="adm-save-tutor") { const g = id => document.getElementById(id); adminSave({tutorOn: g("admTutorOn").checked, tutorWeekly: Math.max(0, +g("admTutorWeekly").value || 0), tutorDaily: Math.max(0, +g("admTutorDaily").value || 0), tutorModel: g("admTutorModel").value}); }
+  else if (a==="adm-save-plus") { const g = id => document.getElementById(id); adminSave({plusLink: g("admPlusLink").value.trim().slice(0, 300), plusPortal: g("admPlusPortal").value.trim().slice(0, 300), plusPrice: g("admPlusPrice").value.trim().slice(0, 24), tutorPlusWeekly: Math.max(0, +g("admPlusWeekly").value || 0)}); }
+  else if (a==="adm-save-tutor") { const g = id => document.getElementById(id); adminSave({tutorOn: g("admTutorOn").checked, tutorWeekly: Math.max(0, +g("admTutorWeekly").value || 0), tutorDaily: Math.max(0, +g("admTutorDaily").value || 0), tutorPlusDaily: Math.max(0, +g("admTutorPlusDaily").value || 0), tutorIpDaily: Math.max(0, +g("admTutorIpDaily").value || 0), tutorModel: g("admTutorModel").value}); }
   else if (a==="adm-lookup") { adminLookup(); }
-  else if (a==="adm-student") { adminStudent(act.dataset.sid, act.dataset.do); }
+  else if (a==="adm-student") { adminStudent(act.dataset.sid, act.dataset.do, act.dataset.months); }
+  else if (a==="adm-grant") { const g = id => document.getElementById(id); adminStudent((g("admGrantSid").value || "").trim(), "grant", g("admGrantMonths").value); }
+  else if (a==="adm-tab") { ADMIN.tab = act.dataset.tab; try { localStorage.setItem("lmk_admin_tab", ADMIN.tab); } catch(_){} animNext = true; render(); }
   else if (a==="cap-close") { showCap = false; render(); }
   else if (a==="cap-edit") { showCap = !showCap; render(); }
   else if (a==="cap-bump") { store.capOv = store.capOv || {}; store.capOv[dayKey(now())] = capHours(now()) + 1; save(); render(); toast("Today got an extra hour. Just today."); }
@@ -3955,7 +3980,8 @@ function maybeAskReview(){
    Unlocked on a device by opening LMK once with #admin=<STATS_KEY> in the address. The key is the
    credential; the worker checks it on every request. Web mode only — the artifact cannot reach
    the worker, and there is nothing about any student to see: the server holds counts and settings. */
-const ADMIN = {key:null, data:null, at:0, loading:false, err:""};
+const ADMIN = {key:null, data:null, at:0, loading:false, err:"", tab:"overview"};
+try { ADMIN.tab = localStorage.getItem("lmk_admin_tab") || "overview"; } catch(_){}
 const apiUrl = path => LMK_CONFIG.statsUrl.replace(/\/$/, "") + path;
 /* The key rides in the synced store, so every device signed in as the admin gets the tab. */
 function adminApply(){
@@ -4016,14 +4042,17 @@ async function adminLookup(){
     const j = await r.json(); const p = j.student;
     if (!p) { out.textContent = "No student with that code."; return; }
     const ago = t => t ? Math.round((Date.now() - t) / 60000) + " min ago" : "never";
-    out.innerHTML = `${esc(p.host)} · ${p.courses} courses · last read ${ago(p.synced_at)} · ${!p.active ? "paused" : p.err ? esc(p.err) : "healthy"} <button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="retry">Retry</button> <button class="minibtn drop" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="forget">Forget</button>`;
+    out.innerHTML = `${esc(p.host)} · ${p.courses} courses · last read ${ago(p.synced_at)} · ${!p.active ? "paused" : p.err ? esc(p.err) : "healthy"} <button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="retry">Retry</button> <button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="grant" data-months="4">Plus · 4 mo</button> <button class="minibtn drop" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="forget">Forget</button>`;
   } catch(_) { if (out) out.textContent = "Couldn't reach the worker."; }
 }
-async function adminStudent(sid, action){
+async function adminStudent(sid, action, months){
   if (action === "forget" && !confirm("Forget this student on the server? Their app keeps working from the extension; the server copy and key are deleted.")) return;
+  if (action === "revoke" && !confirm("Take Plus away from this code now?")) return;
+  if (!/^[a-f0-9]{6,64}$/i.test(sid || "")) { toast("A support code is 6 to 64 hex characters."); return; }
   try {
-    const r = await fetch(apiUrl("/admin/student?key=" + encodeURIComponent(ADMIN.key)), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"}, body: JSON.stringify({sid, action})});
-    const j = await r.json(); toast(j.ok ? `Done: ${action}.` : "The worker refused: " + (j.error || r.status));
+    const r = await fetch(apiUrl("/admin/student?key=" + encodeURIComponent(ADMIN.key)), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"}, body: JSON.stringify({sid: sid.toLowerCase(), action, months: +months || 1})});
+    const j = await r.json();
+    toast(j.ok ? (action === "grant" ? `Plus granted for ${j.months} month${j.months === 1 ? "" : "s"}.` : action === "revoke" ? "Plus revoked." : `Done: ${action}.`) : "The worker said: " + (j.error || r.status));
   } catch(_) { toast("Couldn't reach the worker."); }
   adminFetch(true);
 }
@@ -4060,121 +4089,163 @@ function renderAdmin(root){
   if (!ADMIN.data && !ADMIN.err) { adminFetch(false); root.innerHTML = `<div class="empty">Reading the numbers…</div>`; return; }
   if (!ADMIN.data) { root.innerHTML = `<div class="empty" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${esc(ADMIN.err)} <button class="minibtn" data-act="adm-refresh">Try again</button> <button class="minibtn drop" data-act="adm-logout">Forget admin key</button></div>`; return; }
   const d = ADMIN.data, days = d.days || {}, S = d.settings || {}, tot = d.totals || {};
-  const CL = d.cloud || {}, T = d.today || {}, ops = d.ops || {};
+  const CL = d.cloud || {}, T = d.today || {}, ops = d.ops || {}, PL = d.plus || {}, TU = d.tutor || {}, errs = d.errs || [], probs = d.problems || [];
   const ago = t => { if (!t) return "never"; const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 1440 ? Math.round(m / 60) + " h ago" : Math.round(m / 1440) + " d ago"; };
-  const reqToday = (T.sync_pull || 0) + (T.sync_refresh || 0) + (T.sync_register || 0) + (T.cron_step || 0) + (T.open || 0) + (T.install || 0) + (T.firstsync || 0) + (T.err || 0);
+  const n = v => (+v || 0).toLocaleString();
+  const reqToday = (T.sync_pull || 0) + (T.sync_refresh || 0) + (T.sync_register || 0) + (T.cron_step || 0) + (T.open || 0) + (T.install || 0) + (T.firstsync || 0) + (T.err || 0) + (T.tutor_msg || 0);
   const cronStale = ops.cronAt && Date.now() - ops.cronAt > 10 * 60e3;
   const today = dayKey(now());
   const keys = []; for (let i = 29; i >= 0; i--) keys.push(dayKey(addDays(startOfDay(now()), -i)));
   const get = (k, ev) => (days[k] && days[k][ev]) || 0;
-  const sum = (ev, n) => keys.slice(-n).reduce((t, k) => t + get(k, ev), 0);
-  const installs = tot.install || 0, syncs = tot.firstsync || 0;
-  const openToday = get(today, "open"), avg7 = Math.round(sum("open", 7) / 7 * 10) / 10, inst7 = sum("install", 7);
-  const conv = installs ? Math.round(syncs / installs * 100) : null;
-  let html = `<div class="adm-head"><h1>Mission control</h1><span class="muted">last 90 days · read ${new Date(ADMIN.at).toLocaleTimeString(undefined, {hour:"numeric", minute:"2-digit"})}</span><span class="sp"></span>
-    <button class="minibtn" data-act="adm-refresh">Refresh</button><button class="minibtn" data-act="adm-copy-csv">Copy CSV</button></div>`;
-  html += `<div class="tiles">
-    <div class="card tile"><div class="k">Opens today</div><div class="v">${openToday}</div><div class="s">devices that opened LMK</div></div>
-    <div class="card tile"><div class="k">Opens per day</div><div class="v">${avg7}</div><div class="s">average, last 7 days</div></div>
-    <div class="card tile"><div class="k">Installs</div><div class="v">${installs}</div><div class="s">${inst7} in the last 7 days</div></div>
-    <div class="card tile"><div class="k">Sync from anywhere</div><div class="v">${CL.active || 0}<span style="font-size:14px;color:var(--muted)"> / ${CL.students || 0}</span></div><div class="s">${d.cloud ? `${CL.syncedToday || 0} read in 24 h · ${CL.errors || 0} need attention` : "not deployed yet"}</div></div>
-    <div class="card tile"><div class="k">Free plan today</div><div class="v">${reqToday.toLocaleString()}</div><div class="s">of 100,000 worker requests · ${T.cron_step || 0} cron steps</div></div>
-    <div class="card tile"><div class="k">Want the tutor</div><div class="v">${tot.tutor_want || 0}</div><div class="s">${sum("tutor_want", 7)} in the last 7 days · one tap per device</div></div>
-    <div class="card tile"><div class="k">First syncs</div><div class="v">${syncs}</div><div class="s">${conv === null ? "no installs yet" : conv + "% of installs reached Canvas"}</div></div>
-  </div>`;
-  // ---- health: is the machine running, and is anything piling up ----
-  html += `<div class="card adm-card"><h3>Health</h3>
-    <div class="adm-row" style="gap:18px">
-      <span>Worker <b>v${esc(String(ops.version || "?"))}</b></span>
-      <span>Cron last ran <b style="${cronStale ? "color:var(--critical-text)" : ""}">${ago(ops.cronAt)}</b>${cronStale ? " · expected every 2 min" : ""}</span>
-      <span>Oldest active read <b>${ago(CL.oldest)}</b></span>
-      <span>${CL.stale || 0} students stale (3 d+) · ${CL.expiring || 0} tokens due for renewal</span>
-      ${d.cloudError ? `<span style="color:var(--critical-text)">cloud stats failed: ${esc(d.cloudError)}</span>` : ""}
-    </div>
-    <div class="adm-row" style="margin-top:10px"><label class="ck"><input type="checkbox" id="admPaused" ${S.cloudPaused ? "checked" : ""} data-act="adm-pause"> Pause Sync from anywhere (kill switch: the cron and page-driven reads stop; phones keep the last copy; nothing is deleted)</label></div></div>`;
-  // ---- chart: opens as bars, installs as a line; one scale, two series, legend + direct hover ----
-  const W = 640, H = 210, padL = 34, padR = 12, padT = 12, padB = 26;
-  const rawMax = Math.max(1, ...keys.map(k => Math.max(get(k, "open"), get(k, "install"))));
-  const step = rawMax <= 5 ? 1 : rawMax <= 20 ? 5 : rawMax <= 50 ? 10 : rawMax <= 200 ? 50 : 100;
-  const top = Math.ceil(rawMax / step) * step;
-  const x = i => padL + i * (W - padL - padR) / 30, slot = (W - padL - padR) / 30, bw = Math.max(4, slot - 3);
-  const y = v => padT + (H - padT - padB) * (1 - v / top);
-  let svg = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Daily opens and installs, last 30 days">`;
-  for (const v of [0, top / 2, top]) svg += `<line class="grid" x1="${padL}" x2="${W - padR}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text x="${padL - 6}" y="${(y(v) + 3.5).toFixed(1)}" text-anchor="end">${v}</text>`;
-  keys.forEach((k, i) => {
-    const o = get(k, "open"), h = Math.max(0, y(0) - y(o));
-    svg += `<rect x="${(x(i) + 1.5).toFixed(1)}" y="${(y(o)).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="var(--chart-a)" data-tip="${k}: ${o} open${o === 1 ? "" : "s"}, ${get(k, "install")} install${get(k, "install") === 1 ? "" : "s"}"/>`;
-    if (i % 7 === 1) svg += `<text x="${(x(i) + slot / 2).toFixed(1)}" y="${H - 8}" text-anchor="middle">${k.slice(5).replace("-", "/")}</text>`;
-  });
-  const pts = keys.map((k, i) => `${(x(i) + slot / 2).toFixed(1)},${y(get(k, "install")).toFixed(1)}`);
-  svg += `<polyline points="${pts.join(" ")}" fill="none" stroke="var(--chart-b)" stroke-width="2" stroke-linejoin="round"/>`;
-  keys.forEach((k, i) => { const v = get(k, "install"); if (v) svg += `<circle cx="${(x(i) + slot / 2).toFixed(1)}" cy="${y(v).toFixed(1)}" r="4" fill="var(--chart-b)" stroke="var(--surface)" stroke-width="2" data-tip="${k}: ${v} install${v === 1 ? "" : "s"}"/>`; });
-  svg += `</svg>`;
-  html += `<div class="card adm-card"><h3>Last 30 days</h3><p class="sub2">One device counts once a day. Your own devices, test renders and copies running anywhere but lmktoday.app are never counted, so a zero here means no one else has opened LMK yet.</p>${svg}
-    <div class="legend"><span><i style="background:var(--chart-a)"></i>Daily opens</span><span><i style="background:var(--chart-b)"></i>Installs</span></div></div>`;
-  // ---- the fleet: who is syncing, where, and what is wrong ----
-  const probs = d.problems || [];
-  html += `<div class="card adm-card"><h3>Sync fleet</h3><p class="sub2">Every student is a random support code; the code is shown to them under the gear so they can quote it. Schools: ${(CL.byHost || []).map(x => `<b>${esc(x.host)}</b> ${x.n}`).join(" · ") || "none yet"}.${(CL.byErr || []).length ? " Errors: " + CL.byErr.map(x => `${esc(x.err)} (${x.n})`).join(" · ") + "." : ""}</p>
-    <div class="adm-row" style="margin-bottom:10px"><input id="admLookup" type="text" placeholder="support code" maxlength="64" style="flex:1 1 160px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:8px 10px;font:inherit;font-size:14px"><button class="minibtn" data-act="adm-lookup">Look up</button><span id="admLookupOut" class="sub2" style="margin:0"></span></div>
-    ${probs.length ? `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="text-align:left;color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.06em"><th style="padding:6px 8px">Code</th><th>School</th><th>Courses</th><th>Last read</th><th>Status</th><th></th></tr></thead><tbody>` +
-      probs.map(p => `<tr style="border-top:1px solid var(--line)"><td style="padding:7px 8px;font-family:'Spline Sans Mono',monospace">${esc(p.sid.slice(0, 8))}</td><td>${esc(p.host)}</td><td>${p.courses}</td><td>${ago(p.synced_at)}</td><td>${!p.active ? "paused" : p.err ? `<span style="color:var(--critical-text)">${esc(p.err)}</span>` : "stale"}</td>
-        <td style="white-space:nowrap;text-align:right">${p.active ? `<button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="retry">Retry</button> <button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="pause">Pause</button>` : `<button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="resume">Resume</button>`} <button class="minibtn drop" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="forget">Forget</button></td></tr>`).join("") + `</tbody></table></div>` : `<p class="sub2" style="margin:0">No stale, paused or failing students right now.</p>`}
-  </div>`;
-  // ---- Plus: the money side, in one place ----
-  const PL = d.plus || {};
-  html += `<div class="card adm-card"><h3>LMK Plus</h3><p class="sub2">${PL.webhook ? "" : "<b>Webhook secret not set:</b> run <span style=\"font-family:'Spline Sans Mono',monospace\">npx wrangler secret put STRIPE_WEBHOOK_SECRET</span> or payments can't be recognised. "}<b>${PL.active || 0}</b> active subscriber${PL.active === 1 ? "" : "s"} · ${PL.ever || 0} ever · ${PL.creditsOutstanding || 0} credits outstanding. Payments happen on Stripe with the student's random id attached; only Stripe's webhook can grant Plus. Ids seen before the launch date get Plus free for life, as the terms promise.</p>
-    <div class="adm-form">
-      <div class="adm-row"><input id="admPlusLink" type="url" placeholder="Stripe Payment Link (https://buy.stripe.com/…)" value="${esc(PL.plusLink || "")}" style="flex:2 1 260px"><input id="admPlusPortal" type="url" placeholder="Customer portal link (https://billing.stripe.com/…)" value="${esc(PL.plusPortal || "")}" style="flex:2 1 260px"></div>
-      <div class="adm-row"><label class="ck">Shown price <input id="admPlusPrice" type="text" maxlength="24" value="${esc(PL.plusPrice || "$4/month")}" style="width:110px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:6px 8px;font:inherit"></label>
-        <label class="ck">Launch date <input id="admPlusLaunch" type="date" value="${esc(PL.plusLaunch || "")}" title="Everyone whose id the worker saw before this day is Plus for life"></label>
-        <label class="ck">Plus tutor messages per week <input id="admPlusWeekly" type="number" min="0" max="1000" value="${+PL.tutorPlusWeekly || 40}" style="width:80px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:6px 8px;font:inherit"></label>
-        <span class="sp" style="flex:1"></span><button class="btn primary" data-act="adm-save-plus">Save Plus settings</button></div>
+  const sum = (ev, a, b) => keys.slice(a, b).reduce((t, k) => t + get(k, ev), 0);
+  const last7 = ev => sum(ev, 23, 30), prev7 = ev => sum(ev, 16, 23);
+  const installs = tot.install || 0, syncs = tot.firstsync || 0, conv = installs ? Math.round(syncs / installs * 100) : null;
+  const openToday = get(today, "open"), avg7 = Math.round(last7("open") / 7 * 10) / 10;
+  const delta = (a, b) => { if (!b && !a) return ""; if (!b) return `<span class="d up">new</span>`; const p = Math.round((a - b) / b * 100); return `<span class="d ${p >= 0 ? "up" : "down"}">${p >= 0 ? "▲" : "▼"} ${Math.abs(p)}% vs prior week</span>`; };
+  // money: what a message costs us and what Plus brings in
+  const perMsg = TU.tutorModel === "claude-opus-5" ? 0.012 : 0.007;   // blended chat + quizzes, quizzes always on Sonnet
+  const priceNum = parseFloat(String(PL.plusPrice || "").replace(/[^0-9.]/g, "")) || 4;
+  const mrr = (PL.paying || 0) * priceNum, spend30 = sum("tutor_msg", 0, 30) * perMsg, spendToday = (T.tutor_msg || 0) * perMsg;
+  const attention = [];
+  if (!TU.configured) attention.push(["tutor", "The tutor has no API key; students see only their own AI."]);
+  if (cronStale) attention.push(["ops", `Cron last ran ${ago(ops.cronAt)}; expected every 5 minutes. Check the Actions tab of DVNSON/lmk.`]);
+  if (!PL.webhook) attention.push(["plus", "Stripe webhook secret is not set; payments can't be recognised."]);
+  if (!PL.plusLink) attention.push(["plus", "No Payment Link saved; nobody can buy Plus."]);
+  if ((CL.errors || 0) > 0) attention.push(["students", `${CL.errors} student sync${CL.errors === 1 ? " needs" : "s need"} attention.`]);
+  if (T.err) attention.push(["ops", `${T.err} app error${T.err === 1 ? "" : "s"} reported today.`]);
+  if (S.cloudPaused) attention.push(["students", "Sync from anywhere is paused (kill switch on)."]);
+  if (!TU.tutorOn) attention.push(["tutor", "The tutor is switched off."]);
+  const TABS = [["overview", "Overview", 0], ["students", "Students", CL.errors || 0], ["tutor", "Tutor", 0], ["plus", "Plus", 0], ["ops", "Ops", (cronStale ? 1 : 0) + (T.err ? 1 : 0)]];
+  if (!TABS.some(t => t[0] === ADMIN.tab)) ADMIN.tab = "overview";
+  const tile = (k, v, s, extra) => `<div class="card tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div>${extra || ""}</div>`;
+  const input = (id, val, w, attrs) => `<input id="${id}" ${attrs || 'type="number" min="0"'} value="${esc(String(val))}" class="adm-in" style="width:${w || 90}px">`;
+  const table = (head, rows) => rows.length ? `<div class="adm-tablewrap"><table class="adm-table"><thead><tr>${head.map(h => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table></div>` : "";
+  let html = `<div class="adm-head"><div><h1>Mission control</h1><span class="muted">worker v${esc(String(ops.version || "?"))} · read ${new Date(ADMIN.at).toLocaleTimeString(undefined, {hour:"numeric", minute:"2-digit"})} · lmktoday.app</span></div><span class="sp"></span>
+    <button class="minibtn" data-act="adm-refresh">Refresh</button><button class="minibtn" data-act="adm-copy-csv">CSV</button></div>
+    <nav class="adm-tabs" role="tablist" aria-label="Admin sections">${TABS.map(([id, label, badge]) => `<button role="tab" data-act="adm-tab" data-tab="${id}" aria-selected="${ADMIN.tab === id}">${label}${badge ? `<i class="badge">${badge}</i>` : ""}</button>`).join("")}</nav>`;
+
+  if (ADMIN.tab === "overview") {
+    html += `<div class="tiles">
+      ${tile("Opens today", openToday, `${avg7} a day, last 7 days`, delta(last7("open"), prev7("open")))}
+      ${tile("Installs", installs, `${last7("install")} this week`, delta(last7("install"), prev7("install")))}
+      ${tile("Reached Canvas", syncs, conv === null ? "no installs yet" : `${conv}% of installs`)}
+      ${tile("Plus members", (PL.paying || 0) + (PL.granted || 0), `${PL.paying || 0} paying · ${PL.granted || 0} granted`)}
+      ${tile("Tutor today", n(T.tutor_msg), `≈ $${spendToday.toFixed(2)} · ${n(sum("tutor_msg", 23, 30))} this week`)}
+      ${tile("Month", `$${mrr.toFixed(0)}`, `MRR · tutor spend ≈ $${spend30.toFixed(2)} last 30 d`)}
+    </div>`;
+    html += `<div class="card adm-card"><h3>Needs attention</h3>${attention.length ? `<ul class="attn">${attention.map(([tab, msg]) => `<li><span>${esc(msg)}</span><button class="minibtn" data-act="adm-tab" data-tab="${tab}">Open</button></li>`).join("")}</ul>` : `<p class="sub2" style="margin:0">Nothing. The machine is running, the money side is wired, and no one is stuck.</p>`}</div>`;
+    // chart: opens as bars, installs as a line
+    const W = 640, H = 210, padL = 34, padR = 12, padT = 12, padB = 26;
+    const rawMax = Math.max(1, ...keys.map(k => Math.max(get(k, "open"), get(k, "install"))));
+    const step = rawMax <= 5 ? 1 : rawMax <= 20 ? 5 : rawMax <= 50 ? 10 : rawMax <= 200 ? 50 : 100;
+    const top = Math.ceil(rawMax / step) * step;
+    const x = i => padL + i * (W - padL - padR) / 30, slot = (W - padL - padR) / 30, bw = Math.max(4, slot - 3);
+    const y = v => padT + (H - padT - padB) * (1 - v / top);
+    let svg = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Daily opens and installs, last 30 days">`;
+    for (const v of [0, top / 2, top]) svg += `<line class="grid" x1="${padL}" x2="${W - padR}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text x="${padL - 6}" y="${(y(v) + 3.5).toFixed(1)}" text-anchor="end">${v}</text>`;
+    keys.forEach((k, i) => {
+      const o = get(k, "open"), h = Math.max(0, y(0) - y(o));
+      svg += `<rect x="${(x(i) + 1.5).toFixed(1)}" y="${(y(o)).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="var(--chart-a)" data-tip="${k}: ${o} open${o === 1 ? "" : "s"}, ${get(k, "install")} install${get(k, "install") === 1 ? "" : "s"}, ${get(k, "tutor_msg")} tutor msgs"/>`;
+      if (i % 7 === 1) svg += `<text x="${(x(i) + slot / 2).toFixed(1)}" y="${H - 8}" text-anchor="middle">${k.slice(5).replace("-", "/")}</text>`;
+    });
+    const pts = keys.map((k, i) => `${(x(i) + slot / 2).toFixed(1)},${y(get(k, "install")).toFixed(1)}`);
+    svg += `<polyline points="${pts.join(" ")}" fill="none" stroke="var(--chart-b)" stroke-width="2" stroke-linejoin="round"/>`;
+    keys.forEach((k, i) => { const v = get(k, "install"); if (v) svg += `<circle cx="${(x(i) + slot / 2).toFixed(1)}" cy="${y(v).toFixed(1)}" r="4" fill="var(--chart-b)" stroke="var(--surface)" stroke-width="2" data-tip="${k}: ${v} install${v === 1 ? "" : "s"}"/>`; });
+    svg += `</svg>`;
+    html += `<div class="card adm-card"><h3>Last 30 days</h3><p class="sub2">One device counts once a day. Your own devices, test renders and copies running anywhere but lmktoday.app are never counted.</p>${svg}
+      <div class="legend"><span><i style="background:var(--chart-a)"></i>Daily opens</span><span><i style="background:var(--chart-b)"></i>Installs</span></div></div>`;
+  }
+
+  if (ADMIN.tab === "students") {
+    html += `<div class="tiles">
+      ${tile("Sync from anywhere", `${CL.active || 0}<span class="of"> / ${CL.students || 0}</span>`, d.cloud ? `${CL.syncedToday || 0} read in 24 h` : "not deployed yet")}
+      ${tile("Need attention", CL.errors || 0, `${CL.stale || 0} stale (3 d+) · ${CL.expiring || 0} tokens due`)}
+      ${tile("Oldest read", ago(CL.oldest), "across active students")}
+      ${tile("Schools", (CL.byHost || []).length, (CL.byHost || []).map(x => `${esc(x.host)} ${x.n}`).join(" · ") || "none yet")}
+    </div>`;
+    html += `<div class="card adm-card"><h3>Find a student</h3><p class="sub2">Every student is a random support code, shown to them in the Plus sheet and under the gear. Nothing here has a name.</p>
+      <div class="adm-row"><input id="admLookup" type="text" placeholder="support code" maxlength="64" class="adm-in" style="flex:1 1 160px"><button class="minibtn" data-act="adm-lookup">Look up</button></div>
+      <p id="admLookupOut" class="sub2" style="margin:10px 0 0"></p></div>`;
+    html += `<div class="card adm-card"><h3>Stuck or stale</h3><p class="sub2">${(CL.byErr || []).length ? "Errors: " + CL.byErr.map(x => `${esc(x.err)} (${x.n})`).join(" · ") + "." : "No sync errors right now."} Pause a code that hammers Canvas, forget one on request, retry one after a fix.</p>
+      ${table(["Code", "School", "Courses", "Last read", "Status", ""], probs.map(p => `<tr><td class="mono">${esc(p.sid.slice(0, 8))}</td><td>${esc(p.host)}</td><td>${p.courses}</td><td>${ago(p.synced_at)}</td><td>${!p.active ? "paused" : p.err ? `<span class="bad">${esc(p.err)}</span>` : "stale"}</td>
+        <td class="acts">${p.active ? `<button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="retry">Retry</button><button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="pause">Pause</button>` : `<button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="resume">Resume</button>`}<button class="minibtn drop" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="forget">Forget</button></td></tr>`)) || `<p class="sub2" style="margin:0">Everyone is syncing.</p>`}
+      <div class="adm-row" style="margin-top:12px"><label class="ck"><input type="checkbox" id="admPaused" ${S.cloudPaused ? "checked" : ""} data-act="adm-pause"> Pause Sync from anywhere for everyone (kill switch: reads stop, phones keep their last copy, nothing is deleted)</label></div></div>`;
+  }
+
+  if (ADMIN.tab === "tutor") {
+    html += `<div class="tiles">
+      ${tile("Messages today", n(T.tutor_msg), `of ${n(TU.tutorDaily)} free pot · ${n(TU.tutorPlusDaily)} member pot`)}
+      ${tile("This week", n(sum("tutor_msg", 23, 30)), `${n(sum("tutor_msg", 0, 30))} in 30 days`, delta(last7("tutor_msg"), prev7("tutor_msg")))}
+      ${tile("Spend", `$${spend30.toFixed(2)}`, `last 30 days at ≈ ${(perMsg * 100).toFixed(1)}¢ a message`)}
+      ${tile("Model", TU.tutorModel === "claude-opus-5" ? "Opus 5" : "Sonnet 5", "chat · quizzes and decks always on Sonnet")}
+    </div>`;
+    html += `<div class="card adm-card"><h3>Ceilings</h3><p class="sub2">${TU.configured ? "" : "<b>Not configured:</b> set the ANTHROPIC_API_KEY secret on the worker and this turns on. "}Four checks run before any token is bought. The pots are shared daily counts: free accounts stop at the free pot, members keep going to the member pot. Set the Anthropic console's monthly limit to match.</p>
+      <div class="adm-grid">
+        <label class="ck"><input type="checkbox" id="admTutorOn" ${TU.tutorOn ? "checked" : ""}> Tutor on</label>
+        <label class="fld">Free messages a week, per student ${input("admTutorWeekly", +TU.tutorWeekly || 0)}</label>
+        <label class="fld">Plus messages a week, per member ${input("admPlusWeekly", +PL.tutorPlusWeekly || 40)}</label>
+        <label class="fld">Free pot, messages a day ${input("admTutorDaily", +TU.tutorDaily || 0, 100)}</label>
+        <label class="fld">Member pot, messages a day ${input("admTutorPlusDaily", +TU.tutorPlusDaily || 0, 100)}</label>
+        <label class="fld">Per network, a day ${input("admTutorIpDaily", +TU.tutorIpDaily || 0)}</label>
+        <label class="fld">Chat model <select id="admTutorModel" class="adm-in"><option value="claude-sonnet-5" ${TU.tutorModel === "claude-sonnet-5" ? "selected" : ""}>Claude Sonnet 5 · ≈0.7¢</option><option value="claude-opus-5" ${TU.tutorModel === "claude-opus-5" ? "selected" : ""}>Claude Opus 5 · ≈1.2¢</option></select></label>
+      </div>
+      <div class="adm-row" style="margin-top:12px;justify-content:flex-end"><button class="btn primary" data-act="adm-save-tutor">Save tutor settings</button></div></div>`;
+    html += `<div class="card adm-card"><h3>Unit economics</h3><p class="sub2" style="margin:0">A chat reply is about 0.45¢ on Sonnet and 1.1¢ on Opus; a 10-question quiz or a 16-card deck about 1.4¢ (always Sonnet). A member using all ${+PL.tutorPlusWeekly || 40} messages a week costs at most $${((+PL.tutorPlusWeekly || 40) * 4.33 * 0.014).toFixed(2)} a month against $${priceNum.toFixed(2)} in, $${(priceNum * 0.971 - 0.30).toFixed(2)} after Stripe. A free student costs at most $${((+TU.tutorWeekly || 0) * 4.33 * 0.014).toFixed(2)} a month.</p></div>`;
+  }
+
+  if (ADMIN.tab === "plus") {
+    const members = PL.members || [];
+    html += `<div class="tiles">
+      ${tile("Paying", PL.paying || 0, `$${mrr.toFixed(0)} a month at ${esc(PL.plusPrice || "$4/month")}`)}
+      ${tile("Granted", PL.granted || 0, "on the house, by you")}
+      ${tile("Ever", PL.ever || 0, `${PL.creditsOutstanding || 0} credits outstanding`)}
+      ${tile("Stripe", PL.webhook ? "wired" : "no webhook", PL.plusLink ? "payment link saved" : "no payment link")}
+    </div>`;
+    html += `<div class="card adm-card"><h3>Grant Plus</h3><p class="sub2">Type a student's support code (they see it in the Plus sheet) and give them Plus for a while. It ends on its own; revoke it early below. Stripe never touches a granted membership.</p>
+      <div class="adm-row"><input id="admGrantSid" type="text" placeholder="support code" maxlength="64" class="adm-in" style="flex:1 1 160px"><select id="admGrantMonths" class="adm-in"><option value="1">1 month</option><option value="4" selected>4 months · a semester</option><option value="12">12 months</option></select><button class="btn primary" data-act="adm-grant">Grant Plus</button></div></div>`;
+    html += `<div class="card adm-card"><h3>Members</h3>${table(["Code", "How", "Since", "Until", ""], members.map(m => `<tr><td class="mono">${esc(m.code)}</td><td>${m.how === "granted" ? "granted" : "Stripe"}</td><td>${m.since ? FMT_DAY.format(new Date(m.since)) : ""}</td><td>${m.until ? FMT_DAY.format(new Date(m.until)) : "open"}</td><td class="acts"><button class="minibtn drop" data-act="adm-student" data-sid="${esc(m.sid)}" data-do="revoke">Revoke</button></td></tr>`)) || `<p class="sub2" style="margin:0">No members yet. The first one shows up here the moment Stripe's webhook lands, or the moment you grant one.</p>`}</div>`;
+    html += `<div class="card adm-card"><h3>Offer</h3><p class="sub2">${PL.webhook ? "" : "<b>Webhook secret not set:</b> run <span class=\"mono\">npx wrangler secret put STRIPE_WEBHOOK_SECRET</span> or payments can't be recognised. "}The link opens Stripe with the student's code attached; the success page must send them to lmktoday.app/app/#plus=ok. The price here is what the app shows; change it in Stripe too.</p>
+      <div class="adm-grid">
+        <label class="fld wide">Payment Link ${input("admPlusLink", PL.plusLink || "", 0, 'type="url" placeholder="https://buy.stripe.com/…"')}</label>
+        <label class="fld wide">Customer portal ${input("admPlusPortal", PL.plusPortal || "", 0, 'type="url" placeholder="https://billing.stripe.com/…"')}</label>
+        <label class="fld">Shown price ${input("admPlusPrice", PL.plusPrice || "$4/month", 120, 'type="text" maxlength="24"')}</label>
+      </div>
+      <div class="adm-row" style="margin-top:12px;justify-content:flex-end"><button class="btn primary" data-act="adm-save-plus">Save Plus settings</button></div></div>`;
+  }
+
+  if (ADMIN.tab === "ops") {
+    html += `<div class="tiles">
+      ${tile("Cron", ago(ops.cronAt), cronStale ? `<span class="bad">expected every 5 min</span>` : "GitHub Actions tick, every 5 min")}
+      ${tile("Worker requests", n(reqToday), `today, of 100,000 on the free plan · ${T.cron_step || 0} cron steps`)}
+      ${tile("App errors", T.err || 0, "today, from reportErr on real devices")}
+      ${tile("Build", esc(APP_BUILD), `worker v${esc(String(ops.version || "?"))}`)}
+    </div>`;
+    html += `<div class="card adm-card"><h3>App errors · last 7 days</h3>${table(["Build", "Message", "Count"], errs.map(e => `<tr><td class="mono">${esc(e.build)}</td><td>${esc(e.msg)}</td><td class="num">${e.n}</td></tr>`)) || `<p class="sub2" style="margin:0">Nothing caught. Every uncaught error on a real device lands here with a build and a message, nothing else.</p>`}</div>`;
+    const A = S.announce || {};
+    html += `<div class="card adm-card"><h3>Announcement</h3><p class="sub2">A slim banner every student sees above their plan until they dismiss it. Plain text, one link at most.</p>
+      <div class="adm-form">
+        <textarea id="admAnnText" maxlength="240" placeholder="What everyone should know, in one or two sentences.">${esc(A.text || "")}</textarea>
+        <div class="adm-row"><input id="admAnnUrl" type="url" placeholder="Optional https link" value="${esc(A.url || "")}" class="adm-in" style="flex:2 1 220px"><input id="admAnnUntil" type="date" value="${esc(A.until || "")}" title="Stops showing after this day" class="adm-in" style="flex:1 1 140px"></div>
+        <div class="adm-row"><label class="ck"><input type="checkbox" id="admAnnOn" ${A.on ? "checked" : ""}> Show it to everyone</label><span class="sp" style="flex:1"></span><button class="btn primary" data-act="adm-save-ann">Save announcement</button></div>
+      </div></div>`;
+    html += `<div class="card adm-card"><h3>Chrome Web Store link</h3><p class="sub2">Overrides the built-in link on every "Add to Chrome" button within a minute, no deploy. Built in today: <span class="mono">${esc(LMK_CONFIG.storeUrl)}</span></p>
+      <div class="adm-row"><input id="admStore" type="url" value="${esc(S.storeUrl || "")}" placeholder="https://chromewebstore.google.com/detail/…" class="adm-in" style="flex:1 1 280px"><button class="btn primary" data-act="adm-save-store">Save link</button></div></div>`;
+    const C = S.checklist || {};
+    html += `<div class="card adm-card"><h3>Phase 1 · two hundred at ASU</h3><p class="sub2">From the Playbook. Ticks save to the worker, so they follow you between devices.</p><div class="checklist">` +
+      PHASE1.map(([id, t]) => `<label><input type="checkbox" data-check="${id}" ${C[id] ? "checked" : ""}><span class="${C[id] ? "done" : ""}">${esc(t)}</span></label>`).join("") + `</div></div>`;
+    html += `<div class="card adm-card"><h3>Places</h3><div class="adm-links">
+      <a href="https://chrome.google.com/webstore/devconsole" target="_blank" rel="noopener">Chrome Web Store dashboard<small>review status, install count, ratings</small></a>
+      <a href="https://dashboard.stripe.com" target="_blank" rel="noopener">Stripe<small>payments, subscriptions, the webhook</small></a>
+      <a href="https://console.anthropic.com" target="_blank" rel="noopener">Anthropic console<small>tutor spend and the monthly limit</small></a>
+      <a href="https://mail.google.com/mail/#search/subject%3A%22LMK%22" target="_blank" rel="noopener">Feedback inbox<small>Gmail, every message with LMK in the subject</small></a>
+      <a href="https://dash.cloudflare.com" target="_blank" rel="noopener">Cloudflare<small>the worker and its database</small></a>
+      <a href="https://github.com/DVNSON/lmk/actions" target="_blank" rel="noopener">GitHub Actions<small>the cron tick, every 5 minutes</small></a>
+      <a href="${esc(apiUrl("/stats?key=" + encodeURIComponent(ADMIN.key) + "&days=90"))}" target="_blank" rel="noopener">Raw numbers<small>the JSON behind this page</small></a>
+      <a href="https://claude.ai/code/artifact/65a2c224-d6ed-436a-baba-f81c23478b05" target="_blank" rel="noopener">The Playbook<small>phases, pricing, the weekly rhythm</small></a>
     </div></div>`;
-  // ---- the tutor: spend switches, in one place ----
-  const TU = d.tutor || {};
-  html += `<div class="card adm-card"><h3>Tutor</h3><p class="sub2">${TU.configured ? "Claude answers inside the app. " : "<b>Not configured:</b> set the ANTHROPIC_API_KEY secret on the worker and this turns on. "}${T.tutor_msg || 0} messages today${tot.tutor_msg ? ` · ${tot.tutor_msg} in the last 90 days` : ""}. Every message is roughly 2¢ on Opus 5 and 0.7¢ on Sonnet 5; the ceilings below are the only things that can spend money, so set the Anthropic console's monthly limit to match.</p>
-    <div class="adm-form">
-      <div class="adm-row"><label class="ck"><input type="checkbox" id="admTutorOn" ${TU.tutorOn ? "checked" : ""}> Tutor on</label>
-        <label class="ck">Free messages per student per week <input type="number" id="admTutorWeekly" min="0" max="500" value="${+TU.tutorWeekly || 0}" style="width:80px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:6px 8px;font:inherit"></label>
-        <label class="ck">Messages per day, everyone <input type="number" id="admTutorDaily" min="0" max="100000" value="${+TU.tutorDaily || 0}" style="width:90px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:6px 8px;font:inherit"></label>
-        <label class="ck">Model <select id="admTutorModel" style="border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:6px 8px;font:inherit"><option value="claude-opus-5" ${TU.tutorModel === "claude-opus-5" ? "selected" : ""}>Claude Opus 5 (best, ~2¢)</option><option value="claude-sonnet-5" ${TU.tutorModel === "claude-sonnet-5" ? "selected" : ""}>Claude Sonnet 5 (~0.7¢)</option></select></label>
-        <span class="sp" style="flex:1"></span><button class="btn primary" data-act="adm-save-tutor">Save tutor settings</button></div>
-    </div></div>`;
-  // ---- what breaks in the app ----
-  const errs = d.errs || [];
-  html += `<div class="card adm-card"><h3>App errors · last 7 days</h3><p class="sub2">What reportErr caught on real devices: a build and a message, nothing else. ${T.err ? T.err + " today." : "None today."}</p>
-    ${errs.length ? `<table style="width:100%;border-collapse:collapse;font-size:13px"><tbody>` + errs.map(e => `<tr style="border-top:1px solid var(--line)"><td style="padding:6px 8px;font-family:'Spline Sans Mono',monospace;white-space:nowrap">${esc(e.build)}</td><td style="padding:6px 8px">${esc(e.msg)}</td><td style="padding:6px 8px;text-align:right;font-variant-numeric:tabular-nums">${e.n}</td></tr>`).join("") + `</tbody></table>` : `<p class="sub2" style="margin:0">Nothing reported. Either it's clean or nobody's on it yet; the tiles above say which.</p>`}
-  </div>`;
-  // ---- announcement ----
-  const A = S.announce || {};
-  html += `<div class="card adm-card"><h3>Announcement</h3><p class="sub2">A slim banner every student sees above their plan until they dismiss it. Use it for "store link is live", "known issue with X", or a heavy-week heads-up. Plain text, one link at most.</p>
-    <div class="adm-form">
-      <textarea id="admAnnText" maxlength="240" placeholder="What everyone should know, in one or two sentences.">${esc(A.text || "")}</textarea>
-      <div class="adm-row"><input id="admAnnUrl" type="url" placeholder="Optional https link" value="${esc(A.url || "")}" style="flex:2 1 220px"><input id="admAnnUntil" type="date" value="${esc(A.until || "")}" title="Stops showing after this day" style="flex:1 1 140px"></div>
-      <div class="adm-row"><label class="ck"><input type="checkbox" id="admAnnOn" ${A.on ? "checked" : ""}> Show it to everyone</label><span class="sp" style="flex:1"></span><button class="btn primary" data-act="adm-save-ann">Save announcement</button></div>
-    </div></div>`;
-  // ---- store link ----
-  html += `<div class="card adm-card"><h3>Chrome Web Store link</h3><p class="sub2">Overrides the built-in link on every "Add to Chrome" button within a minute of saving, with no deploy. Only chromewebstore.google.com addresses are accepted. Built-in today: <span style="font-family:'Spline Sans Mono',monospace;font-size:12px">${esc(LMK_CONFIG.storeUrl)}</span></p>
-    <div class="adm-form"><div class="adm-row"><input id="admStore" type="url" value="${esc(S.storeUrl || "")}" placeholder="https://chromewebstore.google.com/detail/…" style="flex:1 1 280px"><button class="btn primary" data-act="adm-save-store">Save link</button></div></div></div>`;
-  // ---- checklist ----
-  const C = S.checklist || {};
-  html += `<div class="card adm-card"><h3>Phase 1 · two hundred at ASU</h3><p class="sub2">From the Playbook. Ticks save to the worker, so they follow you between devices.</p><div class="checklist">` +
-    PHASE1.map(([id, t]) => `<label><input type="checkbox" data-check="${id}" ${C[id] ? "checked" : ""}><span class="${C[id] ? "done" : ""}">${esc(t)}</span></label>`).join("") + `</div></div>`;
-  // ---- places ----
-  html += `<div class="card adm-card"><h3>Places</h3><div class="adm-links">
-    <a href="https://chrome.google.com/webstore/devconsole" target="_blank" rel="noopener">Chrome Web Store dashboard<small>review status, install count, ratings</small></a>
-    <a href="https://mail.google.com/mail/#search/subject%3A%22LMK%22" target="_blank" rel="noopener">Feedback inbox<small>Gmail, every message with LMK in the subject</small></a>
-    <a href="https://dash.cloudflare.com" target="_blank" rel="noopener">Cloudflare<small>the worker and its database</small></a>
-    <a href="https://github.com/DVNSON/lmk" target="_blank" rel="noopener">GitHub<small>the site and app source</small></a>
-    <a href="${esc(apiUrl("/stats?key=" + encodeURIComponent(ADMIN.key) + "&days=90"))}" target="_blank" rel="noopener">Raw numbers<small>the JSON behind this page</small></a>
-    <a href="https://claude.ai/code/artifact/65a2c224-d6ed-436a-baba-f81c23478b05" target="_blank" rel="noopener">The Playbook<small>phases, pricing, the weekly rhythm</small></a>
-    <a href="https://claude.ai/code/artifact/b4e9012c-9097-4f93-bd54-49a0082caf71" target="_blank" rel="noopener">Launch Kit<small>every post and message, ready to paste</small></a>
-  </div></div>`;
-  // ---- moderation, honestly ----
-  html += `<div class="card adm-card"><h3>Moderation</h3><p class="sub2" style="margin:0">The server holds counts, these settings, and (for Sync from anywhere) an encrypted Canvas key plus assignment rows per random code, never a name. Moderation is the fleet table above: pause a code that hammers Canvas, forget one on request, retry one after a fix. When shared course statistics arrive they will be anonymous medians per assignment, pruned here.</p></div>`;
-  // ---- system ----
-  html += `<div class="card adm-card"><h3>System</h3><p class="sub2">Worker <b>${esc(LMK_CONFIG.statsUrl.replace(/^https?:\/\//, ""))}</b> · this device is in <b>${MODE}</b> mode · admin key is stored on this device only.</p>
-    <div class="adm-row"><button class="minibtn drop" data-act="adm-logout">Forget admin key on this device</button></div></div>`;
+    html += `<div class="card adm-card"><h3>System</h3><p class="sub2">Worker <b>${esc(LMK_CONFIG.statsUrl.replace(/^https?:\/\//, ""))}</b> · this device is in <b>${MODE}</b> mode · the server holds counts, these settings and, for Sync from anywhere, an encrypted Canvas key plus assignment rows per random code. Never a name.</p>
+      <div class="adm-row"><button class="minibtn drop" data-act="adm-logout">Forget admin key on this device</button></div></div>`;
+  }
   root.innerHTML = html;
 }
 
@@ -4227,7 +4298,7 @@ async function loadRemoteConfig(){
     : "<b>Saved on this device.</b> Nothing is sent anywhere.";
   const rs = $("resetSample");
   if (SEED_EMPTY) rs.hidden = true; else rs.textContent = "Back to " + SEED_LABEL;
-  if (store.since) $("setupSync").innerHTML += ` <b>Early adopter</b> since ${new Date(store.since).toLocaleDateString(undefined, {month:"long", year:"numeric"})} — when LMK Plus exists, it is yours free for life.`;
+  if (store.since) $("setupSync").innerHTML += ` With LMK since ${new Date(store.since).toLocaleDateString(undefined, {month:"long", year:"numeric"})}.`;
 })();
 
 /* A laptop's "Open on your phone" link: the same sync id and secret, so this phone pulls the same Canvas sync. */
