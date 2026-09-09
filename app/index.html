@@ -420,6 +420,9 @@
     .item.tri{flex-wrap:wrap}
     .item.tri .side{margin-left:auto}
     .streak #streakTxt{display:none}
+    .plus-pill{padding:6px 10px;font-size:11.5px}
+    .plus-pill.free #plusPillTxt{font-size:0}
+    .plus-pill.free #plusPillTxt::after{content:"Plans";font-size:11.5px}
     .streak{padding:6px 11px}
     .lmksub{font-size:13px}
     .iconbtn{width:40px;height:40px}
@@ -671,6 +674,7 @@
     <div class="streak" id="streakChip" title="Days in a row with at least one assignment finished">
       <span aria-hidden="true">🔥</span><span class="n" id="streakN">0</span><span id="streakTxt">day streak</span>
     </div>
+    <button class="plus-pill" id="plusPill" hidden><i></i><span id="plusPillTxt">LMK plans</span></button>
     <button class="gear" id="findBtn" aria-label="Search assignments" title="Search (press /)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
     </button>
@@ -704,7 +708,6 @@
     <span id="srcLabel"></span> <span style="color:var(--muted)" title="Anonymous: assignment id + minutes only. No names, no grades.">· learning from you + anonymous course stats</span>
     <span id="syncBadge">☁ Device-only</span>
     <a id="feedbackLink" href="#" target="_blank" rel="noopener" title="Wrong estimate, misfiled assignment, anything — one line is plenty">Something off? Tell me</a>
-    <button class="plus-pill" id="plusPill" hidden><i></i><span id="plusPillTxt">LMK Plus</span></button>
   </footer>
 </div>
 
@@ -1782,6 +1785,7 @@ const TIER_FALLBACK = {
   pro:  {units: 30, quiz: 15, cards: 24, files: true,  vision: true,  think: true,  sell: false, price: "$10/month", link: ""},
 };
 const TIER_NAMES = {free: "Free", plus: "Plus", pro: "Pro"};
+const LEVEL_ORDER = ["free", "plus", "pro"];
 function tierTable(){ const t = (PLUS.offer && PLUS.offer.tiers) || (PLUS.me && PLUS.me.tiers) || TIER_FALLBACK; return t; }
 function myLevel(){ return (PLUS.me && PLUS.me.level) || (TUTOR.level) || "free"; }
 function tierOf(level){ const t = tierTable(); return t[level] || t.free || TIER_FALLBACK.free; }
@@ -1856,14 +1860,21 @@ function openPlus(){
   const state = lvl !== "free"
     ? `<div class="plus-state">✓ <span><b>You're on ${TIER_NAMES[lvl]}${granted ? ", on the house" : ""}.</b>${me && me.until ? (granted ? " Until " + FMT_DAY.format(new Date(me.until)) : " Renews " + FMT_DAY.format(new Date(me.until - 3 * 864e5))) + "." : ""}${me && me.credits ? " " + me.credits + " extra credits." : ""}</span></div>`
     : canceled ? `<div class="plus-state" style="background:var(--surface-2);border-color:var(--line)"><span>Your plan ended. Everything free is still yours.</span></div>` : "";
+  const paid = !!(me && me.plus && !granted);                     // already paying Stripe for something
+  const portal = (PLUS.offer || {}).portal || "";
   const card = x => {
     const t = T[x] || {}, mine = x === lvl, link = tierLink(x);
-    const sell = !!t.sell && !!link && !mine && x !== "free";     // on sale and payable
-    const soon = !mine && x !== "free" && !sell;                  // shown, but not yet buyable
+    /* A second Payment Link would start a second subscription and charge for both. Once someone is paying,
+       every other paid tier is a change of plan, and Stripe's portal is the only thing that can do that
+       without double billing: it swaps the price and credits whatever is left of the month. */
+    const sell = !!t.sell && !!link && !mine && x !== "free" && !paid;
+    const move = paid && !mine && x !== "free" && !!t.sell && !!portal;
+    const soon = !mine && x !== "free" && !sell && !move;         // shown, but not yet buyable
     return `<div class="tier ${mine ? "mine" : ""}">
       <div class="tier-h"><b>${TIER_NAMES[x]}</b>${mine ? `<span class="tier-tag">your plan</span>` : t.price ? `<span class="tier-price">${esc(t.price)}</span>` : `<span class="tier-price">free</span>`}</div>
       <ul>${tierLines(x).map(l => `<li>${esc(l)}</li>`).join("")}</ul>
       ${sell ? `<a class="btn grad" href="${esc(link)}" target="_blank" rel="noopener">Get ${TIER_NAMES[x]}</a>`
+        : move ? `<a class="btn ghost" href="${esc(portal)}" target="_blank" rel="noopener">${LEVEL_ORDER.indexOf(x) > LEVEL_ORDER.indexOf(lvl) ? "Move up to" : "Move down to"} ${TIER_NAMES[x]}</a>`
         : soon ? `<span class="privacy" style="margin:0">Opening soon.</span>`
         : mine && x !== "free" && !granted && (PLUS.offer || {}).portal ? `<a class="btn ghost" href="${esc((PLUS.offer || {}).portal)}" target="_blank" rel="noopener">Manage or change plan</a>` : ""}
     </div>`;
@@ -1927,8 +1938,10 @@ function renderPlusPill(){
   const pill = document.getElementById("plusPill"), txt = document.getElementById("plusPillTxt"); if (!pill) return;
   const show = !!(LMK_CONFIG.statsUrl && cloudPossible() && (PLUS.offer || (PLUS.me && PLUS.me.plus) || MODE !== "web"));
   pill.hidden = !show; if (!show) return;
-  const me = PLUS.me;
-  txt.textContent = myLevel() !== "free" ? TIER_NAMES[myLevel()] + " ✓" : "LMK plans";
+  const lvl = myLevel(), free = lvl === "free";
+  pill.classList.toggle("free", free);
+  pill.title = free ? "What the tutor can do on each plan" : "Your plan";
+  txt.textContent = free ? "LMK plans" : TIER_NAMES[lvl] + " \u2713";
 }
 /* Back from Stripe: a link's success page sends the student to #plus=ok (a plan) or #credits=ok (a pack).
    Ask the worker a few times either way, since the webhook can lag a moment, and accept whichever landed —
@@ -2184,7 +2197,7 @@ function tutorNote(){
   else if (TUTOR.left != null) el.innerHTML = `<b>${TUTOR.left} of ${TUTOR.daily} ${name} units</b> left today${TUTOR.credits ? ` · ${TUTOR.credits} credits after that` : ""}. <span title="A message costs 1, a quiz or a deck costs 3" style="border-bottom:1px dotted var(--line-strong);cursor:help">What's a unit?</span>`;
   else el.innerHTML = `A few tutor units a day.`;
   const topUp = TUTOR.state === "allowance" && packList().some(p => packLink(p));
-  if (up) { up.innerHTML = topUp ? `<button class="btn grad" data-act="plus-open">Buy more units</button>` : canSell ? `<button class="btn grad" data-act="plus-open">${TIER_NAMES[next]} · ${nextT.units} a day · ${esc(nextT.price)}</button>` : ""; bind(); }
+  if (up) { up.innerHTML = topUp ? `<button class="btn grad" data-act="plus-open">Buy more units</button>` : canSell && !(PLUS.me && PLUS.me.plus) ? `<button class="btn grad" data-act="plus-open">${TIER_NAMES[next]} · ${nextT.units} a day · ${esc(nextT.price)}</button>` : canSell ? `<button class="minibtn" data-act="plus-open">Change plan</button>` : ""; bind(); }
 }
 async function tutorBalance(){
   if (!tutorPossible()) return;
@@ -3083,7 +3096,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v44.0";
+const APP_BUILD = "v44.1";
 let lastErr = null;
 function reportErr(e, where){
   try {
