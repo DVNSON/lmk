@@ -454,6 +454,15 @@
   .plus-cta .btn.grad{padding:12px 20px;font-size:15px}
   .plus-note{font-size:12px;color:var(--muted);margin-top:12px;line-height:1.55}
   .plus-state{display:flex;gap:10px;align-items:center;padding:12px 14px;border-radius:12px;background:color-mix(in srgb,var(--good) 10%,var(--surface));border:1px solid color-mix(in srgb,var(--good) 35%,var(--line));font-size:14px;margin-bottom:14px}
+  .tiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:6px}
+  .tier{border:1px solid var(--line);border-radius:14px;padding:13px 14px;background:var(--surface-2);display:flex;flex-direction:column;gap:8px}
+  .tier.mine{border-color:transparent;box-shadow:0 0 0 2px var(--c1);background:var(--surface)}
+  .tier-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+  .tier-h b{font:700 16px/1.2 "Bricolage Grotesque",sans-serif}
+  .tier-price{font-size:12.5px;color:var(--ink-2);font-weight:600;white-space:nowrap}
+  .tier-tag{font:700 10.5px/1 "Spline Sans Mono",monospace;letter-spacing:.06em;text-transform:uppercase;color:#fff;background:var(--c1);border-radius:99px;padding:4px 8px}
+  .tier ul{margin:0;padding-left:16px;font-size:12.5px;line-height:1.55;color:var(--ink-2);flex:1}
+  .tier .btn{justify-content:center;padding:9px 12px;font-size:13.5px}
   .plus-pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700;background:var(--surface);cursor:pointer}
   .plus-pill i{width:8px;height:8px;border-radius:50%;background:var(--splash);display:inline-block}
   @media (max-width:640px){ .plus-hero{margin:-18px -20px 16px;padding:22px 20px 18px;border-radius:24px 24px 0 0} }
@@ -1141,7 +1150,7 @@ function applyCanvasPayload(p, opts = {}){
   if (!n) { if (!opts.quiet) toast("Canvas answered, but no active courses came back. Are you signed in to the right Canvas account?"); return null; }
   store.ext = {at:p.at || Date.now(), host:p.host || "", items, courses:(p.courses && p.courses.length) ? p.courses : ((store.ext || {}).courses || []), groups:p.groups || (store.ext || {}).groups || {}};
   save(); loadData(); render();
-  if (firstSync) ping("firstsync");
+  if (firstSync) { ping("firstsync"); ping("synced"); }
   if (!opts.quiet) toast(`Canvas synced: ${n} assignments${newDone ? ` · ${newDone} marked done` : ""}${unDone ? ` · ${unDone} back to in-progress` : ""}${newGrades ? ` · ${newGrades} grades` : ""}${shelfAdd ? ` · ${shelfAdd} undated on the shelf` : ""}.`);
   return {n, newDone, newGrades, shelfAdd};
 }
@@ -1326,7 +1335,8 @@ window.addEventListener("message", ev => {
   if (ev.source !== window) return;   // the extension's content script posts from this window; an opener or a frame never gets in
   const d = ev.data;
   if (d && d.lmk === "canvas-payload" && d.payload) applyCanvasPayload(d.payload);
-  if (d && d.lmk === "ext-hello" && !EXT.present) { EXT.present = true; EXT.version = String(d.version || ""); applyExtPresence(); renderDriveOffer(); if (store.onboarded) cloudEnsure(); renderCloudStatus(); if (!store.ext) render(); }
+  if (d && d.lmk === "ext-hello" && !EXT.present) { EXT.present = true; EXT.version = String(d.version || "");
+    try { if (!localStorage.getItem("lmk_ping_ext")) { localStorage.setItem("lmk_ping_ext", "1"); ping("extension"); } } catch(_){} applyExtPresence(); renderDriveOffer(); if (store.onboarded) cloudEnsure(); renderCloudStatus(); if (!store.ext) render(); }
   if (d && d.lmk === "cloud-status" && d.cloud) { EXT.cloud = d.cloud; renderCloudStatus(); }
   if (d && d.lmk === "resync-status") { EXT.resync = d.resync || null; if (d.at) EXT.at = d.at; renderBgStatus(); }
   if (d && d.lmk === "drive-status" && d.drive) {
@@ -1703,6 +1713,33 @@ function studyTarget(id){
    Paying happens on Stripe with the random sync id attached; the worker learns about it from Stripe,
    never from this page, so nothing here can grant Plus. */
 const PLUS = {offer:null, me:null, at:0};
+/* The plans come from the worker so a price change needs no deploy. These shapes are only the fallback
+   for a first paint before /config answers. A unit is one chat message; a quiz or a deck costs three. */
+const TIER_FALLBACK = {
+  free: {units: 3,  quiz: 6,  cards: 10, files: false, vision: false, think: false, sell: false, price: "", link: ""},
+  plus: {units: 12, quiz: 10, cards: 16, files: false, vision: false, think: false, sell: true,  price: "$4/month", link: ""},
+  pro:  {units: 30, quiz: 15, cards: 24, files: true,  vision: true,  think: true,  sell: false, price: "$10/month", link: ""},
+};
+const TIER_NAMES = {free: "Free", plus: "Plus", pro: "Pro"};
+function tierTable(){ const t = (PLUS.offer && PLUS.offer.tiers) || (PLUS.me && PLUS.me.tiers) || TIER_FALLBACK; return t; }
+function myLevel(){ return (PLUS.me && PLUS.me.level) || (TUTOR.level) || "free"; }
+function tierOf(level){ const t = tierTable(); return t[level] || t.free || TIER_FALLBACK.free; }
+/* A tier's Stripe link carries the student's id so the webhook knows who paid. */
+function tierLink(level){
+  const t = tierOf(level), l = t.link || (level === "plus" ? ((PLUS.offer || {}).link || "") : "");
+  return l && /^https:\/\/buy\.stripe\.com\//.test(l) && store.cloud && store.cloud.sid
+    ? l + (l.includes("?") ? "&" : "?") + "client_reference_id=" + encodeURIComponent(store.cloud.sid) : "";
+}
+/* What each plan gives you, in the order a student cares about. */
+function tierLines(level){
+  const t = tierOf(level), out = [`${t.units} tutor units a day`, `Quizzes of ${t.quiz} · decks of ${t.cards}`];
+  if (level !== "free") out.push("Everything in " + TIER_NAMES[level === "pro" ? "plus" : "free"]);
+  if (t.files) out.push("Ask about your lecture slides and readings");
+  if (t.vision) out.push("Photograph a problem and work it through");
+  if (t.think) out.push("Deep thinking on hard problems");
+  if (level === "free") out.push("Review is always free and unlimited");
+  return out;
+}
 function plusPossible(){ return MODE === "web" && !!LMK_CONFIG.statsUrl && cloudPossible() && !!(store.cloud && store.cloud.sid && store.cloud.secret); }
 function plusLink(){ const l = PLUS.offer && PLUS.offer.link; return l && /^https:\/\/buy\.stripe\.com\//.test(l) ? l + (l.includes("?") ? "&" : "?") + "client_reference_id=" + encodeURIComponent(store.cloud.sid) : ""; }
 async function plusRefresh(force){
@@ -1718,12 +1755,12 @@ async function plusRefresh(force){
 var renderPlus = function(){
   const way = document.getElementById("plusWay"), el = document.getElementById("plusStatus"); if (!way || !el) return;
   const offer = PLUS.offer || {}, me = PLUS.me;
-  if (!plusPossible() || (!offer.link && !(me && me.plus))) { way.hidden = true; return; }
-  const weekly = offer.weekly || (me && me.weekly) || 40, price = offer.price || (me && me.price) || "";
+  if (!plusPossible() || (!offer.link && !(me && me.plus) && !(offer.tiers))) { way.hidden = true; return; }
+  const lvl = myLevel(), t = tierOf(lvl), nextT = tierOf(lvl === "free" ? "plus" : "pro");
   let html;
-  if (me && me.plus) html = `<span>✓ <b>You're on Plus${me.granted ? ", on the house" : ""}.</b> ${weekly} tutor messages a week${me.credits ? ", plus " + me.credits + " credits" : ""}.${me.until ? (me.granted ? " Until " + FMT_DAY.format(new Date(me.until)) : " Renews " + FMT_DAY.format(new Date(me.until - 3 * 864e5))) + "." : ""}</span>${offer.portal && !me.granted ? `<a class="minibtn" href="${esc(offer.portal)}" target="_blank" rel="noopener">Manage billing</a>` : ""}`;
-  else if (me && me.status === "canceled") html = `<span>Your Plus subscription ended. The free version keeps everything else.</span>${plusLink() ? `<a class="btn grad" href="${esc(plusLink())}" target="_blank" rel="noopener">Get Plus again · ${esc(price)}</a>` : ""}`;
-  else html = `<span><b>LMK Plus</b> · ${esc(price)}. ${weekly} tutor messages a week instead of ${offer.freeWeekly != null ? offer.freeWeekly : "a few"}, and first access to what's next.</span><button class="btn grad" data-act="plus-open">See Plus</button>`;
+  if (lvl !== "free") html = `<span>✓ <b>You're on ${TIER_NAMES[lvl]}${me && me.granted ? ", on the house" : ""}.</b> ${t.units} tutor units a day${me && me.credits ? ", plus " + me.credits + " credits" : ""}.${me && me.until ? (me.granted ? " Until " + FMT_DAY.format(new Date(me.until)) : " Renews " + FMT_DAY.format(new Date(me.until - 3 * 864e5))) + "." : ""}</span>${offer.portal && !(me && me.granted) ? `<a class="minibtn" href="${esc(offer.portal)}" target="_blank" rel="noopener">Manage or change plan</a>` : ""}<button class="minibtn" data-act="plus-open">See plans</button>`;
+  else if (me && /^(canceled|revoked)$/.test(me.status || "")) html = `<span>Your plan ended. The free version keeps everything else.</span><button class="btn grad" data-act="plus-open">See plans</button>`;
+  else html = `<span><b>LMK plans</b> · ${t.units} tutor units a day free, ${nextT.units} on ${TIER_NAMES[lvl === "free" ? "plus" : "pro"]} for ${esc(nextT.price)}.</span><button class="btn grad" data-act="plus-open">See plans</button>`;
   el.innerHTML = html; way.hidden = false;
 };
 /* keep the footer pill in step with whatever renderPlus learned */
@@ -1735,27 +1772,32 @@ renderPlus = function(){ _renderPlus(); renderPlusPill(); if (plusOverlay.classL
 const plusOverlay = document.getElementById("plusOverlay");
 function plusTutorOn(){ return !!(PLUS.offer && PLUS.offer.tutorOn); }
 function openPlus(){
-  const offer = PLUS.offer || {}, me = PLUS.me;
-  const weekly = offer.weekly || (me && me.weekly) || 40, free = offer.freeWeekly != null ? offer.freeWeekly : 2, price = offer.price || (me && me.price) || "$4/month";
-  const [amount, per] = /\//.test(price) ? price.split("/") : [price, "month"];
-  const isPlus = !!(me && me.plus), granted = !!(me && me.granted), canceled = !!(me && /^(canceled|revoked)$/.test(me.status || "") && !me.plus);
-  const cta = MODE !== "web"
-    ? `<a class="btn grad" href="${esc(LMK_CONFIG.appUrl)}" target="_blank" rel="noopener">Open LMK on the web →</a><span class="privacy" style="margin:0">Plus and the tutor live on lmktoday.app; this copy runs inside claude.ai.</span>`
-    : isPlus ? (offer.portal && !granted ? `<a class="btn ghost" href="${esc(offer.portal)}" target="_blank" rel="noopener">Manage billing</a>` : "")
-    : plusLink() ? `<a class="btn grad" href="${esc(plusLink())}" target="_blank" rel="noopener">Get Plus · ${esc(price)}</a><span class="privacy" style="margin:0">Card by Stripe. Cancel any time.</span>`
-    : `<span class="privacy" style="margin:0">Plus opens for purchase very soon.</span>`;
-  const state = isPlus ? `<div class="plus-state">✓ <span><b>You're on Plus${granted ? ", on the house" : ""}.</b>${me.until ? (granted ? " Until " + FMT_DAY.format(new Date(me.until)) : " Renews " + FMT_DAY.format(new Date(me.until - 3 * 864e5))) + "." : ""}${me.credits ? " " + me.credits + " extra credits." : ""}</span></div>`
-    : canceled ? `<div class="plus-state" style="background:var(--surface-2);border-color:var(--line)"><span>Your Plus ended. Everything free is still yours.</span></div>` : "";
+  const me = PLUS.me, lvl = myLevel(), T = tierTable();
+  const canceled = !!(me && /^(canceled|revoked)$/.test(me.status || "") && !me.plus);
+  const granted = !!(me && me.granted);
+  const levels = ["free", "plus", "pro"].filter(x => x === lvl || x === "free" || (T[x] && (T[x].sell || x === "plus")));
+  const state = lvl !== "free"
+    ? `<div class="plus-state">✓ <span><b>You're on ${TIER_NAMES[lvl]}${granted ? ", on the house" : ""}.</b>${me && me.until ? (granted ? " Until " + FMT_DAY.format(new Date(me.until)) : " Renews " + FMT_DAY.format(new Date(me.until - 3 * 864e5))) + "." : ""}${me && me.credits ? " " + me.credits + " extra credits." : ""}</span></div>`
+    : canceled ? `<div class="plus-state" style="background:var(--surface-2);border-color:var(--line)"><span>Your plan ended. Everything free is still yours.</span></div>` : "";
+  const card = x => {
+    const t = T[x] || {}, mine = x === lvl, link = tierLink(x), sell = !!t.sell && !!link && !mine && x !== "free";
+    const soon = !!t.sell === false && x !== "free" && !mine;
+    return `<div class="tier ${mine ? "mine" : ""}">
+      <div class="tier-h"><b>${TIER_NAMES[x]}</b>${mine ? `<span class="tier-tag">your plan</span>` : t.price ? `<span class="tier-price">${esc(t.price)}</span>` : `<span class="tier-price">free</span>`}</div>
+      <ul>${tierLines(x).map(l => `<li>${esc(l)}</li>`).join("")}</ul>
+      ${sell ? `<a class="btn grad" href="${esc(link)}" target="_blank" rel="noopener">Get ${TIER_NAMES[x]}</a>`
+        : soon ? `<span class="privacy" style="margin:0">Opening soon.</span>`
+        : mine && x !== "free" && !granted && (PLUS.offer || {}).portal ? `<a class="btn ghost" href="${esc((PLUS.offer || {}).portal)}" target="_blank" rel="noopener">Manage or change plan</a>` : ""}
+    </div>`;
+  };
+  const doorway = MODE !== "web"
+    ? `<div class="plus-cta"><a class="btn grad" href="${esc(LMK_CONFIG.appUrl)}" target="_blank" rel="noopener">Open LMK on the web →</a><span class="privacy" style="margin:0">Plans and the tutor live on lmktoday.app; this copy runs inside claude.ai.</span></div>` : "";
   document.getElementById("plusModal").innerHTML = `
-    <div class="plus-hero"><div class="eyebrow">LMK Plus</div><h3 id="plusTitle">A tutor that knows your assignments.</h3><div class="price"><b>${esc(amount.trim())}</b> / ${esc((per || "month").trim())}</div></div>
+    <div class="plus-hero"><div class="eyebrow">LMK plans</div><h3 id="plusTitle">A tutor that knows your assignments.</h3><div class="price">Free to start. Upgrade when it earns it.</div></div>
     ${state}
-    <ul class="plus-list">
-      <li><span class="ic">✦</span><div><b>${weekly} tutor messages a week</b><span>Claude, inside LMK, already briefed on the assignment you're stuck on: its instructions, your notes, your syllabus. It coaches; it won't do the graded work. Free accounts get ${free} a week.${plusTutorOn() ? "" : " Opening soon."}</span></div></li>
-      <li><span class="ic">☁</span><div><b>Fresh on your phone, laptop closed</b><span>LMK's server keeps your Canvas sync current for you, so the plan on your phone is never yesterday's.</span></div></li>
-      <li><span class="ic">◇</span><div><b>First access to what's next</b><span>Morning notifications, shared course stats, and whatever the ten of us building this decide on. You'll hear first.</span></div></li>
-    </ul>
-    <div class="plus-cta">${cta}</div>
-    <p class="plus-note">Nothing about you is stored but a random id. Stripe keeps your card and email; LMK never sees them. Everything free stays free: the plan, the estimates, the extension, the sync.${store.cloud && store.cloud.sid ? ` Your support code is <b style="font-family:'Spline Sans Mono',monospace">${esc(store.cloud.sid.slice(0, 8))}</b>; quote it if you write in.` : ""}</p>
+    ${doorway}
+    <div class="tiers">${levels.map(card).join("")}</div>
+    <p class="plus-note">A <b>unit</b> is one message to the tutor. A quiz or a deck of flashcards costs three, because it writes far more. Reviewing cards you already made is free and unlimited on every plan. Changing plans is handled by Stripe, which credits whatever is left of the month you already paid for. Nothing about you is stored but a random id; Stripe keeps your card and email.${store.cloud && store.cloud.sid ? ` Your support code is <b style="font-family:'Spline Sans Mono',monospace">${esc(store.cloud.sid.slice(0, 8))}</b>.` : ""}</p>
     <div class="foot"><span></span><button class="minibtn" id="plusClose">Close</button></div>`;
   plusOverlay.classList.add("open");
   document.getElementById("plusClose").onclick = () => plusOverlay.classList.remove("open");
@@ -1768,7 +1810,7 @@ function renderPlusPill(){
   const show = !!(LMK_CONFIG.statsUrl && cloudPossible() && (PLUS.offer || (PLUS.me && PLUS.me.plus) || MODE !== "web"));
   pill.hidden = !show; if (!show) return;
   const me = PLUS.me;
-  txt.textContent = me && me.plus ? "Plus ✓" : "LMK Plus";
+  txt.textContent = myLevel() !== "free" ? TIER_NAMES[myLevel()] + " ✓" : "LMK plans";
 }
 /* Back from Stripe: the link's success page sends the student to #plus=ok; ask the worker a few times, since the webhook can lag a moment. */
 (function plusReturn(){
@@ -1783,7 +1825,7 @@ function renderPlusPill(){
 /* ---- the tutor inside LMK ----
    The worker holds the key and the allowance; the page sends only this assignment's context and the
    conversation. Threads live on this device (localStorage), never in the synced store. */
-const TUTOR = {threads:{}, busy:false, left:null, weekly:null, state:"unknown", plus:false, credits:0};
+const TUTOR = {threads:{}, busy:false, left:null, daily:null, level:"free", state:"unknown", plus:false, credits:0};
 function tutorPossible(){ return MODE === "web" && !!LMK_CONFIG.statsUrl && cloudPossible() && !!(store.cloud && store.cloud.sid && store.cloud.secret); }
 function tutorThread(id){
   if (!TUTOR.threads[id]) { try { TUTOR.threads[id] = JSON.parse(localStorage.getItem("lmk_tutor_" + id) || "[]"); } catch(_) { TUTOR.threads[id] = []; } }
@@ -1888,7 +1930,7 @@ async function tutorMake(id, kind, focus){
     const r = await fetch(apiUrl("/tutor"), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"},
       body: JSON.stringify({sid: store.cloud.sid, secret: store.cloud.secret, ctx: tutorCtx(e), make: kind, focus: focus || ""})});
     let j = {}; try { j = await r.json(); } catch(_){}
-    if (j.left != null) { TUTOR.left = +j.left; TUTOR.weekly = +j.weekly; TUTOR.plus = !!j.plus; TUTOR.credits = +(j.credits || 0); }
+    if (j.left != null) { TUTOR.left = +j.left; TUTOR.daily = +j.daily; TUTOR.level = j.level || TUTOR.level; TUTOR.plus = !!j.plus; TUTOR.credits = +(j.credits || 0); }
     if (!r.ok || !j.ok) {
       t.pop();
       TUTOR.state = j.error === "allowance" ? "allowance" : (r.status === 503 ? "off" : TUTOR.state); if (j.error === "allowance") TUTOR.left = 0;
@@ -1906,25 +1948,22 @@ async function tutorMake(id, kind, focus){
 }
 function tutorNote(){
   const el = document.getElementById("aiNote"), up = document.getElementById("aiUpsell"); if (!el) return;
-  const offer = PLUS.offer || {}, plusWeekly = offer.weekly || 40, price = offer.price || "$4/month";
   const bind = () => { const pb = studyPage.querySelector('#aiUpsell [data-act="plus-open"]'); if (pb) pb.addEventListener("click", openPlus); };
+  const lvl = myLevel(), name = TIER_NAMES[lvl] || "Free";
+  const next = lvl === "free" ? "plus" : lvl === "plus" ? "pro" : "";
+  const nextT = next ? tierOf(next) : null, canSell = next && nextT && nextT.sell && tierLink(next);
   if (TUTOR.state === "off") { el.textContent = "The tutor is resting right now. Your own AI below still works."; if (up) up.innerHTML = ""; return; }
-  if (TUTOR.plus) {
-    el.innerHTML = TUTOR.state === "allowance" ? `<b>All ${TUTOR.weekly} Plus messages used this week.</b> Resets Monday.${TUTOR.credits ? " " + TUTOR.credits + " credits left." : ""}` : `<b>${TUTOR.left != null ? TUTOR.left : "…"} of ${TUTOR.weekly || plusWeekly} Plus messages</b> left this week${TUTOR.credits ? " · " + TUTOR.credits + " credits after that" : ""}.`;
-    if (up) up.innerHTML = "";
-    return;
-  }
-  if (TUTOR.state === "allowance") el.innerHTML = `<b>This week's ${TUTOR.weekly || ""} free messages are used.</b> Resets Monday; your own AI below is unlimited.`;
-  else if (TUTOR.left != null) el.innerHTML = `<b>${TUTOR.left} of ${TUTOR.weekly} free messages</b> left this week.`;
-  else el.innerHTML = `A few free messages a week.`;
-  if (up) { up.innerHTML = `<button class="btn grad" data-act="plus-open">Plus · ${plusWeekly} a week · ${esc(price)}</button>`; bind(); }
+  if (TUTOR.state === "allowance") el.innerHTML = `<b>Today's ${TUTOR.daily || ""} units are used.</b> More tomorrow${TUTOR.credits ? ` · ${TUTOR.credits} credits left` : ""}; your own AI below is unlimited.`;
+  else if (TUTOR.left != null) el.innerHTML = `<b>${TUTOR.left} of ${TUTOR.daily} ${name} units</b> left today${TUTOR.credits ? ` · ${TUTOR.credits} credits after that` : ""}. <span title="A message costs 1, a quiz or a deck costs 3" style="border-bottom:1px dotted var(--line-strong);cursor:help">What's a unit?</span>`;
+  else el.innerHTML = `A few tutor units a day.`;
+  if (up) { up.innerHTML = canSell ? `<button class="btn grad" data-act="plus-open">${TIER_NAMES[next]} · ${nextT.units} a day · ${esc(nextT.price)}</button>` : ""; bind(); }
 }
 async function tutorBalance(){
   if (!tutorPossible()) return;
   try {
     const r = await fetch(apiUrl("/tutor"), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"}, body: JSON.stringify({sid: store.cloud.sid, secret: store.cloud.secret, balance: true})});
     const j = await r.json();
-    if (j.ok) { TUTOR.left = j.left; TUTOR.weekly = j.weekly; TUTOR.plus = !!j.plus; TUTOR.credits = j.credits || 0; TUTOR.state = j.on ? ((j.left > 0 || TUTOR.credits > 0) ? "ok" : "allowance") : "off"; }
+    if (j.ok) { TUTOR.left = j.left; TUTOR.daily = j.daily; TUTOR.level = j.level || "free"; TUTOR.plus = !!j.plus; TUTOR.credits = j.credits || 0; TUTOR.state = j.on ? ((j.left > 0 || TUTOR.credits > 0) ? "ok" : "allowance") : "off"; }
   } catch(_){}
   tutorNote();
 }
@@ -1946,7 +1985,7 @@ async function tutorSend(id, preset){
       bubble.textContent = j.error === "allowance" ? "That's this week's free messages used up. The buttons below open your own AI with the same prompt, no limit." : j.error === "network" ? "A lot of people on this network are using the tutor right now. Try again later, or use your own AI below." : r.status === 503 ? "The tutor is resting right now. Your own AI below still works." : "The tutor couldn't answer just now. Try again in a moment.";
       tutorNote(); return;
     }
-    TUTOR.left = +r.headers.get("x-lmk-left"); TUTOR.weekly = +r.headers.get("x-lmk-weekly"); TUTOR.plus = r.headers.get("x-lmk-plus") === "1"; TUTOR.credits = +(r.headers.get("x-lmk-credits") || 0); TUTOR.state = "ok"; tutorNote();
+    TUTOR.left = +r.headers.get("x-lmk-left"); TUTOR.daily = +r.headers.get("x-lmk-daily"); TUTOR.level = r.headers.get("x-lmk-level") || TUTOR.level; TUTOR.plus = r.headers.get("x-lmk-plus") === "1"; TUTOR.credits = +(r.headers.get("x-lmk-credits") || 0); TUTOR.state = "ok"; tutorNote();
     bubble.classList.remove("thinking"); bubble.textContent = "";
     const reader = r.body.getReader(), dec = new TextDecoder(); let out = "";
     for (;;) { const {value, done} = await reader.read(); if (done) break; out += dec.decode(value, {stream:true}); bubble.textContent = out; box.scrollTop = box.scrollHeight; }
@@ -1958,9 +1997,9 @@ async function tutorSend(id, preset){
   } finally { TUTOR.busy = false; const b = document.getElementById("aiSend"); if (b) b.disabled = false; }
 }
 function planChip(){
-  const me = PLUS.me, offer = PLUS.offer || {};
-  if (me && me.plus) return `<button class="planchip plus" data-act="plus-open" title="Your plan">✦ Plus</button>`;
-  return `<button class="planchip" data-act="plus-open" title="See what Plus adds">Free plan · <span style="color:var(--c1)">See Plus</span></button>`;
+  const lvl = myLevel();
+  if (lvl !== "free") return `<button class="planchip plus" data-act="plus-open" title="Your plan">✦ ${TIER_NAMES[lvl]}</button>`;
+  return `<button class="planchip" data-act="plus-open" title="See the plans">Free plan · <span style="color:var(--c1)">See plans</span></button>`;
 }
 /* The Study screen. One assignment, full page: the brief on the left (what it is, what it is worth, the rubric,
    the time you have, your notes) and the tutor on the right. The 60-second render never touches this page. */
@@ -2023,7 +2062,7 @@ function openStudy(id, opts = {}){
         <div class="planbar"><span id="aiNote"></span><span id="aiUpsell"></span></div>
         <div class="chatnote"><span>Nothing here is graded or saved to your account. It coaches; it won't do the work for you.</span><button class="minibtn" id="aiClear" title="Start this conversation over">Start over</button></div>` : ""}
         ${inApp && locked ? `<div class="chat card" aria-live="polite" style="padding:10px;min-height:auto;flex:none"><div class="msg ai">Hi. I'm LMK's tutor. I already know this ${kind}: what it asks, when it's due, and where you stand in ${esc(e.course)}. I coach one step at a time and I won't do the graded work for you.</div></div>
-        <div class="locked"><span>✦</span><div><b>${plusTutorOn() ? "The tutor is resting right now." : "The tutor opens soon."}</b> ${PLUS.me && PLUS.me.plus ? "Your Plus messages will be waiting." : `Plus members get ${(PLUS.offer && PLUS.offer.weekly) || 40} messages a week; free accounts get ${(PLUS.offer && PLUS.offer.freeWeekly != null) ? PLUS.offer.freeWeekly : 2}.`}</div>${PLUS.me && PLUS.me.plus ? "" : `<button class="minibtn" data-act="plus-open">See Plus</button>`}</div>` : ""}
+        <div class="locked"><span>✦</span><div><b>${plusTutorOn() ? "The tutor is resting right now." : "The tutor opens soon."}</b> ${PLUS.me && PLUS.me.plus ? "Your Plus messages will be waiting." : `Plus members get ${tierOf("plus").units} tutor units a day; free accounts get ${tierOf("free").units}.`}</div>${myLevel() !== "free" ? "" : `<button class="minibtn" data-act="plus-open">See plans</button>`}</div>` : ""}
         ${!inApp && MODE !== "web" ? `<div class="locked"><span>✦</span><div><b>The tutor and Plus live on lmktoday.app.</b> This copy runs inside claude.ai and can't reach them.</div><a class="minibtn" href="${esc(LMK_CONFIG.appUrl)}" target="_blank" rel="noopener">Open there</a></div>` : ""}
         ${ownAI}
       </section>
@@ -2401,9 +2440,9 @@ function renderNow(root){
     let seen = false; try { seen = localStorage.getItem("lmk_tutor_intro") === "1"; } catch(_){}
     if (!seen) {
       const first = EVENTS.filter(open).sort((a, b) => a.due - b.due)[0];
-      const free = (PLUS.offer && PLUS.offer.freeWeekly != null) ? PLUS.offer.freeWeekly : 2, pw = (PLUS.offer && PLUS.offer.weekly) || 40;
-      html += `<div class="card intro" data-i="1"><span class="ic">✦</span><div class="txt"><b>New: a tutor that knows your assignments.</b>Open any assignment and ask. It's already read the instructions, your notes and your syllabus, and it coaches instead of doing the work. ${free} free messages a week; Plus gets ${pw}.</div>
-        <div class="acts">${first ? `<button class="btn grad" data-act="ai" data-id="${first.id}">Try it on ${esc(first.title.length > 22 ? first.title.slice(0, 22) + "…" : first.title)}</button>` : ""}<button class="minibtn" data-act="plus-open">See Plus</button></div><button class="x" data-act="intro-dismiss" aria-label="Dismiss">✕</button></div>`;
+      const free = tierOf("free").units, pw = tierOf("plus").units;
+      html += `<div class="card intro" data-i="1"><span class="ic">✦</span><div class="txt"><b>New: a tutor that knows your assignments.</b>Open any assignment and ask. It's already read the instructions, your notes and your syllabus, and it coaches instead of doing the work. ${free} free tutor units a day; Plus gets ${pw}.</div>
+        <div class="acts">${first ? `<button class="btn grad" data-act="ai" data-id="${first.id}">Try it on ${esc(first.title.length > 22 ? first.title.slice(0, 22) + "…" : first.title)}</button>` : ""}<button class="minibtn" data-act="plus-open">See plans</button></div><button class="x" data-act="intro-dismiss" aria-label="Dismiss">✕</button></div>`;
     }
   }
   // today's plan — the budget, the short list, and one honest sentence
@@ -2742,7 +2781,7 @@ function postPlanToExtension(){
 /* ================= safety net =================
    A thrown error must never leave a blank page. The last good content stays, a small card says what
    happened, and one tap drafts a report to hello@ — the error and the build, never a name, title or grade. */
-const APP_BUILD = "v39.0";
+const APP_BUILD = "v40.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -2949,8 +2988,9 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="adm-save-plus") { const g = id => document.getElementById(id); adminSave({plusLink: g("admPlusLink").value.trim().slice(0, 300), plusPortal: g("admPlusPortal").value.trim().slice(0, 300), plusPrice: g("admPlusPrice").value.trim().slice(0, 24), tutorPlusWeekly: Math.max(0, +g("admPlusWeekly").value || 0)}); }
   else if (a==="adm-save-tutor") { const g = id => document.getElementById(id); adminSave({tutorOn: g("admTutorOn").checked, tutorWeekly: Math.max(0, +g("admTutorWeekly").value || 0), tutorDaily: Math.max(0, +g("admTutorDaily").value || 0), tutorPlusDaily: Math.max(0, +g("admTutorPlusDaily").value || 0), tutorIpDaily: Math.max(0, +g("admTutorIpDaily").value || 0), tutorModel: g("admTutorModel").value}); }
   else if (a==="adm-lookup") { adminLookup(); }
-  else if (a==="adm-student") { adminStudent(act.dataset.sid, act.dataset.do, act.dataset.months); }
-  else if (a==="adm-grant") { const g = id => document.getElementById(id); adminStudent((g("admGrantSid").value || "").trim(), "grant", g("admGrantMonths").value); }
+  else if (a==="adm-student") { adminStudent(act.dataset.sid, act.dataset.do, act.dataset.months, act.dataset.level); }
+  else if (a==="adm-grant") { const g = id => document.getElementById(id); adminStudent((g("admGrantSid").value || "").trim(), "grant", g("admGrantMonths").value, g("admGrantLevel").value); }
+  else if (a==="adm-save-tiers") { adminSaveTiers(); }
   else if (a==="adm-tab") { ADMIN.tab = act.dataset.tab; try { localStorage.setItem("lmk_admin_tab", ADMIN.tab); } catch(_){} animNext = true; render(); }
   else if (a==="cap-close") { showCap = false; render(); }
   else if (a==="cap-edit") { showCap = !showCap; render(); }
@@ -4019,8 +4059,11 @@ function pingAllowed(){
 function pingDaily(){
   try {
     const k = dayKey(now()), last = localStorage.getItem("lmk_ping_day");
-    if (!last) ping("install");
-    if (last !== k) { localStorage.setItem("lmk_ping_day", k); ping("open"); }
+    if (!last) ping("install");                                              // a new device opened the app
+    if (last !== k) {
+      localStorage.setItem("lmk_ping_day", k); ping("open");
+      if (store.ext && Object.keys(store.ext.items || {}).length) ping("synced");   // once a day, a device that has Canvas data: the real activation number
+    }
   } catch(_){}
 }
 /* After ten finished things and five days, ask once for a store review. Laptops only — that is where the store is. */
@@ -4100,20 +4143,39 @@ async function adminLookup(){
     const j = await r.json(); const p = j.student;
     const planTxt = j.plan ? (j.plan.plus ? (j.plan.granted ? "Plus, granted" : "Plus, paying") + (j.plan.until ? " until " + FMT_DAY.format(new Date(j.plan.until)) : "") : "free plan") : "";
     const costTxt = j.cost ? ` · tutor ${j.cost.d30.n} msgs / $${j.cost.d30.usd.toFixed(2)} in 30 d, $${j.cost.all.usd.toFixed(2)} all time` : "";
-    const planBtn = j.sid ? (j.plan && j.plan.plus ? `<button class="minibtn drop" data-act="adm-student" data-sid="${esc(j.sid)}" data-do="revoke">Revoke Plus</button>` : `<button class="minibtn" data-act="adm-student" data-sid="${esc(j.sid)}" data-do="grant" data-months="4">Plus · 4 mo</button>`) : "";
+    const planBtn = j.sid ? (j.plan && j.plan.plus ? `<button class="minibtn drop" data-act="adm-student" data-sid="${esc(j.sid)}" data-do="revoke">Revoke Plus</button>` : `<button class="minibtn" data-act="adm-student" data-sid="${esc(j.sid)}" data-do="grant" data-months="4" data-level="plus">Plus · 4 mo</button>`) : "";
     if (!p) { out.innerHTML = j.sid ? `Known to the worker (${esc(planTxt)}${costTxt}) but not syncing from anywhere. ${planBtn}` : "No student with that code."; return; }
     const ago = t => t ? Math.round((Date.now() - t) / 60000) + " min ago" : "never";
     out.innerHTML = `${esc(p.host)} · ${p.courses} courses · last read ${ago(p.synced_at)} · ${!p.active ? "paused" : p.err ? esc(p.err) : "healthy"} · ${esc(planTxt)}${costTxt} <button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="retry">Retry</button> ${planBtn} <button class="minibtn drop" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="forget">Forget</button>`;
   } catch(_) { if (out) out.textContent = "Couldn't reach the worker."; }
 }
-async function adminStudent(sid, action, months){
+async function adminSaveTiers(){
+  const g = id => document.getElementById(id), tiers = {};
+  for (const lv of ["free", "plus", "pro"]) {
+    tiers[lv] = {
+      units: Math.max(0, +g("admT_" + lv + "_units").value || 0),
+      quiz: Math.max(3, +g("admT_" + lv + "_quiz").value || 6),
+      cards: Math.max(3, +g("admT_" + lv + "_cards").value || 10),
+      model: g("admT_" + lv + "_model").value,
+      files: g("admT_" + lv + "_files").checked, vision: g("admT_" + lv + "_vision").checked, think: g("admT_" + lv + "_think").checked,
+      sell: lv !== "free" && g("admT_" + lv + "_sell").checked,
+      price: g("admT_" + lv + "_price").value.trim().slice(0, 24),
+      link: lv === "free" ? "" : (g("admT_" + lv + "_link").value || "").trim().slice(0, 300),
+    };
+  }
+  let map = {};
+  try { map = JSON.parse(g("admTierMap").value || "{}"); if (!map || typeof map !== "object" || Array.isArray(map)) throw 0; }
+  catch(_) { toast("The plan map must be JSON like {\"1000\":\"pro\"}."); return; }
+  adminSave({tiers, tierMap: map});
+}
+async function adminStudent(sid, action, months, level){
   if (action === "forget" && !confirm("Forget this student on the server? Their app keeps working from the extension; the server copy and key are deleted.")) return;
   if (action === "revoke" && !confirm("Take Plus away from this code now?")) return;
   if (!/^[a-f0-9]{6,64}$/i.test(sid || "")) { toast("A support code is 6 to 64 hex characters."); return; }
   try {
-    const r = await fetch(apiUrl("/admin/student?key=" + encodeURIComponent(ADMIN.key)), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"}, body: JSON.stringify({sid: sid.toLowerCase(), action, months: +months || 1})});
+    const r = await fetch(apiUrl("/admin/student?key=" + encodeURIComponent(ADMIN.key)), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"}, body: JSON.stringify({sid: sid.toLowerCase(), action, months: +months || 1, level: level || "plus"})});
     const j = await r.json();
-    toast(j.ok ? (action === "grant" ? `Plus granted for ${j.months} month${j.months === 1 ? "" : "s"}.` : action === "revoke" ? "Plus revoked." : `Done: ${action}.`) : "The worker said: " + (j.error || r.status));
+    toast(j.ok ? (action === "grant" ? `${TIER_NAMES[j.level] || "Plus"} granted for ${j.months} month${j.months === 1 ? "" : "s"}.` : action === "revoke" ? "Plan revoked." : `Done: ${action}.`) : "The worker said: " + (j.error || r.status));
   } catch(_) { toast("Couldn't reach the worker."); }
   adminFetch(true);
 }
@@ -4184,6 +4246,7 @@ function renderAdmin(root){
   const sum = (ev, a, b) => keys.slice(a, b).reduce((t, k) => t + get(k, ev), 0);
   const last7 = ev => sum(ev, 23, 30), prev7 = ev => sum(ev, 16, 23);
   const installs = tot.install || 0, syncs = tot.firstsync || 0, conv = installs ? Math.round(syncs / installs * 100) : null;
+  const connToday = get(today, "synced"), extInstalls = tot.extension || 0;
   const openToday = get(today, "open"), avg7 = Math.round(last7("open") / 7 * 10) / 10;
   const delta = (a, b) => { if (!b && !a) return ""; if (!b) return `<span class="d up">new</span>`; const p = Math.round((a - b) / b * 100); return `<span class="d ${p >= 0 ? "up" : "down"}">${p >= 0 ? "▲" : "▼"} ${Math.abs(p)}% vs prior week</span>`; };
   // money: real cost from Anthropic's usage blocks (worker `usage` table) and real cash from Stripe (`payments`)
@@ -4199,6 +4262,7 @@ function renderAdmin(root){
   if ((CL.errors || 0) > 0) attention.push(["students", `${CL.errors} student sync${CL.errors === 1 ? " needs" : "s need"} attention.`]);
   if (T.err) attention.push(["ops", `${T.err} app error${T.err === 1 ? "" : "s"} reported today.`]);
   if (S.cloudPaused) attention.push(["students", "Sync from anywhere is paused (kill switch on)."]);
+  if (installs >= 5 && syncs / installs < 0.5) attention.push(["students", `Only ${conv}% of devices ever reached Canvas. Activation, not features, is the bottleneck.`]);
   if (!TU.tutorOn) attention.push(["tutor", "The tutor is switched off."]);
   if (d.costError || d.revenueError) attention.push(["ops", "Cost or revenue tables failed to read: " + (d.costError || d.revenueError) + ". Apply schema.sql."]);
   if (CO && RV && spend30 > cash30 && spend30 > 1) attention.push(["revenue", `The tutor cost ${money(spend30)} in 30 days against ${money(cash30)} in cash.`]);
@@ -4214,14 +4278,14 @@ function renderAdmin(root){
   if (ADMIN.tab === "overview") {
     html += `<div class="tiles">
       ${tile("Opens today", openToday, `${avg7} a day, last 7 days`, delta(last7("open"), prev7("open")))}
-      ${tile("Installs", installs, `${last7("install")} this week`, delta(last7("install"), prev7("install")))}
-      ${tile("Reached Canvas", syncs, conv === null ? "no installs yet" : `${conv}% of installs`)}
+      ${tile("Devices", installs, `${last7("install")} new this week`, delta(last7("install"), prev7("install")))}
+      ${tile("Connected", n(tot.synced || 0), `${connToday} today · ${conv === null ? "no devices yet" : conv + "% of devices ever reached Canvas"}`)}
       ${tile("Plus members", (PL.paying || 0) + (PL.granted || 0), `${PL.paying || 0} paying · ${PL.granted || 0} granted`)}
       ${tile("Tutor today", n(T.tutor_msg), `${money(spendToday)} in tokens · ${n(sum("tutor_msg", 23, 30))} this week`)}
       ${tile("30 days", money(cash30), `cash in · ${money(spend30)} tokens out · MRR ${money(mrr)}`)}
     </div>`;
     html += `<div class="card adm-card"><h3>Needs attention</h3>${attention.length ? `<ul class="attn">${attention.map(([tab, msg]) => `<li><span>${esc(msg)}</span><button class="minibtn" data-act="adm-tab" data-tab="${tab}">Open</button></li>`).join("")}</ul>` : `<p class="sub2" style="margin:0">Nothing. The machine is running, the money side is wired, and no one is stuck.</p>`}</div>`;
-    html += chartCard("Last 30 days", "One device counts once a day. Your own devices, test renders and copies running anywhere but lmktoday.app are never counted.", keys, k => get(k, "open"), k => get(k, "install"), "Daily opens", "Installs", v => String(v), k => `${k}: ${get(k, "open")} opens, ${get(k, "install")} installs, ${get(k, "tutor_msg")} tutor msgs`);
+    html += chartCard("Last 30 days", `One device counts once a day. "Devices" is a browser opening the app for the first time, not an extension install (${n(extInstalls)} of those recorded); "connected" is a device that has Canvas data. Your own devices, test renders and anything not served from lmktoday.app never count.`, keys, k => get(k, "open"), k => get(k, "synced"), "Daily opens", "Connected", v => String(v), k => `${k}: ${get(k, "open")} opens, ${get(k, "synced")} connected, ${get(k, "install")} new devices, ${get(k, "tutor_msg")} tutor msgs`);
   }
   if (ADMIN.tab === "revenue") {
     if (!RV || !CO) html += `<div class="card adm-card"><h3>Revenue</h3><p class="sub2" style="margin:0">The worker hasn't answered with cost and revenue yet${d.costError || d.revenueError ? ": " + esc(d.costError || d.revenueError) : ""}. Deploy worker v10 and apply schema.sql (usage and payments tables).</p></div>`;
@@ -4281,21 +4345,44 @@ function renderAdmin(root){
       </div>
       <div class="adm-row" style="margin-top:12px;justify-content:flex-end"><button class="btn primary" data-act="adm-save-tutor">Save tutor settings</button></div></div>`;
     if (CO && CO.top && CO.top.length) html += `<div class="card adm-card"><h3>Who costs what · 30 days</h3><p class="sub2">Real token spend per support code. A free account near the top of this list is the reason the weekly allowance exists; a member near the top is a happy customer.</p>
-      ${table(["Code", "Plan", "Messages", "Cost", "Per message", ""], CO.top.map(r => `<tr><td class="mono">${esc(r.code)}</td><td>${r.plan === "plus" ? "Plus" : r.plan === "granted" ? "granted" : "free"}</td><td class="num">${n(r.n)}</td><td class="num">${money(r.usd)}</td><td class="num">${r.n ? (r.usd / r.n * 100).toFixed(2) + "¢" : "—"}</td><td class="acts">${r.plan === "free" ? `<button class="minibtn" data-act="adm-student" data-sid="${esc(r.sid)}" data-do="grant" data-months="4">Grant Plus</button>` : r.plan === "granted" ? `<button class="minibtn drop" data-act="adm-student" data-sid="${esc(r.sid)}" data-do="revoke">Revoke</button>` : ""}</td></tr>`))}</div>`;
+      ${table(["Code", "Plan", "Messages", "Cost", "Per message", ""], CO.top.map(r => `<tr><td class="mono">${esc(r.code)}</td><td>${r.plan === "plus" ? "Plus" : r.plan === "granted" ? "granted" : "free"}</td><td class="num">${n(r.n)}</td><td class="num">${money(r.usd)}</td><td class="num">${r.n ? (r.usd / r.n * 100).toFixed(2) + "¢" : "—"}</td><td class="acts">${r.plan === "free" ? `<button class="minibtn" data-act="adm-student" data-sid="${esc(r.sid)}" data-do="grant" data-months="4" data-level="plus">Grant Plus</button>` : r.plan === "granted" ? `<button class="minibtn drop" data-act="adm-student" data-sid="${esc(r.sid)}" data-do="revoke">Revoke</button>` : ""}</td></tr>`))}</div>`;
     html += `<div class="card adm-card"><h3>Unit economics</h3><p class="sub2" style="margin:0">A chat reply is about 0.45¢ on Sonnet and 1.1¢ on Opus; a 10-question quiz or a 16-card deck about 1.4¢ (always Sonnet). A member using all ${+PL.tutorPlusWeekly || 40} messages a week costs at most $${((+PL.tutorPlusWeekly || 40) * 4.33 * 0.014).toFixed(2)} a month against $${priceNum.toFixed(2)} in, $${(priceNum * 0.971 - 0.30).toFixed(2)} after Stripe. A free student costs at most $${((+TU.tutorWeekly || 0) * 4.33 * 0.014).toFixed(2)} a month.</p></div>`;
   }
 
   if (ADMIN.tab === "plus") {
     const members = PL.members || [];
     html += `<div class="tiles">
-      ${tile("Paying", PL.paying || 0, `$${mrr.toFixed(0)} a month at ${esc(PL.plusPrice || "$4/month")}`)}
+      ${tile("Paying", PL.paying || 0, Object.keys(PL.byLevel || {}).length ? Object.entries(PL.byLevel).map(([k, v]) => `${v} ${TIER_NAMES[k] || k}`).join(" · ") : `$${mrr.toFixed(0)} a month`)}
       ${tile("Granted", PL.granted || 0, "on the house, by you")}
       ${tile("Ever", PL.ever || 0, `${PL.creditsOutstanding || 0} credits outstanding`)}
       ${tile("Stripe", PL.webhook ? "wired" : "no webhook", PL.plusLink ? "payment link saved" : "no payment link")}
     </div>`;
-    html += `<div class="card adm-card"><h3>Grant Plus</h3><p class="sub2">Type a student's support code (they see it in the Plus sheet) and give them Plus for a while. It ends on its own; revoke it early below. Stripe never touches a granted membership.</p>
-      <div class="adm-row"><input id="admGrantSid" type="text" placeholder="support code" maxlength="64" class="adm-in" style="flex:1 1 160px"><select id="admGrantMonths" class="adm-in"><option value="1">1 month</option><option value="4" selected>4 months · a semester</option><option value="12">12 months</option></select><button class="btn primary" data-act="adm-grant">Grant Plus</button></div></div>`;
-    html += `<div class="card adm-card"><h3>Members</h3>${table(["Code", "How", "Since", "Until", ""], members.map(m => `<tr><td class="mono">${esc(m.code)}</td><td>${m.how === "granted" ? "granted" : "Stripe"}</td><td>${m.since ? FMT_DAY.format(new Date(m.since)) : ""}</td><td>${m.until ? FMT_DAY.format(new Date(m.until)) : "open"}</td><td class="acts"><button class="minibtn drop" data-act="adm-student" data-sid="${esc(m.sid)}" data-do="revoke">Revoke</button></td></tr>`)) || `<p class="sub2" style="margin:0">No members yet. The first one shows up here the moment Stripe's webhook lands, or the moment you grant one.</p>`}</div>`;
+    html += `<div class="card adm-card"><h3>Grant a plan</h3><p class="sub2">Type a student's support code (they see it at the bottom of the plans sheet), pick a plan and a length. It ends on its own; revoke it early below. Stripe never touches a granted plan.</p>
+      <div class="adm-row"><input id="admGrantSid" type="text" placeholder="support code" maxlength="64" class="adm-in" style="flex:1 1 160px">
+        <select id="admGrantLevel" class="adm-in"><option value="plus" selected>Plus</option><option value="pro">Pro</option></select>
+        <select id="admGrantMonths" class="adm-in"><option value="1">1 month</option><option value="4" selected>4 months · a semester</option><option value="12">12 months</option></select>
+        <button class="btn primary" data-act="adm-grant">Grant</button></div></div>`;
+    html += `<div class="card adm-card"><h3>Members</h3>${table(["Code", "Plan", "How", "Since", "Until", ""], members.map(m => `<tr><td class="mono">${esc(m.code)}</td><td>${esc(TIER_NAMES[m.level] || m.level || "plus")}</td><td>${m.how === "granted" ? "granted" : "Stripe"}</td><td>${m.since ? FMT_DAY.format(new Date(m.since)) : ""}</td><td>${m.until ? FMT_DAY.format(new Date(m.until)) : "open"}</td><td class="acts"><button class="minibtn drop" data-act="adm-student" data-sid="${esc(m.sid)}" data-do="revoke">Revoke</button></td></tr>`)) || `<p class="sub2" style="margin:0">No members yet. The first one shows up here the moment Stripe's webhook lands, or the moment you grant one.</p>`}</div>`;
+    const TT = PL.tiers || {}, UN = PL.units || {};
+    html += `<div class="card adm-card"><h3>Plans</h3><p class="sub2">A unit is one tutor message; a quiz or a deck costs ${UN.quiz || 3}, deep thinking ${UN.think || 6}, a file or photo question ${UN.file || 2}. Units are priced to track real spend, so a daily allowance is also a cost ceiling. Sell a plan only when the features it names actually work.</p>
+      ${table(["Plan", "Units a day", "Quiz", "Cards", "Model", "Files", "Photo", "Think", "Price", "On sale"], ["free", "plus", "pro"].map(lv => { const t = TT[lv] || {};
+        return `<tr><td><b>${TIER_NAMES[lv]}</b></td>
+          <td>${input("admT_" + lv + "_units", +t.units || 0, 70)}</td>
+          <td>${input("admT_" + lv + "_quiz", +t.quiz || 0, 60)}</td>
+          <td>${input("admT_" + lv + "_cards", +t.cards || 0, 60)}</td>
+          <td><select id="admT_${lv}_model" class="adm-in"><option value="" ${!t.model ? "selected" : ""}>default</option><option value="claude-sonnet-5" ${t.model === "claude-sonnet-5" ? "selected" : ""}>Sonnet 5</option><option value="claude-opus-5" ${t.model === "claude-opus-5" ? "selected" : ""}>Opus 5</option></select></td>
+          <td><input type="checkbox" id="admT_${lv}_files" ${t.files ? "checked" : ""}></td>
+          <td><input type="checkbox" id="admT_${lv}_vision" ${t.vision ? "checked" : ""}></td>
+          <td><input type="checkbox" id="admT_${lv}_think" ${t.think ? "checked" : ""}></td>
+          <td>${input("admT_" + lv + "_price", t.price || "", 110, 'type="text" maxlength="24"')}</td>
+          <td><input type="checkbox" id="admT_${lv}_sell" ${t.sell ? "checked" : ""} ${lv === "free" ? "disabled" : ""}></td></tr>`; }))}
+      <div class="adm-grid" style="margin-top:12px">
+        <label class="fld wide">Plus payment link ${input("admT_plus_link", (TT.plus || {}).link || "", 0, 'type="url" placeholder="https://buy.stripe.com/…"')}</label>
+        <label class="fld wide">Pro payment link ${input("admT_pro_link", (TT.pro || {}).link || "", 0, 'type="url" placeholder="https://buy.stripe.com/… (create it in Stripe first)"')}</label>
+        <label class="fld wide">Which payment buys which plan ${input("admTierMap", JSON.stringify(PL.tierMap || {}), 0, 'type="text" placeholder=\'{"1000":"pro","price_abc":"pro"}\'')}</label>
+      </div>
+      <p class="sub2" style="margin:10px 0 0">Map by amount in cents or by Stripe price id; anything unmapped counts as Plus. Upgrades keep their credit automatically when a student switches plan in the billing portal, so turn plan switching on there rather than selling a second link.</p>
+      <div class="adm-row" style="margin-top:12px;justify-content:flex-end"><button class="btn primary" data-act="adm-save-tiers">Save plans</button></div></div>`;
     html += `<div class="card adm-card"><h3>Offer</h3><p class="sub2">${PL.webhook ? "" : "<b>Webhook secret not set:</b> run <span class=\"mono\">npx wrangler secret put STRIPE_WEBHOOK_SECRET</span> or payments can't be recognised. "}The link opens Stripe with the student's code attached; the success page must send them to lmktoday.app/app/#plus=ok. The price here is what the app shows; change it in Stripe too.</p>
       <div class="adm-grid">
         <label class="fld wide">Payment Link ${input("admPlusLink", PL.plusLink || "", 0, 'type="url" placeholder="https://buy.stripe.com/…"')}</label>
