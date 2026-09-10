@@ -107,6 +107,14 @@
   @keyframes lmkspin{to{transform:rotate(360deg)}}
   @media (prefers-reduced-motion: no-preference){ .gear.spinning svg{animation:lmkspin .9s linear infinite} }
   .gear.spinning{color:var(--accent-text, currentColor)}
+  /* green when everything LMK relies on is current, yellow when a click would actually fix something */
+  .gear.ok, .gear.stale{position:relative}
+  .gear.ok::after, .gear.stale::after{content:"";position:absolute;top:-1px;right:-1px;width:9px;height:9px;
+    border-radius:999px;border:2px solid var(--bg)}
+  .gear.ok::after{background:var(--good)}
+  .gear.stale::after{background:var(--warn)}
+  .gear.stale{border-color:color-mix(in srgb,var(--warn) 55%,var(--line))}
+  .gear.spinning::after{display:none}
   .gear[disabled]{opacity:.6}
 
   /* ---------- tabs & chips ---------- */
@@ -396,6 +404,15 @@
 
   /* ---------- mobile: app shell ---------- */
   nav.bottombar{display:none}
+  /* Four icon buttons is the ceiling, and between ~640 and ~780 the greeting is what tips it over.
+     Measured: without this the header splits across two rows from 641px to about 715px. */
+  @media (max-width: 780px){ .lmksub{display:none} }
+  /* 641-900px: everything fits on one row but the date gets squeezed to an ellipsis, cutting off the half
+     that carries the information ("nothing due today"). Give it its own row instead, as mobile already does. */
+  @media (min-width: 641px) and (max-width: 900px){
+    .today-line{flex:1 1 100%;order:10;padding:2px 0 0}
+  }
+
   @media (max-width: 640px){
     nav.topnav{display:none}
     nav.bottombar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:60;
@@ -432,7 +449,6 @@
     .lmksub{font-size:13px}
     .iconbtn{width:40px;height:40px}
     .gear{width:42px;height:42px}
-    .lmksub{display:none}
     .item .cbx{width:27px;height:27px}
     /* bottom sheets */
     .overlay{padding:0;align-items:flex-end}
@@ -684,6 +700,16 @@
   #syncBadge.cta{border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:600;border-radius:999px;padding:6px 12px;box-shadow:var(--shadow)}
   #syncBadge.cta:hover{border-color:var(--line-strong)}
   footer.pagefoot a:hover{color:var(--ink)}
+
+  /* Narrow phones (iPhone SE is 375 CSS px). 380 leaves 340 usable; wordmark 68 + streak 47 + pill 67 +
+     four 42px buttons + six 10px gaps needs ~410, so the row split. Smaller buttons and a tighter gap
+     recover ~30px, and the streak chip — a status, not an action — gives up the rest. It is still in the
+     Now tab. This block must stay AFTER the max-width:640 block: same specificity, so later wins. */
+  @media (max-width: 430px){
+    .gear{width:38px;height:38px}
+    header.top{gap:8px}
+    .streak{display:none}
+  }
 </style>
 
 <div class="wrap">
@@ -1288,6 +1314,7 @@ const EXT = {present:false, version:"", drive:{state:"off"}, resync:null, at:0, 
 /* What the extension's own background sync has been doing. Shown under the gear so "it never
    refreshed" has an answer: when it last ran, whether Canvas let it in, and how many items came back. */
 function renderBgStatus(){
+  try { syncPaint(); } catch(_){}
   const el = document.getElementById("setupBg"); if (!el) return;
   if (!EXT.present || MODE !== "web" && MODE !== "artifact") { el.hidden = true; return; }
   const r = EXT.resync, ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 1440 ? Math.round(m / 60) + " h ago" : Math.round(m / 1440) + " d ago"; };
@@ -1996,7 +2023,17 @@ var renderPlus = function(){
   if (!plusPossible() || (!offer.link && !(me && me.plus) && !(offer.tiers))) { way.hidden = true; return; }
   const lvl = myLevel(), t = tierOf(lvl), nextT = tierOf(lvl === "free" ? "plus" : "pro");
   let html;
-  if (lvl !== "free") html = `<span>✓ <b>You're on ${TIER_NAMES[lvl]}${me && me.granted ? ", on the house" : ""}.</b> ${unitPhrase(lvl)}${me && me.credits ? ", plus " + me.credits + " credits" : ""}.${me && me.until ? (me.granted ? " Until " + FMT_DAY.format(new Date(me.until)) : " Renews " + FMT_DAY.format(new Date(me.until - 3 * 864e5))) + "." : ""}</span>${offer.portal && !(me && me.granted) ? `<a class="minibtn" href="${esc(offer.portal)}" target="_blank" rel="noopener">Manage or change plan</a>` : ""}<button class="minibtn" data-act="plus-open">See plans</button>`;
+  if (lvl !== "free") {
+    /* Three ways to be on a paid tier and they end differently. A gift has no subscription behind it, so
+       "Renews" is false and Stripe's billing portal has nothing to manage — it used to be offered anyway,
+       sending a gifted student to a dead end. `paid` is the only thing that means "Stripe is charging you". */
+    const gift = me && me.gift, paidSub = !!(me && me.paid);
+    const how = me && me.granted ? ", on the house" : gift && !paidSub ? ", a gift" : "";
+    const when = paidSub && me.until ? " Renews " + FMT_DAY.format(new Date(me.until - 3 * 864e5)) + "."
+      : me && me.granted && me.until ? " Until " + FMT_DAY.format(new Date(me.until)) + "."
+      : gift ? " Yours until " + FMT_DAY.format(new Date(gift.until)) + ", then back to free with everything you've made." : "";
+    html = `<span>✓ <b>You're on ${TIER_NAMES[lvl]}${how}.</b> ${unitPhrase(lvl)}${me && me.credits ? ", plus " + me.credits + " credits" : ""}.${when}</span>${offer.portal && paidSub ? `<a class="minibtn" href="${esc(offer.portal)}" target="_blank" rel="noopener">Manage or change plan</a>` : ""}<button class="minibtn" data-act="plus-open">See plans</button>`;
+  }
   else if (me && /^(canceled|revoked)$/.test(me.status || "")) html = `<span>Your plan ended. The free version keeps everything else.</span><button class="btn grad" data-act="plus-open">See plans</button>`;
   else html = `<span><b>LMK plans</b> · ${unitPhrase("free")}, then ${nextT.units} a day on ${TIER_NAMES[lvl === "free" ? "plus" : "pro"]} for ${esc(nextT.price)}.</span><button class="btn grad" data-act="plus-open">See plans</button>`;
   el.innerHTML = html; way.hidden = false;
@@ -3314,7 +3351,8 @@ function renderHeader(){
   const n = now();
   const openToday = EVENTS.filter(open).filter(e=>dayKey(e.due)===dayKey(n)).length;
   document.getElementById("todayLine").textContent =
-    n.toLocaleDateString(undefined,{weekday:"long", month:"long", day:"numeric"}) + (openToday?` · ${openToday} due today`:" · nothing due today");
+    n.toLocaleDateString(undefined, {weekday:"short", month:"short", day:"numeric"})
+      + (openToday ? ` · ${openToday} due today` : " · nothing due today");
   const name = (store.profile && store.profile.name) || "";
   const hr = now().getHours();
   document.getElementById("lmkSub").textContent = name ? `${hr < 12 ? "morning" : hr < 18 ? "afternoon" : "evening"}, ${name}.` : "let me know.";
@@ -3491,7 +3529,7 @@ function cachePlanLine(days, today){
 /* The sync bookmarklet, generated from ~/lmk-extension/bookmarklet.txt — regenerate both together.
    It works on ANY school's Canvas, which is the whole point: it takes the origin from the page it runs on. */
 const LMK_SYNC_BOOKMARKLET = "javascript:(function(){\n  let BASE = \"\";\n  async function getJSON(path){\n    const out = [];\n    let url = BASE + path + (path.includes(\"?\") ? \"&\" : \"?\") + \"per_page=100\";\n    for (let hop = 0; url && hop < 20; hop++){\n      const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000);\n      let r; try { r = await fetch(url, {credentials:\"include\", headers:{\"Accept\":\"application/json\"}, signal: ctl.signal}); } finally { clearTimeout(timer); }\n      if (!r.ok) throw new Error(r.status + \" \" + path);\n      let txt = await r.text();\n      if (txt.startsWith(\"while(1);\")) txt = txt.slice(9);\n      const data = JSON.parse(txt);\n      if (Array.isArray(data)) out.push(...data); else return data;\n      const link = r.headers.get(\"Link\") || \"\";\n      const m = link.match(/<([^>]+)>;%5Cs*rel=\"next\"/);\n      url = m ? m[1] : null;\n    }\n    return out;\n  }\n  const strip = h => (h || \"\").replace(/<[^>]+>/g, \" \").replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/%5Cs+/g, \" \").trim();\n  /* Canvas's own grade for this course: exactly what the student sees, with group weights, drop rules,\n     late policies and excused work already applied. Null when the instructor hides totals. */\n  function courseScores(c){\n    const num = v => (v === null || v === undefined || v === \"\" || !isFinite(+v)) ? null : +v;\n    const es = (c.enrollments || []).filter(e => /student/i.test(e.type || e.role || \"\"));\n    const e = es.find(x => x.computed_current_score != null) || es[0] || {};\n    return {cur: num(e.computed_current_score), fin: num(e.computed_final_score)};\n  }\n  function courseTag(c){\n    const s = (c.course_code || c.name || \"\");\n    if (/asuready/i.test(s)) return \"ASU Ready\";\n    const m = s.match(/([A-Z]{2,4})%5Cs?-?(%5Cd{2,3}[A-Z]?)/);\n    return m ? m[1] + \" \" + m[2] : s.slice(0, 18);\n  }\n  function rubricText(a){\n    const r = Array.isArray(a.rubric) ? a.rubric : [];\n    return r.slice(0, 12).map(c => String(c.description || \"\").replace(/%5Cs+/g, \" \").trim().slice(0, 80) + (c.points != null ? \" (\" + c.points + \" pts)\" : \"\")).filter(x => x.trim() && x.trim() !== \"(0 pts)\").join(\"; \").slice(0, 900);\n  }\n  function kindHint(a){\n    const st = a.submission_types || [];\n    if (a.grading_type === \"not_graded\" || (a.points_possible === 0 && !st.includes(\"online_quiz\"))) return \"fyi\";\n    if (st.includes(\"none\") || st.includes(\"on_paper\")) return \"inclass\";\n    if (/attendance|participation|in.?class|clicker/i.test(a.name || \"\")) return \"inclass\";\n    if (st.includes(\"online_quiz\")) return \"quiz\";\n    if (st.includes(\"discussion_topic\")) return \"discussion\";\n    return \"\";\n  }\n  (typeof window !== \"undefined\" ? window : self).lmkCollect = async function(base){\n    BASE = (base || location.origin).replace(/%5C/$/, \"\");\n    const HOST = BASE.replace(/^https?:%5C/%5C//, \"\");\n    const courses = (await getJSON(\"/api/v1/courses?enrollment_state=active&include[]=term&include[]=total_scores\")).filter(c => c.name && !c.access_restricted_by_date);\n    const items = {};\n    const groups = {};\n    for (const c of courses){\n      const tag = courseTag(c);\n      let list = [];\n      try { list = await getJSON(`/api/v1/courses/${c.id}/assignments?include[]=submission&order_by=due_at`); } catch(e){ continue; }\n      /* What the instructor actually wrote back. One request per course, only this student's submissions,\n         only comments from someone who is not the student. It is the most useful thing LMK can know. */\n      let fb = {};\n      try {\n        const subs = await getJSON(`/api/v1/courses/${c.id}/students/submissions?student_ids[]=self&include[]=submission_comments&per_page=100`);\n        for (const sub of (Array.isArray(subs) ? subs : [])) {\n          const mine = String(sub.user_id || \"\");\n          const notes = (sub.submission_comments || []).filter(x => x && x.comment && String(x.author_id || \"\") !== mine);\n          if (notes.length) fb[String(sub.assignment_id)] = strip(notes[notes.length - 1].comment).slice(0, 400);\n        }\n      } catch(e){}\n      try {\n        const g = await getJSON(`/api/v1/courses/${c.id}/assignment_groups`);\n        groups[c.id] = g.map(x => ({id:x.id, name:x.name, w:x.group_weight}));\n      } catch(e){}\n      for (const a of list){\n        if (a.only_visible_to_overrides && !a.due_at && !a.has_overrides) continue;\n        const s = a.submission || {};\n        items[String(a.id)] = {\n          t: a.name, c: tag, cid: String(c.id),\n          due: a.due_at || \"\", lock: a.lock_at || \"\",\n          pts: a.points_possible, gt: a.grading_type, st: (a.submission_types || []).join(\",\"),\n          grp: a.assignment_group_id, k: kindHint(a),\n          sub: s.workflow_state || \"\", subAt: s.submitted_at || \"\", score: s.score == null ? null : s.score,\n          late: !!s.late, missing: !!s.missing, excused: !!s.excused,\n          url: a.html_url || \"\",\n          desc: strip(a.description).slice(0, 1200),\n          rub: rubricText(a),\n          fb: fb[String(a.id)] || \"\",\n          qid: a.quiz_id ? String(a.quiz_id) : \"\",\n        };\n      }\n    }\n    // Canvas keeps seconds spent on every quiz attempt %E2%80%94 exact durations, no sensor needed.\n    const quizTime = {}, quizMap = {};\n    const quizzes = Object.entries(items).filter(([aid, x]) => x.qid && /^(submitted|graded|pending_review)$/.test(x.sub)).slice(0, 40);\n    for (const [aid, x] of quizzes){\n      quizMap[x.cid + \"/\" + x.qid] = aid;\n      try {\n        const r = await getJSON(`/api/v1/courses/${x.cid}/quizzes/${x.qid}/submissions`);\n        const subs = (r && r.quiz_submissions) || [];\n        const secs = subs.map(q => +q.time_spent || 0).filter(v => v > 0);\n        if (secs.length) quizTime[aid] = Math.round(Math.max(...secs) / 60);\n      } catch(e){}\n    }\n    for (const aid in items) if (items[aid].qid) quizMap[items[aid].cid + \"/\" + items[aid].qid] = aid;\n    // apply_assignment_group_weights is the course-level switch: when it is false Canvas ignores\n    // the group weights entirely and grades on total points, however the weights are set.\n    return {lmk:\"canvas\", v:3, at: Date.now(), host: HOST,\n      courses: courses.map(c => Object.assign({id:String(c.id), tag:courseTag(c), name:c.name, wt: !!c.apply_assignment_group_weights}, courseScores(c))),\n      groups, items, quizTime, quizMap};\n  };\n})();\n\n(async()=>{try{const p=await window.lmkCollect();const s=JSON.stringify(p);const n=Object.keys(p.items).length;\nlet ok=false;try{await navigator.clipboard.writeText(s);ok=true}catch(e){}\nif(!ok){const ta=document.createElement(\"textarea\");ta.value=s;ta.style.cssText=\"position:fixed;top:8px;left:8px;width:90vw;height:40vh;z-index:99999;font-size:12px\";document.body.appendChild(ta);ta.focus();ta.select();try{ok=document.execCommand(\"copy\")}catch(e){}if(ok)ta.remove();else alert(\"Select all + copy the box, then paste it into LMK (gear %E2%86%92 Paste from Canvas).\")}\nif(ok)alert(\"LMK: copied \"+n+\" assignments. Open LMK %E2%86%92 gear %E2%86%92 Paste from Canvas %E2%86%92 paste.\")}catch(e){alert(\"LMK: could not read Canvas %E2%80%94 are you logged in on this tab? \"+e)}})();";
-const APP_BUILD = "v57.0";
+const APP_BUILD = "v58.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -3514,6 +3552,7 @@ window.addEventListener("unhandledrejection", ev => { try { lastErr = {where:"pr
 
 let animNext = true;   // stagger the entrance when a view opens or the filter changes — not on the quiet refresh
 function render(){
+  try { syncPaint(); } catch(_){}
   try { renderInner(); }
   catch(e) {
     reportErr(e, "render:" + activeTab);
@@ -3770,19 +3809,40 @@ async function refreshAll(){
   if (refreshing) return;
   refreshing = true;
   const btn = document.getElementById("syncBtn");
-  if (btn) { btn.classList.add("spinning"); btn.disabled = true; }
+  if (btn) { btn.classList.add("spinning"); btn.disabled = true; btn.classList.remove("ok", "stale"); }
   const did = [], failed = [];
-  const step = async (label, fn) => { try { await fn(); did.push(label); } catch(_) { failed.push(label); } };
+  /* Report only what actually happened. These functions swallow their own errors and return undefined, so
+     `await fn()` resolving proves nothing — each step has to say for itself whether it moved anything. */
+  const step = async (label, fn) => {
+    try { const moved = await fn(); if (moved === false) return; did.push(label); }
+    catch(_) { failed.push(label); }
+  };
 
-  // the extension holds the freshest Canvas read; ask it to hand it over again. Silent if it isn't installed.
   try { window.postMessage({lmk: "canvas-ping"}, "*"); } catch(_){}
 
   if (MODE === "web" && LMK_CONFIG.statsUrl) {
-    try { localStorage.removeItem("lmk_cfg"); } catch(_){}       // a stale plan is exactly what this is for
-    await step("plans", () => loadRemoteConfig());
-    if (plusPossible()) await step("your plan", () => plusRefresh(true));
+    try { localStorage.removeItem("lmk_cfg"); } catch(_){}
+    await step("plans", async () => {
+      const before = JSON.stringify((PLUS.offer || {}).tiers || null);
+      await loadRemoteConfig();
+      // loadRemoteConfig returns early and silently on a failed fetch; PLUS.offer is the only witness
+      if (!PLUS.offer) throw new Error("no config");
+      return before !== JSON.stringify((PLUS.offer || {}).tiers || null) || true;
+    });
+    if (plusPossible()) await step("your plan", async () => {
+      const at = PLUS.at; await plusRefresh(true);
+      if (PLUS.at === at) return false;              // it bailed on its own guard; nothing was read
+      if (!PLUS.me) throw new Error("no status");
+      return true;
+    });
   }
-  if (cloudOn()) await step("cloud", () => cloudPull("refresh"));
+  /* "force" is the only reason cloudPull honours — anything else hits a four-minute floor and returns
+     silently, which is exactly the staleness this button exists to clear. It used to pass "refresh". */
+  if (cloudOn()) await step("cloud", async () => {
+    const at = CLOUD.lastPull; await cloudPull("force");
+    if (CLOUD.err) throw new Error(CLOUD.err);
+    return CLOUD.lastPull !== at;
+  });
 
   if ((EXT.drive || {}).state === "needs-signin") { driveConnect(); did.push("Google sign-in"); }
   else if (drive.ready) {
@@ -3791,10 +3851,46 @@ async function refreshAll(){
   }
 
   loadData(); render();
+  /* finally, not the happy path: a throw above used to leave the button spinning and disabled forever */
   if (btn) { btn.classList.remove("spinning"); btn.disabled = false; }
   refreshing = false;
-  const say = did.length ? "Refreshed " + nameList(did) + "." : "Nothing to reconnect — this device is on its own copy.";
+  CLOUD.lastRefresh = Date.now();
+  syncPaint();
+  const say = did.length ? "Refreshed " + nameList(did) + "."
+    : failed.length ? "Nothing came back."
+    : "Already up to date.";
   toast(failed.length ? say + " Couldn't reach " + nameList(failed) + "." : say);
+}
+
+/* ---- what the button's colour means ----
+   Yellow: something is actually waiting on a click — a lapsed Google sign-in, a Canvas read old enough to
+   be wrong, a cloud copy that has not been read this session. Green: everything LMK depends on is current.
+   Neither is decorative; if nothing is connected at all the button stays plain, because there is nothing
+   a click could fix. */
+function syncState(){
+  const now = Date.now();
+  /* `ago` is a local inside renderBgStatus, not a global — calling it here threw a ReferenceError on the
+     two branches that matter most, and syncPaint's try/catch swallowed it, so the button simply never
+     turned yellow for stale data. Its own formatter, deliberately. */
+  const since = t => { const m = Math.round((now - t) / 60000);
+    return m < 60 ? m + " min" : m < 1440 ? Math.round(m / 60) + " h" : Math.round(m / 1440) + " d"; };
+  if ((EXT.drive || {}).state === "needs-signin") return {state: "stale", why: "Google sign-in has lapsed"};
+  const extAt = ((store.ext || {}).at) || 0;
+  if (extAt && now - extAt > 12 * 36e5) return {state: "stale", why: "Canvas hasn't been read in " + since(extAt)};
+  if (cloudOn() && CLOUD.lastPull && now - CLOUD.lastPull > 30 * 60e3) return {state: "stale", why: "the cloud copy is " + since(CLOUD.lastPull) + " old"};
+  if (EXT.resync && !EXT.resync.ok) return {state: "stale", why: "the last background sync couldn't read Canvas"};
+  if (!extAt && !cloudOn() && !drive.ready) return {state: "", why: ""};   // nothing connected: nothing to refresh
+  return {state: "ok", why: "everything is current"};
+}
+function syncPaint(){
+  const btn = document.getElementById("syncBtn"); if (!btn || refreshing) return;
+  const s = syncState();
+  btn.classList.toggle("ok", s.state === "ok");
+  btn.classList.toggle("stale", s.state === "stale");
+  btn.title = s.why ? (s.state === "stale" ? s.why + " — click to reconnect and pull everything again"
+                                           : "Everything is current. Click to check again anyway.")
+                    : "Reconnect and pull the latest from Canvas, Drive and your plan";
+  btn.setAttribute("aria-label", s.state === "stale" ? "Refresh everything — " + s.why : "Refresh everything");
 }
 
 document.getElementById("syncBtn").addEventListener("click", refreshAll);
@@ -3930,7 +4026,11 @@ function openGradeDetail(course){
   const ext = store.ext || {}, items = ext.items || {}, groupsByCourse = ext.groups || {};
   const scored = EVENTS.filter(e => e.course === course && !store.dropped[e.id])
     .map(e => ({e, g:(store.grades||{})[e.id]})).filter(x => x.g && +x.g.max > 0);
-  const cid = scored.length ? (items[scored[0].e.id.slice(1)] || {}).cid || "" : "";
+  /* Same derivation as buildGrades, deliberately: taking cid from scored[0] meant one hand-graded row with
+     no ext entry emptied it, dropped the weights, and made this breakdown contradict the grade above it. */
+  let cid = "";
+  for (const e of EVENTS) { if (e.course !== course || store.dropped[e.id]) continue;
+    const x = items[e.id.slice(1)]; if (x && x.cid) { cid = String(x.cid); break; } }
   const gap = g.mine != null && Math.abs(g.mine - g.pct) >= 0.5 ? g.mine : null;
   const everything = g.everything != null && Math.abs(g.everything - g.pct) >= 0.5 ? g.everything : null;
   const gmeta = {}; (groupsByCourse[cid] || []).forEach(x => gmeta[String(x.id)] = x);
