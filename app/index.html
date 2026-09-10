@@ -886,7 +886,7 @@
     <div class="wstep"><span class="wnum">1</span><div><b>What should LMK call you?</b>
       <input id="wName" placeholder="First name" autocomplete="off"></div></div>
     <div class="wstep"><span class="wnum">2</span><div><b id="wHead2">Get your classes in.</b>
-      <span class="whint" id="wBody2">That's the card right behind this window: one click adds the LMK extension, and it brings your classes here by itself. About a minute, once.</span>
+      <span class="whint" id="wBody2">That's the card right behind this window: one click adds the LMK Today extension, and it brings your classes here by itself. About a minute, once.</span>
       <div class="wchips" id="wClasses" hidden></div>
       <div class="wact">
         <a class="btn grad" id="wInstall" href="#" target="_blank" rel="noopener">Add to Chrome →</a>
@@ -3118,7 +3118,7 @@ function renderNow(root){
         html += `<div class="card hero" style="--hero-tint:color-mix(in srgb, var(--c1) 20%, transparent)">
           <div class="kicker">First run</div>
           <h1>${phone ? "Start on a computer, not here." : "Let's get your classes in."}</h1>
-          <div class="why">${phone ? "LMK reads Canvas or Brightspace through a Chrome extension, and a phone can't install one. On a computer, add the <b>LMK</b> extension to Chrome and open your school's site once. Then sign in with Google here and your plan arrives on this phone by itself." : "Three steps, about a minute: <b>1.</b> Add the <b>LMK</b> extension to Chrome. <b>2.</b> Open Canvas or Brightspace once like you normally would. <b>3.</b> Come back here; your classes appear by themselves. LMK stays empty until you've opened it, and the first refresh or two can still show nothing while it syncs. That's normal."}</div>
+          <div class="why">${phone ? "LMK reads Canvas or Brightspace through a Chrome extension, and a phone can't install one. On a computer, add the <b>LMK Today</b> extension to Chrome and open your school's site once. Then sign in with Google here and your plan arrives on this phone by itself." : "Three steps, about a minute: <b>1.</b> Add the <b>LMK</b> extension to Chrome. <b>2.</b> Open Canvas or Brightspace once like you normally would. <b>3.</b> Come back here; your classes appear by themselves. LMK stays empty until you've opened it, and the first refresh or two can still show nothing while it syncs. That's normal."}</div>
           <div class="actions">
             ${phone ? (gdReady() ? `<button class="btn grad" data-act="web-signin">Sign in with Google</button>` : "") : `<a class="btn grad" href="${LMK_CONFIG.storeUrl}" target="_blank" rel="noopener">Add to Chrome →</a><a class="btn ghost" href="${esc(canvasHref())}" target="_blank" rel="noopener">Already added it? Open ${openLbl} →</a>`}
             ${phone ? `<button class="btn ghost" data-act="open-token" title="A Canvas access token lets LMK's server read Canvas for you">No laptop? Use a Canvas token</button>` : ""}
@@ -3129,7 +3129,7 @@ function renderNow(root){
       }
       const rowCls = (done, now) => done ? "done" : now ? "now" : "todo";
       const checks = `<ol class="checks">
-          <li class="${rowCls(installed, state === "fresh" || state === "checking")}">${state === "checking" ? "Checking for the extension\u2026" : installed ? "Extension added" : "Add the LMK extension"}</li>
+          <li class="${rowCls(installed, state === "fresh" || state === "checking")}">${state === "checking" ? "Checking for the extension\u2026" : installed ? "Extension added" : "Add the LMK Today extension"}</li>
           <li class="${rowCls(answered, state === "waiting" || state === "stuck")}">${LMSW} read once</li>
           <li class="${rowCls(false, state === "empty")}">Your classes land here</li>
         </ol>`;
@@ -5055,7 +5055,7 @@ function welcomeSync(){
   if (chips) chips.hidden = true;
   if (store.custom) { set("wHead2", "Your calendar is loaded."); set("wBody2", "The Chrome extension adds what's submitted and graded. It's under the gear whenever you want it."); }
   else if (EXT.present) { set("wHead2", "Extension added \u2713"); set("wBody2", "Canvas or Brightspace is loading in another tab; if it asks you to sign in, do that and the rest happens by itself. The card behind this window shows where it's at."); }
-  else { set("wHead2", "Get your classes in."); set("wBody2", "That's the card right behind this window: one click adds the LMK extension, and it brings your classes here by itself. About a minute, once."); }
+  else { set("wHead2", "Get your classes in."); set("wBody2", "That's the card right behind this window: one click adds the LMK Today extension, and it brings your classes here by itself. About a minute, once."); }
 }
 function openWelcome(){
   { const cr = document.getElementById("wCloudRow"); if (cr) cr.hidden = true; }   // shown by the one branch where it applies
@@ -5070,7 +5070,7 @@ function openWelcome(){
   } else if (IS_MOBILE) {
     // on a phone the computer comes first: signing in before anything has read Canvas shows an empty plan
     set("wHead2", "Start on a computer, not here.");
-    set("wBody2", "LMK reads Canvas or Brightspace through a Chrome extension, and a phone can't install one. On a laptop or desktop, add the LMK extension to Chrome and open your school's site once. That takes a minute and only happens once.");
+    set("wBody2", "LMK reads Canvas or Brightspace through a Chrome extension, and a phone can't install one. On a laptop or desktop, add the LMK Today extension to Chrome and open your school's site once. That takes a minute and only happens once.");
     set("wHead3", "Then sign in here.");
     set("wBody3", "Once the computer has read your classes, sign in with Google on this phone and your plan arrives through your own Drive. No account, no password, so no name or email is on file anywhere.");
     show("wInstall", false); show("wSignin", false); show("wAct3", gdReady());
