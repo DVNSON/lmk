@@ -1,4 +1,4 @@
-/* Onboarding state machine, end to end, in a real headless Chrome. 36 checks: the checklist hero's states
+/* Onboarding state machine, end to end, in a real headless Chrome. 40 checks: the checklist hero's states
    (fresh / checking / waiting / stuck / empty / phone), the welcome overlay's copy per state, the first-sync
    reveal and its 10-minute flag, the name draft, the sync-from-anywhere consent box, the ASU note.
    Run:  cd ~/lmk-web && python3 -m http.server 8899 &
