@@ -25,7 +25,7 @@
 <div class="wrap">
   <span class="brand"></span>
   <h1>LMK for Canvas — Privacy Policy</h1>
-  <div class="sub">Effective September 12, 2026 · Applies to the LMK app and the "LMK for Canvas" browser extension</div>
+  <div class="sub">Effective September 10, 2026 · Applies to the LMK app and the "LMK for Canvas" browser extension</div>
 
   <p>LMK for Canvas is a browser extension that reads your own Canvas assignments and feeds them into LMK, your personal assignment planner. This page explains exactly what it reads, where that data goes, and what it never does.</p>
 
@@ -33,7 +33,7 @@
   <p>LMK is for students <b>13 and over</b> and is not directed at children under 13. LMK does not knowingly collect anything from a child under 13; if you believe a child under 13 has used it, write to <a href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=hello%40lmktoday.app" target="_blank" rel="noopener">hello@lmktoday.app</a> and whatever is held under that random id will be deleted. Anyone under 18 needs a parent or guardian to agree to the <a href="terms.html">terms</a> and to make any purchase.</p>
 
   <h2>Sync from anywhere</h2>
-  <p>So your phone stays current while your laptop is closed, LMK can read your Canvas for you from its own server. It is on by default once you use the extension, and it works like this:</p>
+  <p>So your phone stays current while your laptop is closed, LMK can read your Canvas for you from its own server. It is offered as a ticked box on the welcome screen — on unless you untick it, and off any time under the gear — and it works like this:</p>
   <ul>
     <li>The extension creates an <b>access token in your own Canvas account</b> (the same thing you could make under Account → Settings → New Access Token). Canvas lists it under Approved Integrations as "LMK"; you can delete it there at any time, and it expires on its own after six months.</li>
     <li>Our server stores that token <b>encrypted</b> (with a key that lives only in the server's secret store, never in the database), plus the same assignment rows the extension collects: titles, due dates, submission state, scores. It stores <b>no name, no email, no Canvas user id</b>. Each student is a random sync id.</li>
@@ -72,12 +72,13 @@
   <ul>
     <li><b>storage</b>: to keep the collected assignment data and minute tallies in your browser between visits.</li>
     <li><b>Canvas hosts</b>: to read your assignments through Canvas's API and to time work on assignment pages.</li>
-    <li><b>Course tool hosts</b> (MyEducator, Edfinity, McGraw-Hill Connect, Macmillan, Pearson, Cengage, zyBooks, WebAssign): to time work you do there after launching from a Canvas assignment.</li>
-    <li><b>claude.ai hosts</b>: to deliver the collected data to the LMK page, which runs there.</li>
+    <li><b>Course tool hosts</b> (MyEducator, Edfinity, McGraw-Hill Connect, Macmillan, Pearson, Cengage, zyBooks, WebAssign): only in the full build LMK's author runs, to time work you do there after launching from a Canvas assignment. The build in the Chrome Web Store does not ask for these and does not time course tools.</li>
+    <li><b>lmktoday.app</b>: to deliver the collected data to the LMK page. The full build also asks for claude.ai, where a private copy of the app runs; the Chrome Web Store build does not.</li>
   </ul>
 
   <h2>What LMK counts</h2>
   <p>To know whether anyone uses it, the LMK web app sends five plain numbers to a server run by LMK: one <b>open</b> per device per day, one <b>install</b> the first time a device opens the app, one <b>first sync</b> the first time Canvas data arrives, one <b>synced</b> per day from a device that holds Canvas data, and one <b>extension</b> the first time the browser extension says hello. That is the whole message: an event name and the date, in UTC. No identifier, no cookie, no IP address is stored, so a count can never be traced back to a person. Inside claude.ai this counter is off entirely. The app also fetches one small settings file from the same server when it opens, holding an announcement and the store link; that request carries nothing about you.</p>
+  <p>Two more things reach that server. When you finish the welcome screen the app makes a random id for this device and the server keeps it with a first-seen date, so a plan you buy can follow you to another device; it carries no name, no email and no coursework. And when you use the tutor, a hashed form of your network address is kept for a day so the free allowance is shared fairly across a campus; the hash cannot be turned back into the address.</p>
   <p>The extension's morning notification is built on your own computer from the plan the LMK page already showed you. Nothing about it is sent anywhere.</p>
   <p><b>The morning note on a phone.</b> If you turn that on, LMK's server holds one more thing about you, and it is an identifier: the address your browser's push service — Apple's, Google's or Mozilla's — hands out for that one browser on that one device. It is a long random web address. Anyone holding it together with LMK's private key could make that device show a notification. It is stored against the same random sync code as your Canvas data, and against nothing else: no name, no email, no account.</p>
   <p>Beside it LMK stores up to four numbers: for each of the next four mornings worth waking you for, the moment to send the note, how many things are due, and how many minutes they add up to. Your device works those moments out on its own clock, so LMK is never told your time zone or what time you get up — only four instants in the future. They run out after four mornings, so a phone whose owner has stopped opening LMK goes quiet rather than being read a stale plan.</p>
