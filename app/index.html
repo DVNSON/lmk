@@ -2139,6 +2139,15 @@ function renderPlusPill(){
    a pack buyer stays on the free plan, so waiting for `plus` alone would look like the payment failed. */
 (function plusReturn(){
   try {
+    /* A gift's redirect lands the BUYER here, not the student. They have no plan on this device and polling
+       /plus/status would read this browser's own sid — the parent's — then conclude after six tries that the
+       payment had not arrived. It had; it went to someone else's account, which is the entire point. So this
+       branch says so and stops, with no poll and no plan sheet. */
+    if (/#gift=ok/.test(location.hash)) {
+      history.replaceState(null, "", location.pathname + location.search);
+      giftThanks();
+      return;
+    }
     if (!/#(plus|credits)=ok/.test(location.hash)) return;
     history.replaceState(null, "", location.pathname + location.search);
     const wasCredits = (PLUS.me && PLUS.me.credits) || 0;
@@ -2153,6 +2162,29 @@ function renderPlusPill(){
     setTimeout(poll, 1500);
   } catch(_){}
 })();
+/* What the parent sees when Stripe sends them back. It is the only receipt LMK ever gives them, so it has to
+   stand on its own: they are not signed in, they have no plan, and they may never open LMK again. */
+function giftThanks(){
+  const m = document.getElementById("plusModal"); if (!m) return;
+  m.innerHTML = `
+    <div class="confetti" aria-hidden="true" style="z-index:3">${Array.from({length: 14}, (_, i) => `<i style="--i:${i}"></i>`).join("")}</div>
+    <div class="plus-hero">
+      <div class="eyebrow">Thank you</div>
+      <h3 id="plusTitle">That's done.</h3>
+      <div class="price">It's already on their account</div>
+    </div>
+    <p style="margin:0 0 16px;font-size:14.5px;color:var(--ink-2);line-height:1.55">
+      Nothing for you to set up and nothing for them to redeem — the code you typed put it straight onto their
+      account. It doesn't renew, so there's no card of yours kept on file and nothing to cancel later.
+      Stripe has emailed you a receipt.</p>
+    <p class="privacy" style="margin:0 0 16px">You won't see their grades or their work; LMK doesn't have a parent
+      view and isn't getting one. If the code was mistyped, email
+      <a href="mailto:hello@lmktoday.app">hello@lmktoday.app</a> and it gets moved to the right account.</p>
+    <div class="plus-cta"><button class="minibtn" id="plusClose">Close</button></div>`;
+  plusOverlay.dataset.sheet = "thanks";
+  plusOverlay.classList.add("open");
+  document.getElementById("plusClose").onclick = () => plusOverlay.classList.remove("open");
+}
 /* ---- the tutor inside LMK ----
    The worker holds the key and the allowance; the page sends only this assignment's context and the
    conversation. Threads live on this device (localStorage), never in the synced store. */
@@ -3459,7 +3491,7 @@ function cachePlanLine(days, today){
 /* The sync bookmarklet, generated from ~/lmk-extension/bookmarklet.txt — regenerate both together.
    It works on ANY school's Canvas, which is the whole point: it takes the origin from the page it runs on. */
 const LMK_SYNC_BOOKMARKLET = "javascript:(function(){\n  let BASE = \"\";\n  async function getJSON(path){\n    const out = [];\n    let url = BASE + path + (path.includes(\"?\") ? \"&\" : \"?\") + \"per_page=100\";\n    for (let hop = 0; url && hop < 20; hop++){\n      const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000);\n      let r; try { r = await fetch(url, {credentials:\"include\", headers:{\"Accept\":\"application/json\"}, signal: ctl.signal}); } finally { clearTimeout(timer); }\n      if (!r.ok) throw new Error(r.status + \" \" + path);\n      let txt = await r.text();\n      if (txt.startsWith(\"while(1);\")) txt = txt.slice(9);\n      const data = JSON.parse(txt);\n      if (Array.isArray(data)) out.push(...data); else return data;\n      const link = r.headers.get(\"Link\") || \"\";\n      const m = link.match(/<([^>]+)>;%5Cs*rel=\"next\"/);\n      url = m ? m[1] : null;\n    }\n    return out;\n  }\n  const strip = h => (h || \"\").replace(/<[^>]+>/g, \" \").replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/%5Cs+/g, \" \").trim();\n  /* Canvas's own grade for this course: exactly what the student sees, with group weights, drop rules,\n     late policies and excused work already applied. Null when the instructor hides totals. */\n  function courseScores(c){\n    const num = v => (v === null || v === undefined || v === \"\" || !isFinite(+v)) ? null : +v;\n    const es = (c.enrollments || []).filter(e => /student/i.test(e.type || e.role || \"\"));\n    const e = es.find(x => x.computed_current_score != null) || es[0] || {};\n    return {cur: num(e.computed_current_score), fin: num(e.computed_final_score)};\n  }\n  function courseTag(c){\n    const s = (c.course_code || c.name || \"\");\n    if (/asuready/i.test(s)) return \"ASU Ready\";\n    const m = s.match(/([A-Z]{2,4})%5Cs?-?(%5Cd{2,3}[A-Z]?)/);\n    return m ? m[1] + \" \" + m[2] : s.slice(0, 18);\n  }\n  function rubricText(a){\n    const r = Array.isArray(a.rubric) ? a.rubric : [];\n    return r.slice(0, 12).map(c => String(c.description || \"\").replace(/%5Cs+/g, \" \").trim().slice(0, 80) + (c.points != null ? \" (\" + c.points + \" pts)\" : \"\")).filter(x => x.trim() && x.trim() !== \"(0 pts)\").join(\"; \").slice(0, 900);\n  }\n  function kindHint(a){\n    const st = a.submission_types || [];\n    if (a.grading_type === \"not_graded\" || (a.points_possible === 0 && !st.includes(\"online_quiz\"))) return \"fyi\";\n    if (st.includes(\"none\") || st.includes(\"on_paper\")) return \"inclass\";\n    if (/attendance|participation|in.?class|clicker/i.test(a.name || \"\")) return \"inclass\";\n    if (st.includes(\"online_quiz\")) return \"quiz\";\n    if (st.includes(\"discussion_topic\")) return \"discussion\";\n    return \"\";\n  }\n  (typeof window !== \"undefined\" ? window : self).lmkCollect = async function(base){\n    BASE = (base || location.origin).replace(/%5C/$/, \"\");\n    const HOST = BASE.replace(/^https?:%5C/%5C//, \"\");\n    const courses = (await getJSON(\"/api/v1/courses?enrollment_state=active&include[]=term&include[]=total_scores\")).filter(c => c.name && !c.access_restricted_by_date);\n    const items = {};\n    const groups = {};\n    for (const c of courses){\n      const tag = courseTag(c);\n      let list = [];\n      try { list = await getJSON(`/api/v1/courses/${c.id}/assignments?include[]=submission&order_by=due_at`); } catch(e){ continue; }\n      /* What the instructor actually wrote back. One request per course, only this student's submissions,\n         only comments from someone who is not the student. It is the most useful thing LMK can know. */\n      let fb = {};\n      try {\n        const subs = await getJSON(`/api/v1/courses/${c.id}/students/submissions?student_ids[]=self&include[]=submission_comments&per_page=100`);\n        for (const sub of (Array.isArray(subs) ? subs : [])) {\n          const mine = String(sub.user_id || \"\");\n          const notes = (sub.submission_comments || []).filter(x => x && x.comment && String(x.author_id || \"\") !== mine);\n          if (notes.length) fb[String(sub.assignment_id)] = strip(notes[notes.length - 1].comment).slice(0, 400);\n        }\n      } catch(e){}\n      try {\n        const g = await getJSON(`/api/v1/courses/${c.id}/assignment_groups`);\n        groups[c.id] = g.map(x => ({id:x.id, name:x.name, w:x.group_weight}));\n      } catch(e){}\n      for (const a of list){\n        if (a.only_visible_to_overrides && !a.due_at && !a.has_overrides) continue;\n        const s = a.submission || {};\n        items[String(a.id)] = {\n          t: a.name, c: tag, cid: String(c.id),\n          due: a.due_at || \"\", lock: a.lock_at || \"\",\n          pts: a.points_possible, gt: a.grading_type, st: (a.submission_types || []).join(\",\"),\n          grp: a.assignment_group_id, k: kindHint(a),\n          sub: s.workflow_state || \"\", subAt: s.submitted_at || \"\", score: s.score == null ? null : s.score,\n          late: !!s.late, missing: !!s.missing, excused: !!s.excused,\n          url: a.html_url || \"\",\n          desc: strip(a.description).slice(0, 1200),\n          rub: rubricText(a),\n          fb: fb[String(a.id)] || \"\",\n          qid: a.quiz_id ? String(a.quiz_id) : \"\",\n        };\n      }\n    }\n    // Canvas keeps seconds spent on every quiz attempt %E2%80%94 exact durations, no sensor needed.\n    const quizTime = {}, quizMap = {};\n    const quizzes = Object.entries(items).filter(([aid, x]) => x.qid && /^(submitted|graded|pending_review)$/.test(x.sub)).slice(0, 40);\n    for (const [aid, x] of quizzes){\n      quizMap[x.cid + \"/\" + x.qid] = aid;\n      try {\n        const r = await getJSON(`/api/v1/courses/${x.cid}/quizzes/${x.qid}/submissions`);\n        const subs = (r && r.quiz_submissions) || [];\n        const secs = subs.map(q => +q.time_spent || 0).filter(v => v > 0);\n        if (secs.length) quizTime[aid] = Math.round(Math.max(...secs) / 60);\n      } catch(e){}\n    }\n    for (const aid in items) if (items[aid].qid) quizMap[items[aid].cid + \"/\" + items[aid].qid] = aid;\n    // apply_assignment_group_weights is the course-level switch: when it is false Canvas ignores\n    // the group weights entirely and grades on total points, however the weights are set.\n    return {lmk:\"canvas\", v:3, at: Date.now(), host: HOST,\n      courses: courses.map(c => Object.assign({id:String(c.id), tag:courseTag(c), name:c.name, wt: !!c.apply_assignment_group_weights}, courseScores(c))),\n      groups, items, quizTime, quizMap};\n  };\n})();\n\n(async()=>{try{const p=await window.lmkCollect();const s=JSON.stringify(p);const n=Object.keys(p.items).length;\nlet ok=false;try{await navigator.clipboard.writeText(s);ok=true}catch(e){}\nif(!ok){const ta=document.createElement(\"textarea\");ta.value=s;ta.style.cssText=\"position:fixed;top:8px;left:8px;width:90vw;height:40vh;z-index:99999;font-size:12px\";document.body.appendChild(ta);ta.focus();ta.select();try{ok=document.execCommand(\"copy\")}catch(e){}if(ok)ta.remove();else alert(\"Select all + copy the box, then paste it into LMK (gear %E2%86%92 Paste from Canvas).\")}\nif(ok)alert(\"LMK: copied \"+n+\" assignments. Open LMK %E2%86%92 gear %E2%86%92 Paste from Canvas %E2%86%92 paste.\")}catch(e){alert(\"LMK: could not read Canvas %E2%80%94 are you logged in on this tab? \"+e)}})();";
-const APP_BUILD = "v56.0";
+const APP_BUILD = "v57.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -3664,6 +3696,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="adm-refresh") { adminFetch(true); }
   else if (a==="adm-logout") { adminForget(); }
   else if (a==="adm-save-ann") { const g = id => document.getElementById(id); adminSave({announce: {text: g("admAnnText").value.trim().slice(0, 240), url: g("admAnnUrl").value.trim().slice(0, 300), until: g("admAnnUntil").value, on: g("admAnnOn").checked}}); }
+  else if (a==="gift-place") { giftPlace(act.dataset.ref); }
   else if (a==="adm-save-store") { adminSave({storeUrl: document.getElementById("admStore").value.trim().slice(0, 300)}); }
   else if (a==="adm-copy-csv") { adminCopyCsv(); }
   else if (a==="adm-pause") { adminSave({cloudPaused: !!act.checked}); }
@@ -4965,6 +4998,21 @@ async function adminSave(patch){
   } catch(e) { toast("Save failed — the worker didn't accept it."); }
   render();
 }
+async function giftPlace(ref){
+  const sidEl = document.querySelector(`[data-gift-sid="${CSS.escape(ref)}"]`);
+  const dayEl = document.querySelector(`[data-gift-days="${CSS.escape(ref)}"]`);
+  const sid = (sidEl && sidEl.value || "").trim(), days = +(dayEl && dayEl.value) || 0;
+  if (!sid) { toast("Type the student's support code first."); return; }
+  if (!(days >= 1)) { toast("Say how many days — a gift with no length is refused, not rounded up."); return; }
+  try {
+    const r = await fetch(apiUrl("/admin/gift?key=" + encodeURIComponent(ADMIN.key)), {method:"POST", mode:"cors",
+      credentials:"omit", headers:{"content-type":"text/plain"}, body: JSON.stringify({ref, sid, days})});
+    const j = await r.json();
+    if (!j.ok) { toast("Couldn't place it: " + (j.error || "unknown")); return; }
+    toast(`Placed · ${TIER_NAMES[j.level] || "Pro"} through ${FMT_DAY.format(new Date(j.until))}.`);
+    ADMIN.at = 0; await adminFetch(true);
+  } catch(_) { toast("Couldn't reach the worker."); }
+}
 async function adminLookup(){
   const q = (document.getElementById("admLookup") || {}).value || "", out = document.getElementById("admLookupOut");
   if (!/^[a-f0-9]{6,64}$/.test(q.trim())) { if (out) out.textContent = "A support code is 6+ hex characters."; return; }
@@ -5161,7 +5209,13 @@ function renderAdmin(root){
      bought, and `usage.n` is incremented by recordUsage after a reply lands. They must agree by construction.
      They differed by ten for two days and nothing on the page said so — which is how "0.00¢ a message,
      measured" got printed as fact while the cost ledger had never once run. */
-  const msgs30 = sum("tutor_msg", 0, 30), costRows30 = CO ? CO.d30.n : 0, costGap = msgs30 - costRows30;
+  /* Only count messages from the day cost tracking began. Ten messages sent on 2026-09-08, before the usage
+     table had a single row, are history — not a leak — and measuring against them flagged a fault forever. */
+  const costSince = (CO && CO.since) || "";
+  const costDays = costSince ? Math.min(30, Math.max(1, Math.round((Date.now() - Date.parse(costSince + "T00:00:00Z")) / 864e5) + 1)) : 30;
+  const msgs30 = sum("tutor_msg", 0, 30), costRows30 = CO ? CO.d30.n : 0;
+  const msgsTracked = costSince ? sum("tutor_msg", 0, costDays) : msgs30;
+  const costGap = Math.max(0, msgsTracked - costRows30);
   const perMsg = costRows30 ? CO.d30.usd / costRows30 : 0;
   const attention = [];
   if (!TU.configured) attention.push(["tutor", "The tutor has no API key; students see only their own AI."]);
@@ -5174,7 +5228,7 @@ function renderAdmin(root){
   if (installs >= 5 && syncs / installs < 0.5) attention.push(["students", `Only ${conv}% of devices ever connected to Canvas. Activation, not features, is the bottleneck.`]);
   if (!TU.tutorOn) attention.push(["tutor", "The tutor is switched off."]);
   if (d.costError || d.revenueError) attention.push(["ops", "Cost or revenue tables failed to read: " + (d.costError || d.revenueError) + ". Apply schema.sql."]);
-  if (CO && costGap > 0) attention.push(["tutor", `${n(costGap)} of ${n(msgs30)} tutor message${msgs30 === 1 ? "" : "s"} left no cost row, so what the tutor spends is unknown. Send one message and check the usage table.`]);
+  if (CO && costGap > 0) attention.push(["tutor", `${n(costGap)} of ${n(msgsTracked)} tutor message${msgsTracked === 1 ? "" : "s"} since cost tracking began left no cost row, so what the tutor spends is unknown. Send one message and check the usage table.`]);
   if (CO && RV && spend30 > cash30 && spend30 > 1) attention.push(["revenue", `The tutor cost ${money(spend30)} in 30 days against ${money(cash30)} in cash.`]);
   const TT = PL.tiers || {}, UN = PL.units || {};    // the tier table: read by the Tutor tab and the Plus tab
   const TABS = [["overview", "Overview", 0], ["revenue", "Revenue", 0], ["students", "Students", CL.errors || 0], ["tutor", "Tutor", 0], ["plus", "Plus", 0], ["ops", "Ops", (cronStale ? 1 : 0) + (errToday ? 1 : 0)]];
@@ -5257,7 +5311,7 @@ function renderAdmin(root){
 
     html += `<div class="tiles">
       ${tile("Messages today", n(T.tutor_msg), `${n(T.tutor_msg_free || 0)} free · pots ${n(TU.tutorDaily)} free / ${n(TU.tutorPlusDaily)} member`)}
-      ${tile("Spend, 30 days", money(spend30), costRows30 ? `${n(costRows30)} costed message${costRows30 === 1 ? "" : "s"} · ${n(unitsBilled)} units` : `${n(msgs30)} sent, none costed yet`, costGap > 0 ? `<span class="d down">${n(costGap)} without a cost row</span>` : "")}
+      ${tile("Spend, 30 days", money(spend30), costRows30 ? `${n(costRows30)} costed message${costRows30 === 1 ? "" : "s"} · ${n(unitsBilled)} units` : `${n(msgs30)} sent, none costed yet`, costGap > 0 ? `<span class="d down">${n(costGap)} without a cost row</span>` : costSince && msgs30 > msgsTracked ? `<span class="muted">${n(msgs30 - msgsTracked)} predate cost tracking</span>` : "")}
       ${tile("A unit really costs", perUnit ? (perUnit * 100).toFixed(2) + "¢" : "—", perUnit ? "measured, not assumed" : "no measured cost yet")}
       ${tile("Model", TU.tutorModel === "claude-opus-5" ? "Opus 5" : "Sonnet 5", "chat · quizzes and decks always Sonnet")}
     </div>
@@ -5319,6 +5373,25 @@ function renderAdmin(root){
         <select id="admGrantMonths" class="adm-in"><option value="1">1 month</option><option value="4" selected>4 months · a semester</option><option value="12">12 months</option></select>
         <button class="btn primary" data-act="adm-grant">Grant</button></div></div>`;
     html += `<div class="card adm-card"><h3>Members</h3>${table(["Code", "Plan", "How", "Since", "Until", ""], members.map(m => `<tr><td class="mono">${esc(m.code)}</td><td>${esc(TIER_NAMES[m.level] || m.level || "plus")}</td><td>${m.how === "granted" ? "granted" : "Stripe"}</td><td>${m.since ? FMT_DAY.format(new Date(m.since)) : ""}</td><td>${m.until ? FMT_DAY.format(new Date(m.until)) : "open"}</td><td class="acts"><button class="minibtn drop" data-act="adm-student" data-sid="${esc(m.sid)}" data-do="revoke">Revoke</button></td></tr>`)) || `<p class="sub2" style="margin:0">No members yet. The first one shows up here the moment Stripe's webhook lands, or the moment you grant one.</p>`}</div>`;
+    /* Gifts that took money and reached no account. This is the only window into the sponsors table, and
+       without it a mistyped code is unattributed revenue Emiel can neither explain nor fix. */
+    const TRAY = (P.tray || {open: [], stuck: 0, cents: 0});
+    if (TRAY.stuck) {
+      const WORD = {blank: "left the code box empty", badcode: "typed something that isn't a code",
+                    unknown: "typed a code no account matches", ambiguous: "typed a code matching more than one account",
+                    "no-sku": "paid an amount no gift matches"};
+      html += `<div class="card adm-card" style="border-color:color-mix(in srgb,var(--critical) 45%,var(--line))">
+        <h3>Gifts that didn't land · ${TRAY.stuck}</h3>
+        <p class="sub2">${money(TRAY.cents / 100)} taken and sitting on no account. Give each one a support code and it goes where it was meant to.</p>
+        ${TRAY.open.map(g => `<div class="adm-row" style="align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--line)">
+          <span style="flex:1 1 220px"><b>${money((g.cents || 0) / 100)}</b> · ${esc(WORD[g.state] || g.state)}
+            ${g.code ? `· typed <span class="mono">${esc(String(g.code).slice(0, 24))}</span>` : ""}
+            <span class="muted">· ${ago(g.at)}</span></span>
+          <input class="adm-in" style="flex:0 1 130px" placeholder="support code" data-gift-sid="${esc(g.ref)}">
+          <input class="adm-in" style="flex:0 1 80px" type="number" min="1" max="400" value="${g.days || 150}" data-gift-days="${esc(g.ref)}">
+          <button class="btn primary" data-act="gift-place" data-ref="${esc(g.ref)}">Place it</button>
+        </div>`).join("")}</div>`;
+    }
     html += `<div class="card adm-card"><h3>Plans</h3><p class="sub2">A unit is one tutor message; a quiz or a deck costs ${UN.quiz || 3}, deep thinking ${UN.think || 6}, a file or photo question ${UN.file || 2}. Units are priced to track real spend, so a daily allowance is also a cost ceiling. Sell a plan only when the features it names actually work.</p>
       ${table(["Plan", "num:Units a day", "num:Quiz", "num:Cards", "Model", "Files", "Photo", "Think", "Price", "On sale"], ["free", "plus", "pro"].map(lv => { const t = TT[lv] || {};
         return `<tr><td><b>${TIER_NAMES[lv]}</b></td>
