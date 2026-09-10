@@ -3129,7 +3129,7 @@ function renderNow(root){
       }
       const rowCls = (done, now) => done ? "done" : now ? "now" : "todo";
       const checks = `<ol class="checks">
-          <li class="${rowCls(installed, state === "fresh" || state === "checking")}">${state === "checking" ? "Checking for the extension\u2026" : installed ? "Extension added" : "Add the LMK for Canvas extension"}</li>
+          <li class="${rowCls(installed, state === "fresh" || state === "checking")}">${state === "checking" ? "Checking for the extension\u2026" : installed ? "Extension added" : "Add the LMK extension"}</li>
           <li class="${rowCls(answered, state === "waiting" || state === "stuck")}">${LMSW} read once</li>
           <li class="${rowCls(false, state === "empty")}">Your classes land here</li>
         </ol>`;
@@ -3138,7 +3138,7 @@ function renderNow(root){
         : state === "empty" ? `${LMSW} answered, but no active courses came back.`
         : "Let's get your classes in.";
       const why = state === "waiting"
-          ? "The extension opened your school's Canvas or Brightspace in another tab. If it's asking you to sign in, sign in and it does the rest; your classes land here by themselves a few seconds after Canvas loads. If the Canvas that opened isn't your school's, open your own school's Canvas instead — any <b>instructure.com</b> address works out of the box."
+          ? "The extension opened your school's Canvas or Brightspace in another tab. If it's asking you to sign in, sign in and it does the rest; your classes land here by themselves a few seconds after it loads. If the site that opened isn't your school's, open your own school's Canvas or Brightspace instead — any <b>instructure.com</b> or <b>brightspace.com</b> address works out of the box."
         : state === "stuck"
           ? `Almost always one of three things. <b>1.</b> Your school's site hasn't finished loading in this browser — if it's still asking you to sign in, finish that and come straight back. <b>2.</b> You're signed out of Canvas. <b>3.</b> Your school runs Canvas on its own address, like <b>canvas.uw.edu</b> or <b>bruinlearn.ucla.edu</b> — out of the box LMK reads <b>canvas.asu.edu</b>, any <b>*.instructure.com</b> and any <b>*.brightspace.com</b> address. ${extCanAdopt() ? "If that's you, add it below: Chrome will ask you to approve it, and then it works like any other school." : "If that's you, the Canvas token below works on <i>any</i> school and takes a minute."}`
         : state === "empty"
