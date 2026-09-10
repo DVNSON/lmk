@@ -5321,6 +5321,7 @@ function renderAdmin(root){
   if (!TU.configured) attention.push(["tutor", "The tutor has no API key; students see only their own AI."]);
   if (cronStale) attention.push(["ops", `Cron last ran ${ago(ops.cronAt)}; Cloudflare fires it every 3 minutes. Check the worker triggers first; the Actions tick is only a backstop and GitHub throttles it to a few runs a day.`]);
   if (!PL.webhook) attention.push(["plus", "Stripe webhook secret is not set; payments can't be recognised."]);
+  if ((PL.tray || {}).stuck) attention.push(["plus", `${PL.tray.stuck} gift${PL.tray.stuck === 1 ? "" : "s"} took money and reached no account (${money(PL.tray.cents / 100)}). Put ${PL.tray.stuck === 1 ? "it" : "them"} on the right code under Plus.`]);
   if (!PL.plusLink) attention.push(["plus", "No Payment Link saved; nobody can buy Plus."]);
   if ((CL.errors || 0) > 0) attention.push(["students", `${CL.errors} student sync${CL.errors === 1 ? " needs" : "s need"} attention.`]);
   if (errToday) attention.push(["ops", `${errToday} app error${errToday === 1 ? "" : "s"} reported today.`]);
@@ -5331,7 +5332,7 @@ function renderAdmin(root){
   if (CO && costGap > 0) attention.push(["tutor", `${n(costGap)} of ${n(msgsTracked)} tutor message${msgsTracked === 1 ? "" : "s"} since cost tracking began left no cost row, so what the tutor spends is unknown. Send one message and check the usage table.`]);
   if (CO && RV && spend30 > cash30 && spend30 > 1) attention.push(["revenue", `The tutor cost ${money(spend30)} in 30 days against ${money(cash30)} in cash.`]);
   const TT = PL.tiers || {}, UN = PL.units || {};    // the tier table: read by the Tutor tab and the Plus tab
-  const TABS = [["overview", "Overview", 0], ["revenue", "Revenue", 0], ["students", "Students", CL.errors || 0], ["tutor", "Tutor", 0], ["plus", "Plus", 0], ["ops", "Ops", (cronStale ? 1 : 0) + (errToday ? 1 : 0)]];
+  const TABS = [["overview", "Overview", 0], ["revenue", "Revenue", 0], ["students", "Students", CL.errors || 0], ["tutor", "Tutor", 0], ["plus", "Plus", (PL.tray || {}).stuck || 0], ["ops", "Ops", (cronStale ? 1 : 0) + (errToday ? 1 : 0)]];
   if (!TABS.some(t => t[0] === ADMIN.tab)) ADMIN.tab = "overview";
   const tile = (k, v, s, extra) => `<div class="card tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div>${extra || ""}</div>`;
   const input = (id, val, w, attrs) => `<input id="${id}" ${attrs || 'type="number" min="0"'} value="${esc(String(val))}" class="adm-in" style="width:${w || 90}px">`;
@@ -5475,7 +5476,7 @@ function renderAdmin(root){
     html += `<div class="card adm-card"><h3>Members</h3>${table(["Code", "Plan", "How", "Since", "Until", ""], members.map(m => `<tr><td class="mono">${esc(m.code)}</td><td>${esc(TIER_NAMES[m.level] || m.level || "plus")}</td><td>${m.how === "granted" ? "granted" : "Stripe"}</td><td>${m.since ? FMT_DAY.format(new Date(m.since)) : ""}</td><td>${m.until ? FMT_DAY.format(new Date(m.until)) : "open"}</td><td class="acts"><button class="minibtn drop" data-act="adm-student" data-sid="${esc(m.sid)}" data-do="revoke">Revoke</button></td></tr>`)) || `<p class="sub2" style="margin:0">No members yet. The first one shows up here the moment Stripe's webhook lands, or the moment you grant one.</p>`}</div>`;
     /* Gifts that took money and reached no account. This is the only window into the sponsors table, and
        without it a mistyped code is unattributed revenue Emiel can neither explain nor fix. */
-    const TRAY = (P.tray || {open: [], stuck: 0, cents: 0});
+    const TRAY = (PL.tray || {open: [], stuck: 0, cents: 0});
     if (TRAY.stuck) {
       const WORD = {blank: "left the code box empty", badcode: "typed something that isn't a code",
                     unknown: "typed a code no account matches", ambiguous: "typed a code matching more than one account",
