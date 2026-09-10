@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cover LMK for your student</title>
+<meta name="description" content="Buy a term of LMK for a college student. One payment, no renewal, nothing for them to set up — it lands on their account the moment it clears.">
+<meta property="og:title" content="Cover LMK for your student">
+<meta property="og:description" content="One payment. No renewal. It lands on their account the moment it clears.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23e0489a'/><text y='68' x='50' text-anchor='middle' font-size='38' font-weight='800' font-family='sans-serif' fill='white'>LMK</text></svg>">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Public+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@500;600&display=swap">
+<style>
+  :root{
+    --bg:#f2f3f6; --surface:#fff; --surface-2:#f7f8fa;
+    --ink:#14161a; --ink-2:#565b64; --muted:#8a8f98;
+    --line:#e3e5ea; --line-strong:#c9ccd3;
+    --good-text:#006300;
+    --accent:#e0489a;
+    --splash:linear-gradient(115deg,#ff5d52,#e0489a 48%,#f7a521);
+    --shadow:0 1px 2px rgba(20,22,26,.06),0 10px 34px -12px rgba(20,22,26,.16);
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:#0f1013; --surface:#1a1c21; --surface-2:#22242a;
+      --ink:#f4f5f7; --ink-2:#b6bac2; --muted:#83878f;
+      --line:#2a2d34; --line-strong:#3a3e47; --good-text:#3ecf3e;
+      --accent:#e85fa2;
+      --splash:linear-gradient(115deg,#ff6b5e,#e85fa2 48%,#ffb02e);
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 40px -14px rgba(0,0,0,.65);
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0f1013; --surface:#1a1c21; --surface-2:#22242a;
+    --ink:#f4f5f7; --ink-2:#b6bac2; --muted:#83878f;
+    --line:#2a2d34; --line-strong:#3a3e47; --good-text:#3ecf3e;
+    --accent:#e85fa2;
+    --splash:linear-gradient(115deg,#ff6b5e,#e85fa2 48%,#ffb02e);
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 40px -14px rgba(0,0,0,.65);
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.62 "Public Sans",-apple-system,BlinkMacSystemFont,sans-serif;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-family:"Bricolage Grotesque","Public Sans",sans-serif;text-wrap:balance;margin:0;letter-spacing:-.02em}
+  a{color:inherit}
+  .wrap{max-width:880px;margin:0 auto;padding:0 22px}
+  .mono{font-family:"Spline Sans Mono",ui-monospace,monospace}
+  .mark{display:inline-block;background:var(--splash);color:#fff;font:800 18px/1 "Bricolage Grotesque",sans-serif;padding:7px 11px 8px;border-radius:11px}
+  header{padding:22px 0 0}
+  .hero{padding:38px 0 26px;text-align:center}
+  .hero h1{font-size:clamp(30px,5.2vw,46px);line-height:1.08;margin-bottom:14px}
+  .hero p{font-size:clamp(16px,2.2vw,19px);color:var(--ink-2);max-width:44ch;margin:0 auto}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px;margin:30px 0 8px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px 18px;display:flex;flex-direction:column;gap:4px;box-shadow:var(--shadow);position:relative}
+  .card.pick{border-color:var(--accent);border-width:2px;padding:19px 17px}
+  .tag{position:absolute;top:-10px;left:17px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:999px}
+  .card h3{font-size:18px}
+  .amt{font:800 30px/1.1 "Bricolage Grotesque",sans-serif;letter-spacing:-.02em;margin:6px 0 0;font-variant-numeric:tabular-nums}
+  .per{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .card .covers{font-size:14px;color:var(--ink-2);margin:8px 0 14px;flex:1}
+  .btn{display:block;text-align:center;text-decoration:none;font-weight:700;font-size:15px;padding:11px 16px;border-radius:11px;border:1px solid var(--line-strong);background:var(--surface-2);color:var(--ink)}
+  .btn.grad{background:var(--splash);color:#fff;border-color:transparent;box-shadow:var(--shadow)}
+  .note{font-size:13.5px;color:var(--muted);text-align:center;margin:16px auto 0;max-width:52ch;line-height:1.6}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px;margin:34px 0}
+  .panel h2{font-size:20px;margin-bottom:12px}
+  .steps{margin:0;padding:0;list-style:none;counter-reset:s}
+  .steps li{counter-increment:s;position:relative;padding-left:38px;margin-bottom:13px;font-size:15px;color:var(--ink-2);line-height:1.55}
+  .steps li:last-child{margin-bottom:0}
+  .steps li::before{content:counter(s);position:absolute;left:0;top:-1px;width:26px;height:26px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);display:grid;place-items:center;font-size:13px;font-weight:700;color:var(--ink)}
+  .steps b{color:var(--ink)}
+  .what{display:grid;gap:9px;margin:0;padding:0;list-style:none}
+  .what li{font-size:15px;color:var(--ink-2);padding-left:24px;position:relative;line-height:1.55}
+  .what li::before{content:"";position:absolute;left:2px;top:9px;width:7px;height:7px;border-radius:999px;background:var(--accent)}
+  footer{padding:34px 0 46px;text-align:center;font-size:13.5px;color:var(--muted)}
+  footer a{color:var(--ink-2)}
+  .err{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:14.5px;color:var(--ink-2);margin:20px 0}
+</style>
+</head>
+<body>
+<header><div class="wrap"><a href="/" style="text-decoration:none"><span class="mark">LMK</span></a></div></header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>Cover LMK for your student.</h1>
+    <p>They'll know what to do today — and what it's going to take — without you having to ask.</p>
+  </section>
+
+  <div id="cards" class="cards"></div>
+  <p class="note" id="note">One payment. No renewal, no card kept on file, nothing to cancel. When it ends they simply go back to the free version with everything they've built still there.</p>
+
+  <section class="panel">
+    <h2>How it works</h2>
+    <ol class="steps">
+      <li>Ask your student for their <b>LMK code</b> — eight characters, in the app under <b>LMK plans</b>. They can send it to you in a text.</li>
+      <li>Pick a length above and pay. You'll be asked for that code at the checkout.</li>
+      <li>That's it. It lands on their account within seconds. <b>Nothing for them to set up, nothing to redeem</b>, and no account for you to create.</li>
+    </ol>
+  </section>
+
+  <section class="panel">
+    <h2>What they get</h2>
+    <ul class="what">
+      <li>A daily plan built from their real Canvas assignments, sized to the hours they actually have that day.</li>
+      <li>A tutor that has already read the assignment and the marking rubric before they ask it anything.</li>
+      <li>They can photograph a problem set, or upload the lecture slides and ask about those.</li>
+      <li>Thirty questions a day rather than twelve, on the better model.</li>
+      <li>Their coursework stays on their own device. We never see their grades, and neither will you — this is a gift, not a monitor.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <p>Questions? <a href="mailto:hello@lmktoday.app">hello@lmktoday.app</a> &nbsp;·&nbsp; <a href="/">What LMK is</a> &nbsp;·&nbsp; <a href="/privacy.html">Privacy</a> &nbsp;·&nbsp; <a href="/terms.html">Terms</a></p>
+  </footer>
+</main>
+
+<script>
+/* Prices and links come from the worker, so this page can never drift from what Stripe will charge.
+   If it cannot be reached the page says so rather than showing a stale number. */
+var API = "https://lmk-api.emieldieuvenson.workers.dev";
+var esc = function(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); };
+var COVERS = {30: "A month, for a rough patch mid-term.", 150: "A full semester, straight through finals.", 300: "The whole school year, fall and spring."};
+
+function perMonth(g){ return "$" + (g.cents / 100 / (g.days / 30)).toFixed(2).replace(/\.00$/, "") + "/month"; }
+
+function render(list){
+  var el = document.getElementById("cards");
+  if (!list || !list.length) {
+    el.innerHTML = '<div class="err">The gift options can\'t be loaded right now. Please try again in a minute, or email '
+      + '<a href="mailto:hello@lmktoday.app">hello@lmktoday.app</a> and we\'ll sort it out.</div>';
+    document.getElementById("note").hidden = true;
+    return;
+  }
+  // longest first: the parent sees the whole-year commitment before the smaller ones
+  list.sort(function(a, b){ return b.days - a.days; });
+  el.innerHTML = list.map(function(g, i){
+    var pick = g.days === 150;              // the term is the one most people are actually buying for
+    return '<div class="card' + (pick ? ' pick' : '') + '">'
+      + (pick ? '<span class="tag">Covers the term they\'re in</span>' : '')
+      + '<h3>' + esc(g.name || (g.days + " days")) + '</h3>'
+      + '<div class="amt">' + esc(g.price) + '</div>'
+      + '<div class="per">' + perMonth(g) + '</div>'
+      + '<p class="covers">' + esc(COVERS[g.days] || (g.days + " days of LMK Pro.")) + '</p>'
+      + '<a class="btn' + (pick ? ' grad' : '') + '" href="' + esc(g.link) + '">Cover ' + esc((g.name || "").toLowerCase().replace(/^a /, "a ")) + '</a>'
+      + '</div>';
+  }).join("");
+}
+
+fetch(API + "/config", {mode: "cors", credentials: "omit"})
+  .then(function(r){ return r.ok ? r.json() : null; })
+  .then(function(j){
+    var gifts = j && j.plus && j.plus.gifts ? j.plus.gifts : [];
+    render(gifts.filter(function(g){ return g && g.link && /^https:\/\/buy\.stripe\.com\//.test(g.link); }));
+  })
+  .catch(function(){ render(null); });
+</script>
+</body>
+</html>

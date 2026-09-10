@@ -1,3 +1,7 @@
 .DS_Store
 *.log
 node_modules/
+
+# scratch copies of the app made while testing; never publish these
+_t/
+_t2/

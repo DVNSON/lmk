@@ -98,12 +98,16 @@
   .wordmark{display:flex;align-items:baseline;gap:10px}
   .lmkmark{background:var(--splash);color:#fff;font:800 21px/1 "Bricolage Grotesque","Public Sans",sans-serif;letter-spacing:.02em;padding:7px 11px 8px;border-radius:11px;box-shadow:var(--shadow)}
   .lmksub{font:700 15px/1 "Bricolage Grotesque",sans-serif;letter-spacing:-.01em;color:var(--ink)}
-  .today-line{font:500 12px/1.4 "Spline Sans Mono",monospace;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;flex:1 1 auto;padding-top:4px}
+  .today-line{font:500 12px/1.4 "Spline Sans Mono",monospace;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;flex:1 1 0;min-width:0;padding-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .streak{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 14px;font-weight:600;font-size:13px;box-shadow:var(--shadow)}
   .streak .n{font:700 16px/1 "Bricolage Grotesque",sans-serif}
   .streak.lit{border-color:color-mix(in srgb,#ff6b5e 45%,var(--line));background:linear-gradient(120deg,rgba(255,93,82,.13),rgba(247,165,33,.13)),var(--surface)}
   .gear{border:1px solid var(--line);background:var(--surface);border-radius:999px;width:38px;height:38px;display:grid;place-items:center;box-shadow:var(--shadow)}
   .gear svg{width:17px;height:17px}
+  @keyframes lmkspin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion: no-preference){ .gear.spinning svg{animation:lmkspin .9s linear infinite} }
+  .gear.spinning{color:var(--accent-text, currentColor)}
+  .gear[disabled]{opacity:.6}
 
   /* ---------- tabs & chips ---------- */
   nav.tabs{display:flex;gap:4px;margin:16px 0 0;border-bottom:1px solid var(--line)}
@@ -428,6 +432,7 @@
     .lmksub{font-size:13px}
     .iconbtn{width:40px;height:40px}
     .gear{width:42px;height:42px}
+    .lmksub{display:none}
     .item .cbx{width:27px;height:27px}
     /* bottom sheets */
     .overlay{padding:0;align-items:flex-end}
@@ -699,6 +704,9 @@
     <button class="gear" id="addBtn" aria-label="Add your own assignment" title="Add your own — for work outside Canvas">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
     </button>
+    <button class="gear" id="syncBtn" aria-label="Refresh everything" title="Reconnect and pull the latest from Canvas, Drive and your plan">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/><path d="M20.5 4.5V10H15"/></svg>
+    </button>
     <button class="gear" id="gearBtn" aria-label="Connect your calendar and settings">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     </button>
@@ -814,6 +822,7 @@
       <button class="minibtn" id="resetSample">Use sample semester</button>
       <button class="minibtn drop" id="clearProgress">Clear my checkmarks</button>
       <a class="minibtn" id="setupFeedback" href="#" target="_blank" rel="noopener">Send feedback</a>
+      <a class="minibtn" id="setupReview" href="#" target="_blank" rel="noopener" hidden>★ Rate LMK</a>
       <button class="minibtn" id="exportData" title="Everything LMK knows about you, as one file">Download my data</button>
       <button class="minibtn" id="closeModal">Close</button>
     </div>
@@ -1235,7 +1244,7 @@ function applyCanvasPayload(p, opts = {}){
   for (const aid in p.items){
     const x = p.items[aid] || {}; if (!x.t) continue;
     n++;
-    items[aid] = {t:x.t, c:x.c, cid:x.cid, due:x.due || "", pts:x.pts, gt:x.gt, st:x.st, k:x.excused ? "fyi" : (x.k || ""), grp:x.grp == null ? "" : String(x.grp), sub:x.sub || "", subAt:x.subAt || "", score:x.score == null ? null : x.score, missing:!!x.missing, late:!!x.late, url:x.url || "", desc:x.desc || "", rub:x.rub || ""};
+    items[aid] = {t:x.t, c:x.c, cid:x.cid, due:x.due || "", pts:x.pts, gt:x.gt, st:x.st, k:x.excused ? "fyi" : (x.k || ""), grp:x.grp == null ? "" : String(x.grp), sub:x.sub || "", subAt:x.subAt || "", score:x.score == null ? null : x.score, missing:!!x.missing, late:!!x.late, url:x.url || "", desc:x.desc || "", rub:x.rub || "", fb:x.fb || ""};
     const id = "a" + aid;
     // External-tool work (MyEducator, Edfinity, Connect…) pushes a running score back to Canvas
     // while you're still working, which flips the state to "graded" early. Treat that as
@@ -1622,8 +1631,14 @@ function buildGrades(){
     const scored = EVENTS.filter(e => e.course === c && !store.dropped[e.id])
       .map(e => ({e, g: (store.grades || {})[e.id]}))
       .filter(x => x.g && +x.g.max > 0);
-    // weights live per Canvas course id; find the one this course's items belong to
-    const cid = (items[((scored[0] || {}).e || {}).id ? scored[0].e.id.slice(1) : ""] || {}).cid || "";
+    /* Weights live per Canvas course id; find the one this course's items belong to. Take it from ANY row that
+       carries one, not from scored[0]: EVENTS is sorted by due date, so a hand-graded custom row or a
+       syllabus-paste item — neither of which has an ext entry — sorting earliest used to leave cid empty and
+       silently drop the course's weights, measured at 23.8 points optimistic on a weighted course.
+       Found by an audit of a grade projector that was then dropped; the bug it exposed here is real and stays fixed. */
+    let cid = "";
+    for (const e of EVENTS) { if (e.course !== c || store.dropped[e.id]) continue;
+      const x = items[e.id.slice(1)]; if (x && x.cid) { cid = String(x.cid); break; } }
     // Canvas's own grade for this course, which already knows about weights, drop rules, late policies
     // and excused work. It is what the student sees in Canvas, so it is what LMK shows.
     const cmeta = metas.find(x => x.tag === c) || metas.find(x => String(x.id) === String(cid));
@@ -1873,7 +1888,7 @@ const PLUS = {offer:null, me:null, at:0};
 /* The plans come from the worker so a price change needs no deploy. These shapes are only the fallback
    for a first paint before /config answers. A unit is one chat message; a quiz or a deck costs three. */
 const TIER_FALLBACK = {
-  free: {units: 3,  quiz: 6,  cards: 10, files: false, vision: false, think: false, sell: false, price: "", link: ""},
+  free: {units: 20, trial: true, quiz: 6,  cards: 10, files: false, vision: false, think: false, sell: false, price: "", link: ""},
   plus: {units: 12, quiz: 10, cards: 16, files: false, vision: false, think: false, sell: true,  price: "$4/month", link: ""},
   pro:  {units: 30, quiz: 15, cards: 24, files: true,  vision: true,  think: true,  sell: false, price: "$10/month", link: ""},
 };
@@ -1896,6 +1911,44 @@ function packLink(p){
   const l = p && p.link;
   return l && /^https:\/\/buy\.stripe\.com\//.test(l) && store.cloud && store.cloud.sid
     ? l + (l.includes("?") ? "&" : "?") + "client_reference_id=" + encodeURIComponent(store.cloud.sid) : "";
+}
+/* ---- Someone else pays ----
+   A parent buys a term and types the student's support code into Stripe's own checkout, so the money lands
+   on this account the moment it clears. Nothing to redeem, nothing to forward, no code to keep secret.
+   Priced for the buyer, not the student: a parent's anchors are Chegg, a tutor's hourly rate and what a
+   present costs, none of which are $4. The rungs grant Pro, which is why they can cost what they cost. */
+const GIFT_FALLBACK = [
+  {days: 30,  cents: 1500, price: "$15", level: "pro", name: "A month",       link: ""},
+  {days: 150, cents: 4900, price: "$49", level: "pro", name: "A term",        link: ""},
+  {days: 300, cents: 8900, price: "$89", level: "pro", name: "A school year", link: ""},
+];
+function giftList(){
+  const g = (PLUS.offer && PLUS.offer.gifts) || (PLUS.me && PLUS.me.gifts);
+  return (Array.isArray(g) && g.length ? g : GIFT_FALLBACK).filter(x => x && x.days >= 1);
+}
+function giftLink(g){ return /^https:\/\/buy\.stripe\.com\//.test((g || {}).link || "") ? g.link : ""; }
+function myCode(){ return (store.cloud && store.cloud.sid) ? store.cloud.sid.slice(0, 8) : ""; }
+/* Rendered only when there is a code to give AND a rung that can actually be bought — the same discipline
+   as `sell && link`: never show a page whose buttons do nothing. */
+function giftHtml(){
+  const code = myCode(); if (!code) return "";
+  const list = giftList().filter(giftLink); if (!list.length) return "";
+  const mine = PLUS.me && (PLUS.me.plus || PLUS.me.gift);
+  return `<div class="card adm-card" style="padding:13px 14px;margin:0 0 6px">
+    <b style="font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">${mine ? "Ask for another term" : "Ask someone to cover it"}</b>
+    <p class="privacy" style="margin:4px 0 8px">Send this to a parent and they can buy a whole term in one go — no account for them to make, nothing for you to redeem. They type your code at checkout and it lands here. Your code is <b style="font-family:'Spline Sans Mono',monospace">${esc(code)}</b>.</p>
+    <div class="row" style="margin:0 0 8px"><button class="btn grad" id="giftCopy">Copy a message to send</button><a class="minibtn" href="${esc(LMK_CONFIG.giftUrl)}" target="_blank" rel="noopener">See what they'd see</a></div>
+    <p class="privacy" style="margin:0">${list.map(g => esc(g.name || (g.days + " days")) + " · " + esc(g.price || "")).join(" &nbsp;·&nbsp; ")}. They never see your grades or your work.</p></div>`;
+}
+/* One tap that produces something a student will actually send, code included. */
+function giftMessage(){
+  /* One link, not a raw Stripe URL: the page explains what it is, shows every length, and asks for the code.
+     A bare checkout link texted to a parent is a payment demand with no context. */
+  return "I'm using LMK for school \u2014 it reads my Canvas assignments, plans my week around the time I "
+    + "actually have, and the tutor already knows what each assignment is asking for.\n\n"
+    + "If you wanted to cover it: " + LMK_CONFIG.giftUrl
+    + "\nMy code is " + myCode() + " \u2014 it asks for that at checkout.\n\n"
+    + "It lands straight on my account. Nothing for either of us to set up, and it doesn't renew.";
 }
 function packsHtml(){
   const list = packList().filter(p => packLink(p));
@@ -1929,9 +1982,13 @@ async function plusRefresh(force){
   PLUS.at = Date.now();
   try {
     const r = await fetch(apiUrl("/plus/status"), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"}, body: JSON.stringify({sid: store.cloud.sid, secret: store.cloud.secret})});
-    if (r.ok) { const j = await r.json(); if (j.ok) { PLUS.me = j; if (!PLUS.offer && j.link !== undefined) PLUS.offer = {link: j.link, portal: j.portal, price: j.price}; } }
+    if (r.ok) { const j = await r.json(); if (j.ok) {
+      /* Only flag it; opening a sheet from in here is what the renderPlus() below used to eat. */
+      if (j.gift && +j.gift.at > +(store.giftSeen || 0)) PLUS.newGift = j.gift;
+      PLUS.me = j; if (!PLUS.offer && j.link !== undefined) PLUS.offer = {link: j.link, portal: j.portal, price: j.price}; } }
   } catch(_){}
   renderPlus();
+  showGiftIfAny();
 }
 var renderPlus = function(){
   const way = document.getElementById("plusWay"), el = document.getElementById("plusStatus"); if (!way || !el) return;
@@ -1946,7 +2003,11 @@ var renderPlus = function(){
 };
 /* keep the footer pill in step with whatever renderPlus learned */
 const _renderPlus = renderPlus;
-renderPlus = function(){ _renderPlus(); renderPlusPill(); if (plusOverlay.classList.contains("open")) openPlus(); };
+/* Only redraw the sheet this function actually owns. It used to call openPlus() whenever the overlay was
+   open at all, which meant a gift sheet — opened moments earlier by the same plusRefresh that then calls
+   renderPlus — was destroyed and replaced by the generic plans sheet, popping up unprompted and never
+   mentioning the gift. The one moment the feature exists for was the one moment it could not survive. */
+renderPlus = function(){ _renderPlus(); renderPlusPill(); if (plusOverlay.classList.contains("open") && plusOverlay.dataset.sheet === "plans") openPlus(); };
 /* The Plus sheet: one screen that says what it is, what it costs, and where this student stands. Opened from
    the footer pill, the Study sheet, the setup card and the tutor's "out of messages" line. In the artifact
    (which can't reach the worker) it is a door to lmktoday.app. */
@@ -1987,11 +2048,19 @@ function openPlus(){
     ${doorway}
     <div class="tiers">${levels.map(card).join("")}</div>
     ${packsHtml()}
+    ${giftHtml()}
     <p class="plus-note">A <b>unit</b> is one message to the tutor. A quiz or a deck of flashcards costs three, because it writes far more. Reviewing cards you already made is free and unlimited on every plan. Changing plans is handled by Stripe, which credits whatever is left of the month you already paid for. Nothing about you is stored but a random id; Stripe keeps your card and email.${store.cloud && store.cloud.sid ? ` Your support code is <b style="font-family:'Spline Sans Mono',monospace">${esc(store.cloud.sid.slice(0, 8))}</b>.` : ""}</p>
     <div class="foot"><span></span><button class="minibtn" id="plusClose">Close</button></div>`;
+  plusOverlay.dataset.sheet = "plans";
   plusOverlay.classList.add("open");
   document.getElementById("plusClose").onclick = () => plusOverlay.classList.remove("open");
   if (MODE === "web") plusRefresh(false);
+  const gc = document.getElementById("giftCopy");
+  if (gc) gc.onclick = async () => {
+    const msg = giftMessage();
+    try { await navigator.clipboard.writeText(msg); toast("Copied. Paste it to whoever asked how they can help."); }
+    catch(_) { toast("Couldn't copy \u2014 your code is " + myCode() + "."); }
+  };
 }
 /* Coming back from Stripe should feel like something happened. A toast at the bottom of the page is not
    that: money changed hands and the app said nothing a student would notice. A payment that lands now
@@ -2006,19 +2075,39 @@ function unlockedLines(level){
   out.push(["\u21bb", "Review stays free, forever", "Every card you make comes back on schedule, on every plan, unmetered."]);
   return out;
 }
+/* Someone paid for this student. Show it once, on whichever device sees it first, and only after the
+   sheet is really on screen — `giftSeen` is written by openUnlocked, never in advance, so a redraw that
+   loses the race does not burn the only chance to say it. */
+function showGiftIfAny(){
+  const g = PLUS.newGift; if (!g) return;
+  PLUS.newGift = null;
+  if (!(+g.at > +(store.giftSeen || 0))) return;   // already celebrated, here or on another device
+  if (plusOverlay.classList.contains("open") || (typeof detailOverlay !== "undefined" && detailOverlay.classList.contains("open"))) {
+    // something is already open; do not yank it away for this
+    markGiftSeen(g);
+    toast("Someone covered LMK for you \u2014 " + (TIER_NAMES[g.level] || "Plus") + " through " + FMT_DAY.format(new Date(g.until)) + ". Nothing to set up.",
+      {label: "See what's new", fn: () => openUnlocked({level: g.level, gift: g})});
+    return;
+  }
+  openUnlocked({level: g.level, gift: g});
+}
+function markGiftSeen(g){ try { store.giftSeen = Math.max(+(store.giftSeen || 0), +g.at || Date.now()); save(); } catch(_){} }
 function openUnlocked(opt){
   const credits = (opt || {}).credits || 0, lvl = (opt || {}).level || myLevel(), t = tierOf(lvl);
+  const gift = (opt || {}).gift || null;   // someone else paid: the copy must not thank this student for it
   const first = (typeof EVENTS !== "undefined" && EVENTS ? EVENTS.filter(open).sort((a, b) => a.due - b.due) : [])[0];
   const list = credits ? [] : unlockedLines(lvl);
   const short = first ? (first.title.length > 26 ? first.title.slice(0, 26) + "\u2026" : first.title) : "";
   document.getElementById("plusModal").innerHTML = `
     <div class="confetti" aria-hidden="true" style="z-index:3">${Array.from({length: 14}, (_, i) => `<i style="--i:${i}"></i>`).join("")}</div>
     <div class="plus-hero">
-      <div class="eyebrow">${credits ? "Top-up complete" : "Welcome to " + esc(TIER_NAMES[lvl] || "Plus")}</div>
-      <h3 id="plusTitle">${credits ? credits + " units added." : "You're on " + esc(TIER_NAMES[lvl] || "Plus") + "."}</h3>
-      <div class="price">${credits ? "Spent only after each day's allowance" : `<b>${t.units}</b> units a day`}</div>
+      <div class="eyebrow">${gift ? "A gift" : credits ? "Top-up complete" : "Welcome to " + esc(TIER_NAMES[lvl] || "Plus")}</div>
+      <h3 id="plusTitle">${gift ? "Someone covered this for you." : credits ? credits + " units added." : "You're on " + esc(TIER_NAMES[lvl] || "Plus") + "."}</h3>
+      <div class="price">${gift ? esc(TIER_NAMES[lvl] || "Plus") + " through " + FMT_DAY.format(new Date(gift.until)) : credits ? "Spent only after each day's allowance" : `<b>${t.units}</b> units a day`}</div>
     </div>
-    <p style="margin:0 0 16px;font-size:14.5px;color:var(--ink-2);line-height:1.55">${credits
+    <p style="margin:0 0 16px;font-size:14.5px;color:var(--ink-2);line-height:1.55">${gift
+      ? "It's already on. Nothing to set up, nothing to cancel, and it doesn't renew \u2014 so there's no card of theirs sitting on your account. Here's what it opens up."
+      : credits
       ? "They never expire. The day's allowance is always spent first, so a pack only gets touched on the days you go past it."
       : "Thank you for backing LMK. This is what just opened up."}</p>
     ${list.length ? `<ul class="plus-list">${list.map(x => `<li><span class="ic">${x[0]}</span><div><b>${esc(x[1])}</b><span>${esc(x[2])}</span></div></li>`).join("")}</ul>` : ""}
@@ -2027,7 +2116,9 @@ function openUnlocked(opt){
       <button class="minibtn" id="plusClose">${first ? "Later" : "Close"}</button>
     </div>
     <p class="plus-note">Your plan lives on the server, not in this browser, so it follows you to every device you sign in on.${store.cloud && store.cloud.sid ? ` Support code <b style="font-family:'Spline Sans Mono',monospace">${esc(store.cloud.sid.slice(0, 8))}</b>.` : ""}</p>`;
+  plusOverlay.dataset.sheet = "unlocked";
   plusOverlay.classList.add("open");
+  if (gift) markGiftSeen(gift);   // written only now that it is genuinely on screen
   document.getElementById("plusClose").onclick = () => plusOverlay.classList.remove("open");
   const go = document.getElementById("unlockGo");
   if (go && first) go.onclick = () => { plusOverlay.classList.remove("open"); markStart(first.id); openStudy(first.id); };
@@ -2304,7 +2395,16 @@ function tutorNote(){
   else if (TUTOR.left != null) el.innerHTML = `<b>${TUTOR.left} of ${TUTOR.daily} ${name} units</b> left ${isTrial ? "in your free trial" : "today"}${TUTOR.credits ? ` · ${TUTOR.credits} credits after that` : ""}. <span title="A message costs 1, a quiz or a deck costs 3" style="border-bottom:1px dotted var(--line-strong);cursor:help">What's a unit?</span>`;
   else el.innerHTML = isTrial ? `A free trial of the tutor.` : `A few tutor units a day.`;
   const topUp = TUTOR.state === "allowance" && packList().some(p => packLink(p));
-  if (up) { up.innerHTML = topUp ? `<button class="btn grad" data-act="plus-open">Buy more units</button>` : canSell && !(PLUS.me && PLUS.me.plus) ? `<button class="btn grad" data-act="plus-open">${TIER_NAMES[next]} · ${nextT.units} a day · ${esc(nextT.price)}</button>` : canSell ? `<button class="minibtn" data-act="plus-open">Change plan</button>` : ""; bind(); }
+  /* Out of units is the one moment a student is actually thinking about paying, so it is the one place the
+     other way to pay belongs. Only when they are out — never as a standing nag beside a working tutor. */
+  const askable = TUTOR.state === "allowance" && myCode() && giftList().some(giftLink);
+  if (up) { up.innerHTML = (topUp ? `<button class="btn grad" data-act="plus-open">Buy more units</button>` : canSell && !(PLUS.me && PLUS.me.plus) ? `<button class="btn grad" data-act="plus-open">${TIER_NAMES[next]} · ${nextT.units} a day · ${esc(nextT.price)}</button>` : canSell ? `<button class="minibtn" data-act="plus-open">Change plan</button>` : "")
+    + (askable ? `<button class="minibtn" id="aiAskGift">Ask someone to cover it</button>` : ""); bind();
+    const ag = document.getElementById("aiAskGift");
+    if (ag) ag.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(giftMessage()); toast("Copied a message with your code. Send it to whoever offered."); }
+      catch(_) { openPlus(); }
+    }); }
 }
 async function tutorBalance(){
   if (!tutorPossible()) return;
@@ -3359,7 +3459,7 @@ function cachePlanLine(days, today){
 /* The sync bookmarklet, generated from ~/lmk-extension/bookmarklet.txt — regenerate both together.
    It works on ANY school's Canvas, which is the whole point: it takes the origin from the page it runs on. */
 const LMK_SYNC_BOOKMARKLET = "javascript:(function(){\n  let BASE = \"\";\n  async function getJSON(path){\n    const out = [];\n    let url = BASE + path + (path.includes(\"?\") ? \"&\" : \"?\") + \"per_page=100\";\n    for (let hop = 0; url && hop < 20; hop++){\n      const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000);\n      let r; try { r = await fetch(url, {credentials:\"include\", headers:{\"Accept\":\"application/json\"}, signal: ctl.signal}); } finally { clearTimeout(timer); }\n      if (!r.ok) throw new Error(r.status + \" \" + path);\n      let txt = await r.text();\n      if (txt.startsWith(\"while(1);\")) txt = txt.slice(9);\n      const data = JSON.parse(txt);\n      if (Array.isArray(data)) out.push(...data); else return data;\n      const link = r.headers.get(\"Link\") || \"\";\n      const m = link.match(/<([^>]+)>;%5Cs*rel=\"next\"/);\n      url = m ? m[1] : null;\n    }\n    return out;\n  }\n  const strip = h => (h || \"\").replace(/<[^>]+>/g, \" \").replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/%5Cs+/g, \" \").trim();\n  /* Canvas's own grade for this course: exactly what the student sees, with group weights, drop rules,\n     late policies and excused work already applied. Null when the instructor hides totals. */\n  function courseScores(c){\n    const num = v => (v === null || v === undefined || v === \"\" || !isFinite(+v)) ? null : +v;\n    const es = (c.enrollments || []).filter(e => /student/i.test(e.type || e.role || \"\"));\n    const e = es.find(x => x.computed_current_score != null) || es[0] || {};\n    return {cur: num(e.computed_current_score), fin: num(e.computed_final_score)};\n  }\n  function courseTag(c){\n    const s = (c.course_code || c.name || \"\");\n    if (/asuready/i.test(s)) return \"ASU Ready\";\n    const m = s.match(/([A-Z]{2,4})%5Cs?-?(%5Cd{2,3}[A-Z]?)/);\n    return m ? m[1] + \" \" + m[2] : s.slice(0, 18);\n  }\n  function rubricText(a){\n    const r = Array.isArray(a.rubric) ? a.rubric : [];\n    return r.slice(0, 12).map(c => String(c.description || \"\").replace(/%5Cs+/g, \" \").trim().slice(0, 80) + (c.points != null ? \" (\" + c.points + \" pts)\" : \"\")).filter(x => x.trim() && x.trim() !== \"(0 pts)\").join(\"; \").slice(0, 900);\n  }\n  function kindHint(a){\n    const st = a.submission_types || [];\n    if (a.grading_type === \"not_graded\" || (a.points_possible === 0 && !st.includes(\"online_quiz\"))) return \"fyi\";\n    if (st.includes(\"none\") || st.includes(\"on_paper\")) return \"inclass\";\n    if (/attendance|participation|in.?class|clicker/i.test(a.name || \"\")) return \"inclass\";\n    if (st.includes(\"online_quiz\")) return \"quiz\";\n    if (st.includes(\"discussion_topic\")) return \"discussion\";\n    return \"\";\n  }\n  (typeof window !== \"undefined\" ? window : self).lmkCollect = async function(base){\n    BASE = (base || location.origin).replace(/%5C/$/, \"\");\n    const HOST = BASE.replace(/^https?:%5C/%5C//, \"\");\n    const courses = (await getJSON(\"/api/v1/courses?enrollment_state=active&include[]=term&include[]=total_scores\")).filter(c => c.name && !c.access_restricted_by_date);\n    const items = {};\n    const groups = {};\n    for (const c of courses){\n      const tag = courseTag(c);\n      let list = [];\n      try { list = await getJSON(`/api/v1/courses/${c.id}/assignments?include[]=submission&order_by=due_at`); } catch(e){ continue; }\n      /* What the instructor actually wrote back. One request per course, only this student's submissions,\n         only comments from someone who is not the student. It is the most useful thing LMK can know. */\n      let fb = {};\n      try {\n        const subs = await getJSON(`/api/v1/courses/${c.id}/students/submissions?student_ids[]=self&include[]=submission_comments&per_page=100`);\n        for (const sub of (Array.isArray(subs) ? subs : [])) {\n          const mine = String(sub.user_id || \"\");\n          const notes = (sub.submission_comments || []).filter(x => x && x.comment && String(x.author_id || \"\") !== mine);\n          if (notes.length) fb[String(sub.assignment_id)] = strip(notes[notes.length - 1].comment).slice(0, 400);\n        }\n      } catch(e){}\n      try {\n        const g = await getJSON(`/api/v1/courses/${c.id}/assignment_groups`);\n        groups[c.id] = g.map(x => ({id:x.id, name:x.name, w:x.group_weight}));\n      } catch(e){}\n      for (const a of list){\n        if (a.only_visible_to_overrides && !a.due_at && !a.has_overrides) continue;\n        const s = a.submission || {};\n        items[String(a.id)] = {\n          t: a.name, c: tag, cid: String(c.id),\n          due: a.due_at || \"\", lock: a.lock_at || \"\",\n          pts: a.points_possible, gt: a.grading_type, st: (a.submission_types || []).join(\",\"),\n          grp: a.assignment_group_id, k: kindHint(a),\n          sub: s.workflow_state || \"\", subAt: s.submitted_at || \"\", score: s.score == null ? null : s.score,\n          late: !!s.late, missing: !!s.missing, excused: !!s.excused,\n          url: a.html_url || \"\",\n          desc: strip(a.description).slice(0, 1200),\n          rub: rubricText(a),\n          fb: fb[String(a.id)] || \"\",\n          qid: a.quiz_id ? String(a.quiz_id) : \"\",\n        };\n      }\n    }\n    // Canvas keeps seconds spent on every quiz attempt %E2%80%94 exact durations, no sensor needed.\n    const quizTime = {}, quizMap = {};\n    const quizzes = Object.entries(items).filter(([aid, x]) => x.qid && /^(submitted|graded|pending_review)$/.test(x.sub)).slice(0, 40);\n    for (const [aid, x] of quizzes){\n      quizMap[x.cid + \"/\" + x.qid] = aid;\n      try {\n        const r = await getJSON(`/api/v1/courses/${x.cid}/quizzes/${x.qid}/submissions`);\n        const subs = (r && r.quiz_submissions) || [];\n        const secs = subs.map(q => +q.time_spent || 0).filter(v => v > 0);\n        if (secs.length) quizTime[aid] = Math.round(Math.max(...secs) / 60);\n      } catch(e){}\n    }\n    for (const aid in items) if (items[aid].qid) quizMap[items[aid].cid + \"/\" + items[aid].qid] = aid;\n    // apply_assignment_group_weights is the course-level switch: when it is false Canvas ignores\n    // the group weights entirely and grades on total points, however the weights are set.\n    return {lmk:\"canvas\", v:3, at: Date.now(), host: HOST,\n      courses: courses.map(c => Object.assign({id:String(c.id), tag:courseTag(c), name:c.name, wt: !!c.apply_assignment_group_weights}, courseScores(c))),\n      groups, items, quizTime, quizMap};\n  };\n})();\n\n(async()=>{try{const p=await window.lmkCollect();const s=JSON.stringify(p);const n=Object.keys(p.items).length;\nlet ok=false;try{await navigator.clipboard.writeText(s);ok=true}catch(e){}\nif(!ok){const ta=document.createElement(\"textarea\");ta.value=s;ta.style.cssText=\"position:fixed;top:8px;left:8px;width:90vw;height:40vh;z-index:99999;font-size:12px\";document.body.appendChild(ta);ta.focus();ta.select();try{ok=document.execCommand(\"copy\")}catch(e){}if(ok)ta.remove();else alert(\"Select all + copy the box, then paste it into LMK (gear %E2%86%92 Paste from Canvas).\")}\nif(ok)alert(\"LMK: copied \"+n+\" assignments. Open LMK %E2%86%92 gear %E2%86%92 Paste from Canvas %E2%86%92 paste.\")}catch(e){alert(\"LMK: could not read Canvas %E2%80%94 are you logged in on this tab? \"+e)}})();";
-const APP_BUILD = "v51.0";
+const APP_BUILD = "v56.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -3621,6 +3721,51 @@ document.addEventListener("mousemove", e=>{
 
 /* ================= connect-your-calendar ================= */
 const overlay = document.getElementById("overlay");
+/* ---- "Refresh everything" ----
+   One button for "this feels stale". It re-establishes every connection LMK has and pulls each again: the
+   worker's config, the plan the student is actually on, the cloud copy, Google Drive, and whatever the
+   extension last read from Canvas. Anything that needs the student back in the loop — a Drive sign-in that
+   has lapsed, a Google gesture the browser will only grant on a click — is started here, on their click,
+   rather than left buried in the gear menu.
+
+   It says what it actually did. A refresh button that silently does nothing is the thing it exists to fix.
+   Deliberately bypasses the throttles the background tick respects (the ten-minute /config cache, pullMaybe's
+   five-minute floor): the student asked. */
+let refreshing = false;
+function nameList(a){ return a.length < 2 ? (a[0] || "") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1]; }
+async function refreshAll(){
+  if (refreshing) return;
+  refreshing = true;
+  const btn = document.getElementById("syncBtn");
+  if (btn) { btn.classList.add("spinning"); btn.disabled = true; }
+  const did = [], failed = [];
+  const step = async (label, fn) => { try { await fn(); did.push(label); } catch(_) { failed.push(label); } };
+
+  // the extension holds the freshest Canvas read; ask it to hand it over again. Silent if it isn't installed.
+  try { window.postMessage({lmk: "canvas-ping"}, "*"); } catch(_){}
+
+  if (MODE === "web" && LMK_CONFIG.statsUrl) {
+    try { localStorage.removeItem("lmk_cfg"); } catch(_){}       // a stale plan is exactly what this is for
+    await step("plans", () => loadRemoteConfig());
+    if (plusPossible()) await step("your plan", () => plusRefresh(true));
+  }
+  if (cloudOn()) await step("cloud", () => cloudPull("refresh"));
+
+  if ((EXT.drive || {}).state === "needs-signin") { driveConnect(); did.push("Google sign-in"); }
+  else if (drive.ready) {
+    try { await (MODE === "web" ? gdrivePull : drivePull)(); drive.lastPull = Date.now(); did.push("Drive"); }
+    catch(err) { if (err && err.needsGesture) { armGestureSync(); did.push("Google sign-in"); } else failed.push("Drive"); }
+  }
+
+  loadData(); render();
+  if (btn) { btn.classList.remove("spinning"); btn.disabled = false; }
+  refreshing = false;
+  const say = did.length ? "Refreshed " + nameList(did) + "." : "Nothing to reconnect — this device is on its own copy.";
+  toast(failed.length ? say + " Couldn't reach " + nameList(failed) + "." : say);
+}
+
+document.getElementById("syncBtn").addEventListener("click", refreshAll);
+
 document.getElementById("gearBtn").addEventListener("click", ()=>{
   document.getElementById("courseList2").innerHTML = COURSES.map(c=>`<option value="${esc(c)}">`).join("");
   renderDriveOffer(); renderBgStatus(); renderCloudStatus(); renderPush(); renderPlus(); plusRefresh(false);
@@ -4159,6 +4304,7 @@ const LMK_CONFIG = {
   storeUrl: "https://chromewebstore.google.com/detail/lmk-for-canvas/efjeldekjgbggjedpboafbblcegmmdam",
   canvasUrl: "https://canvas.asu.edu/#lmk-sync",   // where "Open Canvas" goes before the first sync; the hash asks the extension to sync now   // the live listing (unlisted): approved 2026-09-07
   appUrl: "https://lmktoday.app/app/",
+  giftUrl: "https://lmktoday.app/gift/",                       // the page a student sends to whoever offered to help
   artifactUrl: "https://claude.ai/code/artifact/931fab3e-a465-475b-b596-ef68915e6b9f",
   feedbackUrl: "https://mail.google.com/mail/?view=cm&fs=1&to=hello%40lmktoday.app&su=LMK%20feedback",
   cloudSync: true,                                            // "Sync from anywhere": the worker reads Canvas for the student (see ~/lmk-backend/sync.js)
@@ -4208,6 +4354,9 @@ function mergeStores(a, b){
      used to win and un-admin every other device. Forgetting is local — it clears this device's
      localStorage — so it does not need to travel. */
   m.adminKey = newer.adminKey || older.adminKey || ""; if (!m.adminKey) delete m.adminKey;
+  /* The instant of the last gift this student has actually been shown. Newest wins, so a sponsorship
+     celebrated on the laptop does not pop again on the phone. */
+  m.giftSeen = Math.max(+(a.giftSeen || 0), +(b.giftSeen || 0)); if (!m.giftSeen) delete m.giftSeen;
   if (a.cloud && b.cloud) { const first = (a.cloud.at || 0) <= (b.cloud.at || 0) ? a.cloud : b.cloud; m.cloud = Object.assign({}, first, {on: newer.cloud ? !!newer.cloud.on : !!first.on}); }
   else m.cloud = a.cloud || b.cloud || null;
   if (!m.cloud) delete m.cloud;
@@ -4731,15 +4880,24 @@ function pingDaily(){
   try { localStorage.setItem("lmk_ping_synced", k); } catch(_) { return; }
   ping("synced");
 }
+/* The Chrome Web Store's review box lives on its own tab; the listing page alone makes a student hunt
+   for it. Built from storeUrl so an Admin override carries here too. Chrome-only — no other browser can
+   leave a Chrome Web Store review, and asking on a phone is asking for nothing. */
+function reviewUrl(){
+  const u = String(LMK_CONFIG.storeUrl || "");
+  if (!/^https:\/\/chromewebstore\.google\.com\//.test(u)) return "";
+  return u.replace(/\/+$/, "").replace(/\/reviews$/, "") + "/reviews";
+}
+function canReview(){ return MODE === "web" && !IS_MOBILE && !!reviewUrl(); }
 /* After ten finished things and five days, ask once for a store review. Laptops only — that is where the store is. */
 function maybeAskReview(){
-  if (MODE !== "web" || IS_MOBILE || !store.onboarded) return;
+  if (!canReview() || !store.onboarded) return;
   let seen = false; try { seen = localStorage.getItem("lmk_review_ask") === "1"; } catch(_){}
   if (seen) return;
   if (Object.keys(store.done || {}).length < 10 || !store.since || Date.now() - store.since < 5 * 864e5) return;
   try { localStorage.setItem("lmk_review_ask", "1"); } catch(_){}
   toast("Ten things done with LMK. A quick store review helps other students find it.",
-    {label:"Rate it", fn: () => window.open(LMK_CONFIG.storeUrl, "_blank", "noopener")});
+    {label:"Rate it", fn: () => window.open(reviewUrl() || LMK_CONFIG.storeUrl, "_blank", "noopener")});
 }
 
 /* ================= admin =================
@@ -5295,6 +5453,8 @@ async function loadRemoteConfig(){
   $("setupInstall").href = LMK_CONFIG.storeUrl;
   $("wInstall").href = LMK_CONFIG.storeUrl;
   $("feedbackLink").href = LMK_CONFIG.feedbackUrl; $("setupFeedback").href = LMK_CONFIG.feedbackUrl;
+  const rv = $("setupReview");
+  if (rv) { const u = reviewUrl(); rv.href = u || "#"; rv.hidden = !canReview(); }
   if (IS_MOBILE && MODE === "web") $("setupPhone").hidden = false;
   $("setupSync").innerHTML = MODE === "artifact"
     ? "<b>Cloud sync:</b> with the Google Drive connector added (claude.ai Settings → Connectors), your checkmarks, notes and added assignments save to a private <b>LMK-data.json</b> in your own Google Drive and follow you across devices. Nobody can see anyone else's data."
