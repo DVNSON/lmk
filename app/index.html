@@ -626,6 +626,13 @@
   .intro .ic{flex:none;width:42px;height:42px;border-radius:12px;background:var(--splash);color:#fff;display:grid;place-items:center;font-size:20px}
   .intro .txt{flex:1 1 260px;font-size:13.5px;line-height:1.45;color:var(--ink-2)}
   .intro .txt b{display:block;color:var(--ink);font-size:15px;margin-bottom:2px}
+  .roomline{margin:14px 0 4px}
+  .roster{list-style:none;margin:0 0 14px;padding:0;display:flex;flex-direction:column;gap:6px}
+  .roster li{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);font-size:13.5px}
+  .roster .rname{font-weight:600;color:var(--ink)}
+  .roster .rhandle{color:var(--ink-2);flex:1 1 auto;overflow-wrap:anywhere}
+  .roster .rrep{margin-left:auto;font-size:11.5px;padding:3px 8px;color:var(--muted)}
+  .roomin{border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:8px 10px;font:inherit;font-size:14px;width:100%;box-sizing:border-box}
   .intro .acts{display:flex;gap:8px;flex-wrap:wrap}
   .intro .x{flex:none;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
   .locked{display:flex;gap:12px;align-items:center;padding:12px 14px;border:1px dashed var(--line-strong);border-radius:12px;font-size:13.5px;color:var(--ink-2);margin:10px 0 6px}
@@ -912,6 +919,7 @@
 <div class="studypage" id="studyPage" role="region" aria-labelledby="aiTitle" hidden></div>
 <div class="studypage" id="reviewPage" role="region" aria-label="Review" hidden></div>
 <div class="overlay" id="plusOverlay" role="dialog" aria-modal="true" aria-labelledby="plusTitle"><div class="modal" id="plusModal" style="max-width:540px"></div></div>
+<div class="overlay" id="roomOverlay" role="dialog" aria-modal="true" aria-labelledby="roomTitle"><div class="modal" id="roomModal" style="max-width:520px"></div></div>
 <div class="overlay" id="addOverlay" role="dialog" aria-modal="true" aria-labelledby="addTitle">
   <div class="modal">
     <h3 id="addTitle">Add your own assignment</h3>
@@ -1598,7 +1606,7 @@ function nudgeExtension(){
 window.addEventListener("message", ev => {
   if (ev.source !== window) return;   // the extension's content script posts from this window; an opener or a frame never gets in
   const d = ev.data;
-  if (d && d.lmk === "canvas-payload" && d.payload) applyCanvasPayload(d.payload);
+  if (d && d.lmk === "canvas-payload" && d.payload) { applyCanvasPayload(d.payload); setTimeout(refClaimMaybe, 1500); }
   if (d && d.lmk === "ext-hello" && !EXT.present) { EXT.present = true; EXT.version = String(d.version || "");
     try { if (!localStorage.getItem("lmk_ping_ext")) { localStorage.setItem("lmk_ping_ext", "1"); ping("extension"); } } catch(_){} applyExtPresence(); renderDriveOffer(); if (store.onboarded) cloudEnsure(); renderCloudStatus(); welcomeSync(); if (!store.ext) render(); }
   if (d && d.lmk === "cloud-status" && d.cloud) { EXT.cloud = d.cloud; renderCloudStatus(); }
@@ -2099,6 +2107,7 @@ async function plusRefresh(force){
     if (r.ok) { const j = await r.json(); if (j.ok) {
       /* Only flag it; opening a sheet from in here is what the renderPlus() below used to eat. */
       if (j.gift && +j.gift.at > +(store.giftSeen || 0)) PLUS.newGift = j.gift;
+      if (Array.isArray(j.rooms)) ROOMS.list = j.rooms;   // the rooms this sid is in, so a second device shows them
       PLUS.me = j; if (!PLUS.offer && j.link !== undefined) PLUS.offer = {link: j.link, portal: j.portal, price: j.price}; } }
   } catch(_){}
   renderPlus();
@@ -3064,6 +3073,189 @@ function triageCard(overdue){
     ${rest > 0 ? `<button class="morebtn" data-act="triage-more">Show ${rest} more</button>` : ""}
   </div>`;
 }
+/* ================= classmates (rooms), join links, referral units =================
+   Web only: rooms live in the worker, and the worker proves enrollment from ITS OWN copy of the student's
+   courses (~/lmk-docs/backend.md → Rooms) — a room needs "Sync from anywhere" for exactly that reason.
+   The store gains two typed strings (roomName, roomHandle) and one dismissal instant (roomNudge), each with
+   a merge rule. A pending invite lives in localStorage (lmk_join), never the store: it must survive the
+   install reload and be consumed once. Everything shown in a room comes from the server on each open. */
+const ROOMS = {list: [], view: {}, at: {}, busy: {}, cid: null, edit: false};
+const JOIN = {code: "", host: "", cid: "", tag: "", count: null, at: 0, tried: 0};
+function joinLoad(){
+  try { const j = JSON.parse(localStorage.getItem("lmk_join") || "null");
+    if (j && j.code && Date.now() - (j.at || 0) < 14 * 864e5) Object.assign(JOIN, {code: j.code, host: j.host || "", cid: j.cid || "", tag: j.tag || "", at: j.at || 0});
+    else if (j) localStorage.removeItem("lmk_join"); } catch(_){}
+}
+function joinClear(){ JOIN.code = ""; JOIN.cid = ""; JOIN.host = ""; JOIN.tag = ""; JOIN.count = null; try { localStorage.removeItem("lmk_join"); } catch(_){} }
+function roomsPossible(){ return MODE === "web" && cloudPossible(); }   // a phone can use rooms too; only the artifact copy cannot
+/* the LMS by name, the same rule the d2l branch uses (store.ext.lms is stamped by the ingest); self-contained here so
+   main does not depend on that branch */
+function lmsWord(){ return ((store.ext || {}).lms === "d2l" || (typeof EXT !== "undefined" && EXT.lms === "d2l")) ? "Brightspace" : "Canvas"; }
+async function roomApi(path, body){
+  const r = await fetch(apiUrl(path), {method: "POST", mode: "cors", credentials: "omit", headers: {"content-type": "text/plain"}, body: JSON.stringify(Object.assign({sid: store.cloud.sid, secret: store.cloud.secret}, body || {}))});
+  let j = null; try { j = await r.json(); } catch(_){}
+  return j || {ok: false, error: "network"};
+}
+/* course display name ↔ Canvas course id, from the same rows the grade projector uses */
+function courseCid(c){
+  const items = (store.ext || {}).items || {}, metas = (store.ext || {}).courses || [];
+  const meta = metas.find(x => x.tag === c); if (meta && meta.id) return String(meta.id);
+  for (const e of EVENTS) { if (e.course !== c) continue; const x = items[e.id.slice(1)]; if (x && x.cid) return String(x.cid); }
+  return "";
+}
+function courseOfCid(cid){
+  const meta = ((store.ext || {}).courses || []).find(x => String(x.id) === String(cid));
+  if (meta && meta.tag && COURSES.includes(meta.tag)) return meta.tag;
+  for (const c of COURSES) if (courseCid(c) === String(cid)) return c;
+  return "";
+}
+function roomMember(cid){ return ROOMS.list.some(r => String(r.cid) === String(cid)); }
+/* one read per course per five minutes; the render that follows is what updates the line */
+function roomFetch(cid, force){
+  if (!roomsPossible() || !cloudOn() || !cid || ROOMS.busy[cid]) return;
+  if (!force && Date.now() - (ROOMS.at[cid] || 0) < 5 * 60e3) return;
+  ROOMS.busy[cid] = true; ROOMS.at[cid] = Date.now();
+  roomApi("/room/get", {cid}).then(j => {
+    ROOMS.view[cid] = j;
+    if (j.ok) { const i = ROOMS.list.findIndex(r => String(r.cid) === String(cid)); if (j.member && i < 0) ROOMS.list.push({host: (store.ext || {}).host || "", cid: String(cid)}); if (!j.member && i >= 0) ROOMS.list.splice(i, 1); }
+    if (ROOMS.cid === String(cid)) renderRoom(); render();
+  }).catch(() => { ROOMS.view[cid] = ROOMS.view[cid] || {ok: false, error: "network"}; if (ROOMS.cid === String(cid)) renderRoom(); }).finally(() => { ROOMS.busy[cid] = false; });
+}
+/* the one line a course tab shows; byte-stable until the server answers differently */
+function roomLineHtml(){
+  if (!roomsPossible() || !courseFilter || !store.ext) return "";
+  const cid = courseCid(courseFilter); if (!cid) return "";
+  if (cloudOn()) roomFetch(cid);
+  const v = ROOMS.view[cid], ok = v && v.ok, member = ok ? v.member : roomMember(cid);
+  const others = ok ? Math.max(0, v.count - (v.member ? 1 : 0)) : null;
+  const who = others === null ? "" : others === 0 ? (member ? "Just you so far — share the link" : "Nobody here yet — be first") : `${others} classmate${others === 1 ? "" : "s"} on LMK`;
+  const txt = member ? `<b>${who || "Your classmates"}</b>${ok && v.chat ? "Class chat is linked." : "See who's here, or share the link."}`
+                     : `<b>${who || "Find classmates in " + esc(courseFilter)}</b>Only classmates ${lmsWord()} confirms can see the room, and only if you join.`;
+  return `<div class="card intro roomline" data-i="1"><span class="ic">👥</span><div class="txt">${txt}</div><button class="minibtn" data-act="room-open" data-cid="${esc(cid)}">${member ? "Open" : "See who's here"}</button></div>`;
+}
+/* once, at the bottom of Today after the first sync: the door to every room, dismissable */
+function roomNudgeHtml(){
+  if (!roomsPossible() || !store.ext || store.roomNudge || courseFilter || !COURSES.length) return "";
+  const cs = COURSES.filter(c => courseCid(c)).slice(0, 8); if (!cs.length) return "";
+  return `<div class="card intro" data-i="2" style="margin-top:18px"><span class="ic">👥</span><div class="txt"><b>Anyone else from your classes on LMK yet?</b>Each class has a room: who's here, and one link to share in the class chat. Only classmates ${lmsWord()} confirms can see it, and only if you join.<div class="chips" style="padding:8px 0 0">${cs.map(c => `<button class="chip" data-act="room-open" data-cid="${esc(courseCid(c))}"><span class="dot" style="background:${COLOR[c]}"></span>${esc(c)}</button>`).join("")}</div></div><button class="minibtn" data-act="room-nudge-done">Not now</button></div>`;
+}
+function roomInviteLink(cid, c){ return LMK_CONFIG.appUrl.replace(/\/$/, "") + "/#join=" + String((store.ext || {}).host || "").toLowerCase() + "." + cid + "." + myCode() + (c ? "&c=" + encodeURIComponent(c) : ""); }
+/* Says only what is true: the extension is real, the LMS name follows the school, the room is a roster. */
+function roomShareText(cid, c){
+  const v = ROOMS.view[cid], n = v && v.ok ? v.count : 0;
+  return `Anyone else tired of checking ${lmsWord()} ten times a day? I'm using LMK for ${c} — it pulls every deadline into one daily plan, and there's a room for our class to find each other.${n > 1 ? ` ${n} of us are on it.` : ""} Free, a Chrome extension, about a minute to set up: ${roomInviteLink(cid, c)}`;
+}
+async function roomShare(cid){
+  const c = courseOfCid(cid) || "our class"; if (!myCode()) { toast("Finish the welcome screen first, then share."); return; }
+  const text = roomShareText(cid, c);
+  ping("room_share");
+  if (IS_MOBILE && navigator.share) { try { await navigator.share({text}); return; } catch(_){} }
+  try { await navigator.clipboard.writeText(text); toast("Copied. Paste it in the class chat."); }
+  catch(_) { prompt("Copy this and paste it in the class chat:", text); }
+}
+function openRoom(cid){ if (!cid) return; ROOMS.cid = String(cid); ROOMS.edit = false; renderRoom(); roomOverlay.classList.add("open"); if (cloudOn()) roomFetch(ROOMS.cid, true); }
+function closeRoom(){ ROOMS.cid = null; roomOverlay.classList.remove("open"); }
+function renderRoom(){
+  const cid = ROOMS.cid; if (!cid) return;
+  const c = courseOfCid(cid) || JOIN.tag || "this class", v = ROOMS.view[cid];
+  const head = `<div class="kicker" style="font:600 11.5px/1 'Spline Sans Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Classmates</div><h3 id="roomTitle" style="margin:4px 0 6px">${esc(c)}</h3>`;
+  const close = `<button class="minibtn" data-act="room-close">Close</button>`;
+  let body;
+  const form = (v && v.ok && v.member) ? true : false;
+  if (!cloudOn()) body = `<p class="sub2">Rooms use <b>Sync from anywhere</b>, so LMK's server can confirm that everyone shown is really in ${esc(c)} — it reads your ${lmsWord()} the same way it keeps your phone fresh. It's off on this device.</p><div class="row"><button class="btn grad" data-act="room-gear">Turn it on under the gear</button>${close}</div>`;
+  else if (!v) body = `<p class="sub2">Checking who's here…</p>`;
+  else if (!v.ok) body = `<p class="sub2">${v.error === "cloud" ? `Your ${lmsWord()} sync hasn't reached LMK's server yet. Open ${lmsWord()} once with the extension on, then come back — that's how LMK confirms you're in the class.`
+      : v.error === "not enrolled" ? `${lmsWord()} doesn't list you in this class right now, so the room stays closed.`
+      : v.error === "off" ? "Rooms aren't available for this school." : "Couldn't reach LMK's server. Try again in a moment."}</p><div class="row">${close}</div>`;
+  else if (!v.member || ROOMS.edit) {
+    const others = v.member ? v.count - 1 : v.count;
+    body = `<p class="sub2">${ROOMS.edit ? "Change what classmates see." : others ? `<b>${others} classmate${others === 1 ? "" : "s"}</b> from ${esc(c)} ${others === 1 ? "is" : "are"} here. Join to see names, and to be seen.` : `Nobody from ${esc(c)} is here yet — you'd be first.`} Only students LMK's server has confirmed are in ${esc(c)} can see this room.</p>
+      <label class="field">Name classmates will see<input id="roomName" class="roomin" maxlength="40" autocomplete="off" value="${esc(store.roomName || (store.profile || {}).name || "")}"></label>
+      <label class="field" style="margin-top:8px">How to reach you (optional)<input id="roomHandle" class="roomin" maxlength="60" autocomplete="off" placeholder="Discord, phone, Instagram — whatever you'd give a classmate" value="${esc(store.roomHandle || "")}"></label>
+      <p class="sub2" style="margin:10px 0 12px">Leave any time; your entry is deleted the moment you tap. Never your grades, scores, or what you've finished.</p>
+      <div class="row"><button class="btn grad" data-act="room-join">${ROOMS.edit ? "Save" : "Join " + esc(c)}</button><button class="btn ghost" data-act="room-share">Share ${esc(c)}</button>${ROOMS.edit ? `<button class="minibtn" data-act="room-edit-cancel">Cancel</button>` : `<button class="minibtn" data-act="room-close">Not now</button>`}</div>`;
+  } else {
+    const others = v.count - 1;
+    body = `<p class="sub2">${others ? `${others} classmate${others === 1 ? "" : "s"} here.` : "Just you so far. The link below is how the room fills."}</p>
+      <ul class="roster">${v.roster.map(r => `<li><span class="rname">${esc(r.name)}${r.me ? ' <span class="etag">you</span>' : ""}</span>${r.handle ? `<span class="rhandle">${esc(r.handle)}</span>` : ""}${r.me ? `<button class="minibtn rrep" data-act="room-edit">Edit</button>` : `<button class="minibtn rrep" data-act="room-report" data-mid="${esc(r.id)}" title="Report this entry">Report</button>`}</li>`).join("")}</ul>
+      ${v.chat ? `<p style="margin:0 0 12px"><a class="btn ghost" href="${esc(v.chat)}" target="_blank" rel="noopener">Class chat ↗</a></p>`
+               : `<details class="setupway" style="margin:0 0 12px"><summary>Add the class chat link (GroupMe, Discord…)</summary><div class="row" style="margin-top:8px"><input id="roomChat" class="roomin" placeholder="https://…" style="flex:1 1 200px"><button class="minibtn" data-act="room-chat-set">Save</button></div></details>`}
+      <div class="row"><button class="btn grad" data-act="room-share">Share ${esc(c)}</button>${close}<button class="minibtn" data-act="room-leave" style="margin-left:auto;color:var(--muted)">Leave</button></div>`;
+  }
+  document.getElementById("roomModal").innerHTML = head + body;
+}
+async function roomJoinSave(){
+  const cid = ROOMS.cid;
+  const name = ((document.getElementById("roomName") || {}).value || "").trim().slice(0, 40), handle = ((document.getElementById("roomHandle") || {}).value || "").trim().slice(0, 60);
+  if (!name) { toast("A name first — the one your classmates know you by."); return; }
+  store.roomName = name; if (handle) store.roomHandle = handle; else delete store.roomHandle; save();
+  const was = ROOMS.view[cid]; ROOMS.view[cid] = null; ROOMS.edit = false; renderRoom();
+  const j = await roomApi("/room/join", {cid, name, handle});
+  ROOMS.view[cid] = j.ok ? j : (was || j);
+  if (j.ok && !roomMember(cid)) ROOMS.list.push({host: (store.ext || {}).host || "", cid: String(cid)});
+  renderRoom(); render();
+  toast(j.ok ? "You're in. Only confirmed classmates can see this." : j.error === "cloud" ? `Open ${lmsWord()} once with the extension on, then try again.` : "That didn't go through. Try again in a moment.");
+}
+async function roomLeaveNow(){
+  const cid = ROOMS.cid; if (!confirm("Leave this room? Your entry is deleted right away.")) return;
+  const j = await roomApi("/room/leave", {cid});
+  if (j.ok) { ROOMS.list = ROOMS.list.filter(r => String(r.cid) !== String(cid)); ROOMS.view[cid] = null; closeRoom(); render(); toast("Left. Your entry is gone."); }
+  else toast("That didn't go through. Try again in a moment.");
+}
+async function roomChatSet(){
+  const cid = ROOMS.cid, url = ((document.getElementById("roomChat") || {}).value || "").trim();
+  if (!/^https:\/\//i.test(url)) { toast("A link that starts with https://"); return; }
+  const j = await roomApi("/room/chat", {cid, url});
+  if (j.ok) { if (ROOMS.view[cid]) ROOMS.view[cid].chat = j.chat; renderRoom(); toast("Linked. Classmates see it in the room."); } else toast(j.error === "https only" ? "Only https links." : "That didn't go through.");
+}
+async function roomReport(mid){
+  const what = prompt("What's wrong with this entry? A person reads every report."); if (what === null) return;
+  const j = await roomApi("/room/report", {cid: ROOMS.cid, about: mid, what: what.slice(0, 200)});
+  toast(j.ok ? "Reported. Thank you." : "That didn't go through.");
+}
+/* the sheet has its own dispatcher: the main one is scoped to .wrap and overlays sit outside it */
+roomOverlay.addEventListener("click", e => {
+  if (e.target === roomOverlay) { closeRoom(); return; }
+  const act = e.target.closest("[data-act]"); if (!act) return;
+  const a = act.dataset.act;
+  if (a === "room-close") closeRoom();
+  else if (a === "room-gear") { closeRoom(); document.getElementById("gearBtn").click(); }
+  else if (a === "room-share") roomShare(ROOMS.cid);
+  else if (a === "room-join") roomJoinSave();
+  else if (a === "room-edit") { ROOMS.edit = true; renderRoom(); }
+  else if (a === "room-edit-cancel") { ROOMS.edit = false; renderRoom(); }
+  else if (a === "room-leave") roomLeaveNow();
+  else if (a === "room-chat-set") roomChatSet();
+  else if (a === "room-report") roomReport(act.dataset.mid);
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape" && roomOverlay.classList.contains("open")) closeRoom(); });
+/* The reward, claimed after a verified sync. "cloud" means the server has not seen this student's sync yet
+   (the extension registers the key on its next Canvas visit) — keep the invite and try after the next one. */
+async function refClaimMaybe(){
+  if (!roomsPossible() || !JOIN.code || !store.onboarded || !store.ext || !(store.cloud && store.cloud.sid && store.cloud.secret)) return;
+  if (Date.now() - JOIN.tried < 10 * 60e3) return; JOIN.tried = Date.now();
+  let j; try { j = await roomApi("/ref/claim", Object.assign({code: JOIN.code}, JOIN.cid ? {cid: JOIN.cid} : {})); } catch(_) { return; }
+  if (!j || j.error === "network" || j.error === "cloud") return;
+  const cid = JOIN.cid; joinClear();
+  if (j.ok && j.paid) { plusRefresh(true); toast(j.inviterPaid ? `Welcome — you and the friend who invited you each got ${j.units} tutor units.` : `Welcome — ${j.units} tutor units are on your account.`); }
+  if (cid && courseOfCid(cid)) setTimeout(() => openRoom(cid), j.ok && j.paid ? 2500 : 600);
+  render();
+}
+function joinCount(){
+  if (!roomsPossible() || !JOIN.cid || !JOIN.host || JOIN.count !== null) return;
+  fetch(apiUrl("/room/count"), {method: "POST", mode: "cors", credentials: "omit", headers: {"content-type": "text/plain"}, body: JSON.stringify({host: JOIN.host, cid: JOIN.cid})})
+    .then(r => r.json()).then(j => { if (j && j.ok) { JOIN.count = j.count; joinWelcomeCopy(); render(); } }).catch(() => {});
+}
+/* the welcome overlay is literal HTML: its step-2 line is set from here, and again once the count arrives */
+function joinWelcomeCopy(){
+  if (!(JOIN.tag && JOIN.cid && MODE === "web" && !IS_MOBILE && !store.ext)) return;
+  const el = document.getElementById("wBody2"); if (!el) return;
+  el.textContent = `${JOIN.tag} is already on LMK${JOIN.count ? ` with ${JOIN.count} classmate${JOIN.count === 1 ? "" : "s"}` : ""}. One click adds the extension, and your classes — that one included — arrive here by themselves. About a minute, once.`;
+}
+function joinWhyHtml(){
+  if (!JOIN.tag || !JOIN.cid) return "";
+  return `<div class="why"><b>You were invited.</b> ${esc(JOIN.tag)} is on LMK${JOIN.count ? ` with ${JOIN.count} classmate${JOIN.count === 1 ? "" : "s"} already here` : ""}: every deadline for your classes in one daily plan, and a room for the class to find each other. Finish the steps and it's waiting for you.</div>`;
+}
 function renderNow(root){
   const n = now(), today = startOfDay(n);
   let html = gradesStrip();
@@ -3146,9 +3338,9 @@ function renderNow(root){
           ? `<a class="btn grad" href="${esc(canvasHref())}" target="_blank" rel="noopener">Open Canvas →</a><button class="btn ghost" data-act="open-token">Use a Canvas token instead</button>`
           : `<a class="btn grad" href="${esc(canvasHref())}" target="_blank" rel="noopener">Open Canvas →</a>${gdReady() ? `<button class="btn ghost" data-act="web-signin">Sign in with Google</button>` : ""}`;
       html += `<div class="card hero${state === "waiting" ? " waiting" : ""}" style="--hero-tint:color-mix(in srgb, var(--c1) 20%, transparent)">
-        <div class="kicker">${installed ? "One step left" : "First run"}</div>
+        <div class="kicker">${JOIN.tag && JOIN.cid ? "You were invited" : installed ? "One step left" : "First run"}</div>
         <h1>${h1}</h1>
-        ${checks}
+        ${checks}${joinWhyHtml()}
         <div class="why">${why}</div>
         <div class="actions">${actions}<button class="btn ghost" data-act="open-gear">Other ways</button></div>
         ${canvasHref() === LMK_CONFIG.canvasUrl && state === "fresh" ? `<p class="sub2" style="margin:10px 0 0">That button opens ASU's Canvas. Another school? Open your own Canvas in any tab instead — LMK reads it from there.</p>` : ""}
@@ -3189,6 +3381,7 @@ function renderNow(root){
   const bl = budgetLine(day);
   const pct = day.cap ? Math.min(100, Math.round(day.mins / day.cap * 100)) : 0;
   const doneTodayIds = Object.keys(store.done).filter(id => dayKey(new Date(store.done[id])) === dayKey(n));
+  html += roomLineHtml();
   html += `<h2 class="sec">Today <span class="count">${day.items.length ? `${day.items.length} thing${day.items.length > 1 ? "s" : ""} · ~${fmtMins(day.mins)}` : "clear"}</span></h2>`;
   html += `<div class="card budget ${bl.tone}">
     <div class="bar"><i style="width:${animNext ? 0 : pct}%" data-w="${pct}%"></i></div>
@@ -3262,6 +3455,7 @@ function renderNow(root){
   if (undatedCt){
     html += `<div class="empty" style="margin-top:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">📦 ${undatedCt} assignment${undatedCt>1?"s have":" has"} no due date yet — don’t let ${undatedCt>1?"them":"it"} hide. <button class="minibtn keep" data-act="goto-plan">Set deadlines</button></div>`;
   }
+  html += roomNudgeHtml();
   root.innerHTML = html;
 }
 
@@ -3651,7 +3845,7 @@ function cachePlanLine(days, today){
 /* The sync bookmarklet, generated from ~/lmk-extension/bookmarklet.txt — regenerate both together.
    It works on ANY school's Canvas, which is the whole point: it takes the origin from the page it runs on. */
 const LMK_SYNC_BOOKMARKLET = "javascript:(function(){%0A  let BASE = \"\";%0A  async function getJSON(path){%0A    const out = [];%0A    let url = BASE + path + (path.includes(\"?\") ? \"&\" : \"?\") + \"per_page=100\";%0A    for (let hop = 0; url && hop < 20; hop++){%0A      const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000);%0A      let r; try { r = await fetch(url, {credentials:\"include\", headers:{\"Accept\":\"application/json\"}, signal: ctl.signal}); } finally { clearTimeout(timer); }%0A      if (!r.ok) throw new Error(r.status + \" \" + path);%0A      let txt = await r.text();%0A      if (txt.startsWith(\"while(1);\")) txt = txt.slice(9);%0A      const data = JSON.parse(txt);%0A      if (Array.isArray(data)) out.push(...data); else return data;%0A      const link = r.headers.get(\"Link\") || \"\";%0A      const m = link.match(/<([^>]+)>;%5Cs*rel=\"next\"/);%0A      url = m ? m[1] : null;%0A    }%0A    return out;%0A  }%0A  const strip = h => (h || \"\").replace(/<[^>]+>/g, \" \").replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/%5Cs+/g, \" \").trim();%0A  /* Canvas's own grade for this course: exactly what the student sees, with group weights, drop rules,%0A     late policies and excused work already applied. Null when the instructor hides totals. */%0A  function courseScores(c){%0A    const num = v => (v === null || v === undefined || v === \"\" || !isFinite(+v)) ? null : +v;%0A    const es = (c.enrollments || []).filter(e => /student/i.test(e.type || e.role || \"\"));%0A    const e = es.find(x => x.computed_current_score != null) || es[0] || {};%0A    return {cur: num(e.computed_current_score), fin: num(e.computed_final_score)};%0A  }%0A  function courseTag(c){%0A    const s = (c.course_code || c.name || \"\");%0A    if (/asuready/i.test(s)) return \"ASU Ready\";%0A    const m = s.match(/([A-Z]{2,4})%5Cs?-?(%5Cd{2,3}[A-Z]?)/);%0A    return m ? m[1] + \" \" + m[2] : s.slice(0, 18);%0A  }%0A  function rubricText(a){%0A    const r = Array.isArray(a.rubric) ? a.rubric : [];%0A    return r.slice(0, 12).map(c => String(c.description || \"\").replace(/%5Cs+/g, \" \").trim().slice(0, 80) + (c.points != null ? \" (\" + c.points + \" pts)\" : \"\")).filter(x => x.trim() && x.trim() !== \"(0 pts)\").join(\"; \").slice(0, 900);%0A  }%0A  function kindHint(a){%0A    const st = a.submission_types || [];%0A    if (a.grading_type === \"not_graded\" || (a.points_possible === 0 && !st.includes(\"online_quiz\"))) return \"fyi\";%0A    if (st.includes(\"none\") || st.includes(\"on_paper\")) return \"inclass\";%0A    if (/attendance|participation|in.?class|clicker/i.test(a.name || \"\")) return \"inclass\";%0A    if (st.includes(\"online_quiz\")) return \"quiz\";%0A    if (st.includes(\"discussion_topic\")) return \"discussion\";%0A    return \"\";%0A  }%0A  (typeof window !== \"undefined\" ? window : self).lmkCollect = async function(base){%0A    BASE = (base || location.origin).replace(/%5C/$/, \"\");%0A    const HOST = BASE.replace(/^https?:%5C/%5C//, \"\");%0A    const courses = (await getJSON(\"/api/v1/courses?enrollment_state=active&include[]=term&include[]=total_scores\")).filter(c => c.name && !c.access_restricted_by_date);%0A    const items = {};%0A    const groups = {};%0A    for (const c of courses){%0A      const tag = courseTag(c);%0A      let list = [];%0A      try { list = await getJSON(`/api/v1/courses/${c.id}/assignments?include[]=submission&order_by=due_at`); } catch(e){ continue; }%0A      /* What the instructor actually wrote back. One request per course, only this student's submissions,%0A         only comments from someone who is not the student. It is the most useful thing LMK can know. */%0A      let fb = {};%0A      try {%0A        const subs = await getJSON(`/api/v1/courses/${c.id}/students/submissions?student_ids[]=self&include[]=submission_comments&per_page=100`);%0A        for (const sub of (Array.isArray(subs) ? subs : [])) {%0A          const mine = String(sub.user_id || \"\");%0A          const notes = (sub.submission_comments || []).filter(x => x && x.comment && String(x.author_id || \"\") !== mine);%0A          if (notes.length) fb[String(sub.assignment_id)] = strip(notes[notes.length - 1].comment).slice(0, 400);%0A        }%0A      } catch(e){}%0A      try {%0A        const g = await getJSON(`/api/v1/courses/${c.id}/assignment_groups`);%0A        groups[c.id] = g.map(x => ({id:x.id, name:x.name, w:x.group_weight}));%0A      } catch(e){}%0A      for (const a of list){%0A        if (a.only_visible_to_overrides && !a.due_at && !a.has_overrides) continue;%0A        const s = a.submission || {};%0A        items[String(a.id)] = {%0A          t: a.name, c: tag, cid: String(c.id),%0A          due: a.due_at || \"\", lock: a.lock_at || \"\",%0A          pts: a.points_possible, gt: a.grading_type, st: (a.submission_types || []).join(\",\"),%0A          grp: a.assignment_group_id, k: kindHint(a),%0A          sub: s.workflow_state || \"\", subAt: s.submitted_at || \"\", score: s.score == null ? null : s.score,%0A          late: !!s.late, missing: !!s.missing, excused: !!s.excused,%0A          url: a.html_url || \"\",%0A          desc: strip(a.description).slice(0, 1200),%0A          rub: rubricText(a),%0A          fb: fb[String(a.id)] || \"\",%0A          qid: a.quiz_id ? String(a.quiz_id) : \"\",%0A        };%0A      }%0A    }%0A    // Canvas keeps seconds spent on every quiz attempt %E2%80%94 exact durations, no sensor needed.%0A    const quizTime = {}, quizMap = {};%0A    const quizzes = Object.entries(items).filter(([aid, x]) => x.qid && /^(submitted|graded|pending_review)$/.test(x.sub)).slice(0, 40);%0A    for (const [aid, x] of quizzes){%0A      quizMap[x.cid + \"/\" + x.qid] = aid;%0A      try {%0A        const r = await getJSON(`/api/v1/courses/${x.cid}/quizzes/${x.qid}/submissions`);%0A        const subs = (r && r.quiz_submissions) || [];%0A        const secs = subs.map(q => +q.time_spent || 0).filter(v => v > 0);%0A        if (secs.length) quizTime[aid] = Math.round(Math.max(...secs) / 60);%0A      } catch(e){}%0A    }%0A    for (const aid in items) if (items[aid].qid) quizMap[items[aid].cid + \"/\" + items[aid].qid] = aid;%0A    // apply_assignment_group_weights is the course-level switch: when it is false Canvas ignores%0A    // the group weights entirely and grades on total points, however the weights are set.%0A    return {lmk:\"canvas\", v:3, at: Date.now(), host: HOST,%0A      courses: courses.map(c => Object.assign({id:String(c.id), tag:courseTag(c), name:c.name, wt: !!c.apply_assignment_group_weights}, courseScores(c))),%0A      groups, items, quizTime, quizMap};%0A  };%0A})();%0A%0A(async()=>{try{const p=await window.lmkCollect();const s=JSON.stringify(p);const n=Object.keys(p.items).length;%0Alet ok=false;try{await navigator.clipboard.writeText(s);ok=true}catch(e){}%0Aif(!ok){const ta=document.createElement(\"textarea\");ta.value=s;ta.style.cssText=\"position:fixed;top:8px;left:8px;width:90vw;height:40vh;z-index:99999;font-size:12px\";document.body.appendChild(ta);ta.focus();ta.select();try{ok=document.execCommand(\"copy\")}catch(e){}if(ok)ta.remove();else alert(\"Select all + copy the box, then paste it into LMK (gear %E2%86%92 Paste from Canvas).\")}%0Aif(ok)alert(\"LMK: copied \"+n+\" assignments. Open LMK %E2%86%92 gear %E2%86%92 Paste from Canvas %E2%86%92 paste.\")}catch(e){alert(\"LMK: could not read Canvas %E2%80%94 are you logged in on this tab? \"+e)}})();";
-const APP_BUILD = "v59.1";
+const APP_BUILD = "v61.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -3807,6 +4001,8 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="sprint") startSprint(id);
   else if (a==="sprint-stop") stopSprint(false);
   else if (a==="examplan") { const ex = act.closest("[data-id]"); if (ex) openExamPlan(ex.dataset.id); }
+  else if (a==="room-open") openRoom(act.dataset.cid);
+  else if (a==="room-nudge-done") { store.roomNudge = Date.now(); save(); render(); }
   else if (a==="recap-done") { store.recapSeen = store.recapSeen || {}; store.recapSeen[act.dataset.rk] = 1; save(); render(); }
   else if (a==="brief-prev") { briefWeek = Math.max(1, (briefWeek || currentWeekNum()) - 1); render(); }
   else if (a==="brief-next") { briefWeek = Math.min(17, (briefWeek || currentWeekNum()) + 1); render(); }
@@ -4609,6 +4805,10 @@ function mergeStores(a, b){
      used to win and un-admin every other device. Forgetting is local — it clears this device's
      localStorage — so it does not need to travel. */
   m.adminKey = newer.adminKey || older.adminKey || ""; if (!m.adminKey) delete m.adminKey;
+  /* Classmates: the name and contact line typed for a room, reused across rooms — a real value beats a newer
+     empty one, like adminKey; roomNudge is the instant the one-time room nudge was dismissed, latest wins. */
+  for (const k of ["roomName", "roomHandle"]) { m[k] = newer[k] || older[k] || ""; if (!m[k]) delete m[k]; }
+  m.roomNudge = Math.max(+(a.roomNudge || 0), +(b.roomNudge || 0)); if (!m.roomNudge) delete m.roomNudge;
   /* The instant of the last gift this student has actually been shown. Newest wins, so a sponsorship
      celebrated on the laptop does not pop again on the phone. */
   m.giftSeen = Math.max(+(a.giftSeen || 0), +(b.giftSeen || 0)); if (!m.giftSeen) delete m.giftSeen;
@@ -5073,6 +5273,7 @@ function openWelcome(){
   if (MODE === "web" && IS_MOBILE) { /* the phone's step 3 is written above and must not be overwritten */ }
   else if (MODE === "web" && !gdReady()) set("wBody3", "No account, no password. Everything you do here saves privately on this device. Nothing is sent anywhere.");
   else if (MODE === "web" && !IS_MOBILE && cloudPossible()) { set("wBody3", `No account, no password, so no name or email is on file anywhere. Everything saves on this device; sign in with Google and it follows you to your phone through your own Drive. Every assignment comes with a tutor that has already read it: ${unitPhrase("free")}, then more on a plan.`); const cr = document.getElementById("wCloudRow"); if (cr) cr.hidden = false; }
+  joinWelcomeCopy();
   document.getElementById("wName").value = (store.profile && store.profile.name) || draftName();
   welcomeOverlay.classList.add("open");
 }
@@ -5814,6 +6015,23 @@ async function loadRemoteConfig(){
     setTimeout(() => toast("Paired with your laptop. This phone now stays fresh by itself."), 1200);
   } catch(_){}
 })();
+/* An invite: #join=<host>.<courseId>.<code>&c=<course name> lands on that course's room; #ref=<code> is a plain
+   referral. Kept in localStorage (never the store) until a verified sync claims it, 14 days at most. */
+(function joinFromHash(){
+  try {
+    joinLoad();
+    const m = location.hash.match(/#(join|ref)=([^&\s]+)(?:&c=([^&\s]*))?/); if (!m) return;
+    history.replaceState(null, "", location.pathname + location.search);   // malformed or not, the hash goes: nothing downstream may render it
+    let code = "", host = "", cid = "";
+    if (m[1] === "ref") { if (!/^[a-f0-9]{6,16}$/i.test(m[2])) return; code = m[2].toLowerCase(); }
+    else { const p = m[2].match(/^([a-z0-9.-]+)\.(\d{1,20})\.([a-f0-9]{6,16})$/i); if (!p) return; host = p[1].toLowerCase(); cid = p[2]; code = p[3].toLowerCase(); }
+    let tag = ""; try { tag = m[3] ? decodeURIComponent(m[3]).replace(/[<>&"]/g, "").trim().slice(0, 40) : ""; } catch(_){}
+    if (myCode() && code === myCode()) return;   // your own link
+    Object.assign(JOIN, {code, host, cid, tag, at: Date.now(), tried: 0, count: null});
+    try { localStorage.setItem("lmk_join", JSON.stringify({code, host, cid, tag, at: JOIN.at})); } catch(_){}
+    ping("join_seen");
+  } catch(_){}
+})();
 /* ================= boot ================= */
 loadData(); restoreView(); restoreSprint(); render();
 /* The extension says hello at document_idle and again 1.5 s later; on a slow load document_idle itself comes
@@ -5823,6 +6041,7 @@ if (MODE === "web") pushRefresh().then(renderPush).catch(() => {});
 crowdInit();
 pingDaily();
 loadRemoteConfig();
+joinCount(); refClaimMaybe();
 (function studyFromHash(){
   try { const m = location.hash.match(/#study=([^&]+)/); if (!m) return; const raw = decodeURIComponent(m[1]); const id = /^c:/.test(raw) ? raw : "a" + raw; if (studyTarget(id)) { history.replaceState({study: id}, "", location.href); openStudy(id, {fromHistory: true}); } } catch(_){}
 })();

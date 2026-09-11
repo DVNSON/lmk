@@ -36,7 +36,7 @@
   <p>So your phone stays current while your laptop is closed, LMK can read your Canvas for you from its own server. It is offered as a ticked box on the welcome screen — on unless you untick it, and off any time under the gear — and it works like this:</p>
   <ul>
     <li>The extension creates an <b>access token in your own Canvas account</b> (the same thing you could make under Account → Settings → New Access Token). Canvas lists it under Approved Integrations as "LMK"; you can delete it there at any time, and it expires on its own after six months.</li>
-    <li>Our server stores that token <b>encrypted</b> (with a key that lives only in the server's secret store, never in the database), plus the same assignment rows the extension collects: titles, due dates, submission state, scores. It stores <b>no name, no email, no Canvas user id</b>. Each student is a random sync id.</li>
+    <li>Our server stores that token <b>encrypted</b> (with a key that lives only in the server's secret store, never in the database), plus the same assignment rows the extension collects: titles, due dates, submission state, scores. It stores <b>no email and no Canvas user id</b>. Each student is a random sync id. The one place a name can reach the server is the optional classmates feature, described below, and only the name you type there.</li>
     <li>Every couple of minutes the server reads a few courses for the student whose data is oldest, and it reads yours when you open LMK and its copy is stale.</li>
     <li><b>Turn off</b> under the gear deletes the token and every row from our server and, on your next Canvas visit, removes the token from Canvas too.</li>
   </ul>
@@ -60,10 +60,14 @@
     <li><b>Inside claude.ai only:</b> the copy of LMK that runs as a Claude artifact shares <b>anonymous course statistics</b> with other users of that copy: an assignment's Canvas ID, a median number of minutes, and a type vote (for example "done in class"). This never includes your name, your scores, your grades, or which assignments you completed. <b>The app at lmktoday.app shares nothing of the kind</b> — this sharing needs Claude's own storage, which a normal web page cannot reach, so on the website your timings never leave your device.</li>
   </ul>
 
+  <h2>Classmates (optional)</h2>
+  <p>For any class you choose to join, LMK's server keeps four things: the display name you typed, the contact line you typed (or nothing), your course's Canvas id, and any study sessions you propose or join. That is all of it. <b>Only students the server has confirmed are enrolled in that same class</b> — by reading their own Canvas with the same sync described above — can see it; nobody at the same school in a different class can, and nobody outside LMK can. It never includes your grades, scores, submissions, or which assignments you have finished, and other students never see your sync id or support code: they see a short public id made from a hash of it. Leave a class and that entry is deleted the moment you tap, along with any sessions you proposed. Joining is a choice per class; nothing is shown about you until you make it.</p>
+  <p>If a classmate invites you with a link and you join LMK, the server records that the two of you are connected so it can add a few tutor units to each of you, once. That record holds two random ids and a date. Invites and joins are counted the way everything else is: an event name and a day.</p>
+
   <h2>What it never does</h2>
   <ul>
     <li>It never sends your data to the extension's developers or to any advertising or analytics service.</li>
-    <li>It never sells, rents, or shares personal information with anyone.</li>
+    <li>It never sells, rents, or shares personal information with anyone. The one thing you can choose to show to other people is the classmates entry described above, to students confirmed to be in the same class, and only after you join.</li>
     <li>It never changes anything in Canvas. It only reads.</li>
     <li>It never runs on sites other than Canvas, the course tools listed in its permissions, and the LMK page itself.</li>
   </ul>
