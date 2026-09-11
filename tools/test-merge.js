@@ -32,10 +32,12 @@ check("recapSeen unions", m.recapSeen.r1 === 1 && m.recapSeen.r2 === 1, m.recapS
 check("adminKey: a real key beats a newer empty one", m.adminKey === "K", m.adminKey);
 check("roomName / roomHandle: a real value beats a newer empty one", m.roomName === "Emiel" && m.roomHandle === "Discord: e", [m.roomName, m.roomHandle]);
 check("roomNudge: the later dismissal wins", m.roomNudge === t - 9000, m.roomNudge);
+m = merge({savedAt: t - 1, recapHide: t - 500}, {savedAt: t, recapHide: t - 900});
+check("recapHide: the later dismissal wins", m.recapHide === t - 500, m.recapHide);
 m = merge({savedAt: t - 1, roomName: "Old"}, {savedAt: t, roomName: "New"});
 check("roomName: newer non-empty wins", m.roomName === "New", m.roomName);
 m = merge({savedAt: t}, {savedAt: t - 1});
-check("absent room keys stay absent (no empty-string litter)", !("roomName" in m) && !("roomHandle" in m) && !("roomNudge" in m), Object.keys(m).filter(k => /^room/.test(k)));
+check("absent room keys stay absent (no empty-string litter)", !("roomName" in m) && !("roomHandle" in m) && !("roomNudge" in m) && !("recapHide" in m), Object.keys(m).filter(k => /^(room|recap)/.test(k)));
 
 // 3. a tombstone beats an older done mark and loses to a newer one
 m = merge({savedAt: t, done: {a9: t - 50}, deleted: {}}, {savedAt: t - 1, done: {}, deleted: {"done:a9": t - 100}});

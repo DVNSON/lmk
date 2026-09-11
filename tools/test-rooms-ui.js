@@ -19,7 +19,8 @@ const STUB = `(function(){ window.__calls=[]; window.__room={ok:true,member:fals
   window.fetch=async function(u,o){ const url=String(u); const body=(()=>{ try{return JSON.parse((o||{}).body||"{}")}catch(_){return {}} })(); window.__calls.push({url:url.replace(/^https?:\\/\\/[^/]+/,""),body});
     if(/\\/room\\/count$/.test(url)) return J({ok:true,count:3});
     if(/\\/room\\/get$/.test(url)) return J(window.__room);
-    if(/\\/room\\/join$/.test(url)) { window.__room={ok:true,member:true,count:4,course:"ECN 212",chat:"",roster:[{id:"m1",name:"Maya R.",handle:"Discord maya#4421",joined:1,me:false},{id:"m2",name:"Jordan P.",handle:"",joined:2,me:false},{id:"m3",name:"Sam T.",handle:"text 480-555",joined:3,me:false},{id:"me",name:body.name,handle:body.handle,joined:4,me:true}],sessions:[]}; return J(window.__room); }
+    if(/\\/room\\/join$/.test(url)) { const at=new Date(); at.setHours(19,0,0,0); window.__room={ok:true,member:true,count:4,course:"ECN 212",chat:"",roster:[{id:"m1",name:"Maya R.",handle:"Discord maya#4421",joined:1,me:false},{id:"m2",name:"Jordan P.",handle:"",joined:2,me:false},{id:"m3",name:"Sam T.",handle:"text 480-555",joined:3,me:false},{id:"me",name:body.name,handle:body.handle,joined:4,me:true}],sessions:[{id:"s1",at:at.getTime(),place:"library",note:"Hayden 2nd floor",aid:"901",by:{id:"m1",name:"Maya R."},mine:false,going:[{id:"m1",name:"Maya R."},{id:"m2",name:"Jordan P."}],me:false}]}; return J(window.__room); }
+    if(/\\/room\\/session$/.test(url)) { const R=window.__room, me={id:"me",name:"Emiel"}; if(body.action==="in"){ const x=R.sessions.find(x=>x.id===body.id); if(x){x.me=true;x.going.push(me);} } if(body.action==="out"){ const x=R.sessions.find(x=>x.id===body.id); if(x){x.me=false;x.going=x.going.filter(g=>g.id!=="me");} } if(body.action==="propose"){ R.sessions.push({id:"s2",at:body.at,place:body.place,note:body.note,aid:body.aid,by:me,mine:true,going:[me],me:true}); } if(body.action==="cancel"){ R.sessions=R.sessions.filter(x=>!(x.id===body.id&&x.mine)); } return J(R); }
     if(/\\/room\\/leave$/.test(url)) { window.__room={ok:true,member:false,count:3,course:"ECN 212",chat:""}; return J({ok:true,member:false}); }
     if(/\\/room\\/chat$/.test(url)) return J({ok:true,chat:body.url});
     if(/\\/ref\\/claim$/.test(url)) return J(window.__claim||{ok:true,paid:true,units:5,inviterPaid:true});
@@ -89,6 +90,19 @@ const SYNCED = {onboarded:1, profile:{name:"Emiel"}, cloud:{sid:SID, secret:SEC,
   check('R3 joining sends the typed name and handle and renders the roster with you marked', r.sent.length===1 && r.sent[0].name==='Emiel' && r.sent[0].handle==='Discord: emiel#0001' && r.names.length===4 && /Emiel\s*you/.test(r.names[3]) && r.reports===3 && r.edit===1, r);
   check('R3 the store holds only the two typed strings', r.stored[0]==='Emiel' && r.stored[1]==='Discord: emiel#0001', r.stored);
   check('R3 the course line now counts the others and offers Open', /3 classmates on LMK/.test(r.line) && r.chatForm, r.line);
+  // S1–S4 sessions inside the sheet and on Today
+  r=JSON.parse(await ev(ws,`JSON.stringify({rows:[...document.querySelectorAll('.sesslist li')].map(x=>x.textContent), inBtn:!!document.querySelector('[data-act="sess-in"][data-id="s1"]'), form:!!document.getElementById('sessAt'), todayCard:!!document.querySelector('#view-now .item .t') && [...document.querySelectorAll('#view-now .item .t')].some(x=>/^Study ECN 212/.test(x.textContent))})`));
+  check('S1 the sheet lists the session with place, note, the assignment and who is going, and offers I\'m in', r.rows.length===1 && /Library/.test(r.rows[0]) && /Hayden 2nd floor/.test(r.rows[0]) && /Working on Problem set 4/.test(r.rows[0]) && /2 going: Maya R., Jordan P./.test(r.rows[0]) && r.inBtn && r.form && !r.todayCard, r);
+  await ev(ws,`document.querySelector('[data-act="sess-in"][data-id="s1"]').click()`); await sleep(500);
+  r=JSON.parse(await ev(ws,`JSON.stringify({sent:window.__calls.filter(c=>/room\\/session/.test(c.url)).map(c=>c.body.action), row:(document.querySelector('.sesslist li')||{}).textContent, mins:sessMinsToday(), today:[...document.querySelectorAll('#view-now .item .t')].map(x=>x.textContent).find(x=>/^Study/.test(x)), count:(document.querySelector('#view-now h2.sec .count')||{}).textContent, line:(document.querySelector('.roomline .txt')||{}).textContent})`));
+  check('S2 I\'m in: the session is on Today with who and 90 minutes in the budget, and the course line names it', r.sent.join()==='in' && /3 going/.test(r.row) && /Can't make it/.test(r.row) && r.mins===90 && /^Study ECN 212 with Maya R. and Jordan P./.test(r.today||'') && /^2 things/.test(r.count) && /Session .*you're in/.test(r.line), {sent:r.sent, mins:r.mins, today:r.today, count:r.count, line:r.line.slice(0,80)});
+  await ev(ws,`document.getElementById('sessNote').value='Noble library, 3rd floor'; document.getElementById('sessPlace').value='campus'; document.querySelector('[data-act="sess-propose"]').click()`); await sleep(500);
+  r=JSON.parse(await ev(ws,`JSON.stringify({sent:window.__calls.filter(c=>/room\\/session/.test(c.url)).map(c=>c.body).slice(-1)[0], rows:document.querySelectorAll('.sesslist li').length, cancel:!!document.querySelector('[data-act="sess-cancel"][data-id="s2"]')})`));
+  check('S3 proposing sends when, where and the note, and the new session is yours to cancel', r.sent.action==='propose' && r.sent.place==='campus' && r.sent.note==='Noble library, 3rd floor' && r.sent.at>Date.now() && r.rows===2 && r.cancel, r);
+  await ev(ws,`document.querySelector('[data-act="sess-cancel"][data-id="s2"]').click()`); await sleep(400);
+  await ev(ws,`document.querySelector('[data-act="sess-out"][data-id="s1"]').click()`); await sleep(400);
+  r=JSON.parse(await ev(ws,`JSON.stringify({rows:document.querySelectorAll('.sesslist li').length, mins:sessMinsToday(), today:[...document.querySelectorAll('#view-now .item .t')].some(x=>/^Study/.test(x.textContent))})`));
+  check('S4 cancel and out: back to one session, nothing on Today, no minutes', r.rows===1 && r.mins===0 && !r.today, r);
   const share = await ev(ws,`roomShareText('184220','ECN 212')`);
   check('R4 the share text carries the join link with host, course and your code, and claims only what exists', /lmktoday\.app\/app\/#join=canvas\.asu\.edu\.184220\.a41f9c02&c=ECN%20212/.test(share) && /4 of us are on it/.test(share) && !/studying when/.test(share), share);
   await ev(ws,`document.getElementById('roomChat').value='https://groupme.com/join_group/1/abc'; document.querySelector('#roomModal [data-act="room-chat-set"]').click()`); await sleep(400);
@@ -100,6 +114,31 @@ const SYNCED = {onboarded:1, profile:{name:"Emiel"}, cloud:{sid:SID, secret:SEC,
   await ev(ws,`document.querySelector('#courseChips [data-course=""]').click(); document.querySelector('[data-act="room-nudge-done"]').click()`); await sleep(300);
   r=JSON.parse(await ev(ws,`JSON.stringify({nudge:!!document.querySelector('[data-act="room-nudge-done"]'), stamped:!!store.roomNudge})`));
   check('R7 dismissing the nudge stamps the store and removes it', !r.nudge && r.stamped, r);
+
+  // K1 the semester-recap countdown: derived from the latest due date (+3), placed under the hero in the last two weeks
+  r=JSON.parse(await ev(ws,`JSON.stringify({days:recapDays(), txt:(document.querySelector('.recapline .txt')||{}).textContent, idx:[...document.querySelectorAll('#view-now > *')].findIndex(x=>x.classList.contains('recapline')), hide:!!document.querySelector('[data-act="recap-hide"]')})`));
+  check('K1 countdown: 8 days (latest due +5d, +3), under the hero, no Hide button this close', r.days===8 && /lands in 8 days/.test(r.txt) && r.idx===1 && !r.hide, r);
+  await ev(ws,`document.querySelector('[data-act="recap-info"]').click()`); await sleep(300);
+  r=JSON.parse(await ev(ws,`JSON.stringify({open:recapOverlay.classList.contains('open'), title:document.getElementById('recapTitle').textContent, items:document.querySelectorAll('#recapModal li').length, priv:/leaves your device/.test(document.getElementById('recapModal').textContent)})`));
+  check('K1 the sheet says the date, lists six things and the privacy line', r.open && /Ready 3 days after your last due date/.test(r.title) && r.items===6 && r.priv, r);
+  await send(ws,'Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27}); await sleep(200);
+  check('K1 Escape closes it', (await ev(ws,`recapOverlay.classList.contains('open')`))===false);
+  // K2 a semester with 60 days left: the line sits at the bottom with Hide, and Hide sticks in the store
+  await fresh(ws,{seed:SYNCED});
+  await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.6.1'}, '*'); window.postMessage({lmk:'canvas-payload', payload:(function(){ const p=${PAYLOAD}; p.items["905"]=Object.assign({},p.items["903"],{t:"Final paper",due:new Date(Date.now()+60*864e5).toISOString()}); return p; })()}, '*')`); await sleep(900);
+  r=JSON.parse(await ev(ws,`JSON.stringify({days:recapDays(), kids:[...document.querySelectorAll('#view-now > *')].map(x=>x.className), hide:!!document.querySelector('[data-act="recap-hide"]')})`));
+  const ri=r.kids.findIndex(c=>/recapline/.test(c)), ni=r.kids.findIndex(c=>/intro/.test(c)&&!/recapline/.test(c));
+  check('K2 countdown 63 days out sits at the bottom, before the nudge, with Hide', r.days===63 && ri>1 && ri===r.kids.length-2 && ni===r.kids.length-1 && r.hide, {days:r.days, ri, ni, n:r.kids.length});
+  await ev(ws,`document.querySelector('[data-act="recap-hide"]').click()`); await sleep(300);
+  r=JSON.parse(await ev(ws,`JSON.stringify({gone:!document.querySelector('.recapline'), stamped:!!store.recapHide, gear:!!document.querySelector('#setupSync [data-act="recap-info"]')})`));
+  check('K2 Hide stamps the store, removes the line, and the gear still offers the sheet', r.gone && r.stamped && r.gear, r);
+
+  // K3 the admin Ops tab renders the rooms card and a report row from the worker's bundle
+  r=JSON.parse(await ev(ws,`(function(){ ADMIN.key='k'; ADMIN.tab='ops'; ADMIN.data={ok:true,settings:{},tutor:{configured:true},plus:{webhook:true,plusLink:'x',tray:{}},cost:null,revenue:null,lmsHosts:[],rooms:{rooms:2,members:5,filled:1,sessionsWeek:3,referrals:4,refUnits:40,reports:[{id:'r1',host:'canvas.asu.edu',cid:'184220',by:'bbbbbbbb',about:'m1',aboutCode:'aaaaaaaa',what:'spam handle',at:Date.now()-60000}]},ops:{cronAt:Date.now(),pushAt:Date.now(),version:12},cloud:{errors:0},problems:[],errs:[],today:{},totals:{},days:{},allTime:{},firstDay:'2026-09-01',todayKey:'2026-09-11',errToday:0};
+    const sc=document.createElement('section'); try { renderAdmin(sc); } catch(e) { return JSON.stringify({err:e.message}); }
+    const t=sc.textContent; return JSON.stringify({tiles:/2\\s*Rooms|Rooms\\s*2/.test(t.replace(/\\s+/g,' ')) || /5 members/.test(t), report:/spam handle/.test(t), seen:!!sc.querySelector('[data-act="adm-room-seen"][data-id="r1"]'), remove:!!sc.querySelector('[data-act="adm-room-remove"][data-sid="aaaaaaaa"]'), badge:(sc.querySelector('[data-tab="ops"] .badge')||{}).textContent}); })()`));
+  check('K3 admin Ops: rooms tiles, the report row with Seen and Remove, and an Ops badge', !r.err && r.tiles && r.report && r.seen && r.remove && r.badge==='1', r);
+  await ev(ws,`ADMIN.key=null; ADMIN.data=null; ADMIN.tab='overview'`);
 
   // R8 cloud sync off: the sheet explains, asks nothing of the worker
   await fresh(ws,{seed:Object.assign({},SYNCED,{cloud:{sid:SID,secret:SEC,on:false,at:1}})});

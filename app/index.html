@@ -633,6 +633,15 @@
   .roster .rhandle{color:var(--ink-2);flex:1 1 auto;overflow-wrap:anywhere}
   .roster .rrep{margin-left:auto;font-size:11.5px;padding:3px 8px;color:var(--muted)}
   .roomin{border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:8px 10px;font:inherit;font-size:14px;width:100%;box-sizing:border-box}
+  .sesslist{list-style:none;margin:0 0 12px;padding:0;display:flex;flex-direction:column;gap:6px}
+  .sesslist li{display:flex;flex-direction:column;gap:4px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);font-size:13.5px}
+  .sesslist .when{font-weight:700;color:var(--ink)}
+  .sesslist .who{color:var(--ink-2);font-size:12.5px}
+  .sesslist .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
+  .sessform{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+  .sessform .roomin{width:auto;flex:1 1 140px}
+  .sessrow{display:flex;gap:8px;flex-wrap:wrap}
+  .recapline .txt b{font-size:15px}
   .intro .acts{display:flex;gap:8px;flex-wrap:wrap}
   .intro .x{flex:none;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
   .locked{display:flex;gap:12px;align-items:center;padding:12px 14px;border:1px dashed var(--line-strong);border-radius:12px;font-size:13.5px;color:var(--ink-2);margin:10px 0 6px}
@@ -920,6 +929,7 @@
 <div class="studypage" id="reviewPage" role="region" aria-label="Review" hidden></div>
 <div class="overlay" id="plusOverlay" role="dialog" aria-modal="true" aria-labelledby="plusTitle"><div class="modal" id="plusModal" style="max-width:540px"></div></div>
 <div class="overlay" id="roomOverlay" role="dialog" aria-modal="true" aria-labelledby="roomTitle"><div class="modal" id="roomModal" style="max-width:520px"></div></div>
+<div class="overlay" id="recapOverlay" role="dialog" aria-modal="true" aria-labelledby="recapTitle"><div class="modal" id="recapModal" style="max-width:520px"></div></div>
 <div class="overlay" id="addOverlay" role="dialog" aria-modal="true" aria-labelledby="addTitle">
   <div class="modal">
     <h3 id="addTitle">Add your own assignment</h3>
@@ -2107,7 +2117,7 @@ async function plusRefresh(force){
     if (r.ok) { const j = await r.json(); if (j.ok) {
       /* Only flag it; opening a sheet from in here is what the renderPlus() below used to eat. */
       if (j.gift && +j.gift.at > +(store.giftSeen || 0)) PLUS.newGift = j.gift;
-      if (Array.isArray(j.rooms)) ROOMS.list = j.rooms;   // the rooms this sid is in, so a second device shows them
+      if (Array.isArray(j.rooms)) { ROOMS.list = j.rooms; ROOMS.list.forEach(r => roomFetch(r.cid)); }   // the rooms this sid is in, so a second device shows them and today's sessions are known
       PLUS.me = j; if (!PLUS.offer && j.link !== undefined) PLUS.offer = {link: j.link, portal: j.portal, price: j.price}; } }
   } catch(_){}
   renderPlus();
@@ -3117,7 +3127,7 @@ function roomFetch(cid, force){
   ROOMS.busy[cid] = true; ROOMS.at[cid] = Date.now();
   roomApi("/room/get", {cid}).then(j => {
     ROOMS.view[cid] = j;
-    if (j.ok) { const i = ROOMS.list.findIndex(r => String(r.cid) === String(cid)); if (j.member && i < 0) ROOMS.list.push({host: (store.ext || {}).host || "", cid: String(cid)}); if (!j.member && i >= 0) ROOMS.list.splice(i, 1); }
+    if (j.ok) { const i = ROOMS.list.findIndex(r => String(r.cid) === String(cid)); if (j.member && i < 0) ROOMS.list.push({host: (store.ext || {}).host || "", cid: String(cid)}); if (!j.member && i >= 0) ROOMS.list.splice(i, 1); const me = (j.roster || []).find(r => r.me); if (me) ROOMS.mid = me.id; }
     if (ROOMS.cid === String(cid)) renderRoom(); render();
   }).catch(() => { ROOMS.view[cid] = ROOMS.view[cid] || {ok: false, error: "network"}; if (ROOMS.cid === String(cid)) renderRoom(); }).finally(() => { ROOMS.busy[cid] = false; });
 }
@@ -3129,7 +3139,8 @@ function roomLineHtml(){
   const v = ROOMS.view[cid], ok = v && v.ok, member = ok ? v.member : roomMember(cid);
   const others = ok ? Math.max(0, v.count - (v.member ? 1 : 0)) : null;
   const who = others === null ? "" : others === 0 ? (member ? "Just you so far — share the link" : "Nobody here yet — be first") : `${others} classmate${others === 1 ? "" : "s"} on LMK`;
-  const txt = member ? `<b>${who || "Your classmates"}</b>${ok && v.chat ? "Class chat is linked." : "See who's here, or share the link."}`
+  const nx = member ? nextSession(cid) : null;
+  const txt = member ? `<b>${who || "Your classmates"}</b>${nx ? `Session ${FMT_DAY.format(new Date(nx.at))} · ${FMT_TIME.format(new Date(nx.at))}${nx.me ? " — you're in." : "."}` : ok && v.chat ? "Class chat is linked." : "See who's here, or share the link."}`
                      : `<b>${who || "Find classmates in " + esc(courseFilter)}</b>Only classmates ${lmsWord()} confirms can see the room, and only if you join.`;
   return `<div class="card intro roomline" data-i="1"><span class="ic">👥</span><div class="txt">${txt}</div><button class="minibtn" data-act="room-open" data-cid="${esc(cid)}">${member ? "Open" : "See who's here"}</button></div>`;
 }
@@ -3139,6 +3150,95 @@ function roomNudgeHtml(){
   const cs = COURSES.filter(c => courseCid(c)).slice(0, 8); if (!cs.length) return "";
   return `<div class="card intro" data-i="2" style="margin-top:18px"><span class="ic">👥</span><div class="txt"><b>Anyone else from your classes on LMK yet?</b>Each class has a room: who's here, and one link to share in the class chat. Only classmates ${lmsWord()} confirms can see it, and only if you join.<div class="chips" style="padding:8px 0 0">${cs.map(c => `<button class="chip" data-act="room-open" data-cid="${esc(courseCid(c))}"><span class="dot" style="background:${COLOR[c]}"></span>${esc(c)}</button>`).join("")}</div></div><button class="minibtn" data-act="room-nudge-done">Not now</button></div>`;
 }
+const PLACE_LABEL = {library: "Library", campus: "On campus", online: "Online", other: "Somewhere else"};
+const SESSION_MINS = 90;   // what a study session takes out of the day's budget; nobody has measured one yet, so it is a guess and says so nowhere
+/* every session this student said yes to, across the rooms already read */
+function mySessions(){
+  const out = [];
+  for (const cid in ROOMS.view) { const v = ROOMS.view[cid]; if (!v || !v.ok || !v.member) continue; for (const x of (v.sessions || [])) if (x.me) out.push(Object.assign({cid, course: courseOfCid(cid)}, x)); }
+  return out.sort((a, b) => a.at - b.at);
+}
+function sessMinsToday(){ const k = dayKey(startOfDay(now())); return mySessions().filter(x => dayKey(new Date(x.at)) === k).length * SESSION_MINS; }
+function sessWho(x){
+  const others = (x.going || []).filter(g => x.me ? g.id !== (ROOMS.mid || "") && !g.me : true);
+  const names = others.map(g => g.name).filter(n => n && n !== store.roomName);
+  return names.length === 0 ? "" : names.length === 1 ? names[0] : names.length === 2 ? `${names[0]} and ${names[1]}` : `${names[0]} and ${names.length - 1} others`;
+}
+function sessWorking(x){ if (!x.aid) return ""; const e = EVENTS.find(e => e.id === "a" + x.aid); return e ? e.title : ""; }
+/* today's sessions on the Today view: a row each, minutes already counted in the budget above */
+function sessionsTodayHtml(today){
+  const k = dayKey(today), list = mySessions().filter(x => dayKey(new Date(x.at)) === k);
+  if (!list.length) return "";
+  return `<div class="card" style="margin-top:8px"><div class="list">${list.map(x => { const who = sessWho(x), w = sessWorking(x);
+    return `<div class="item"><span class="cdot" style="width:10px;height:10px;background:${COLOR[x.course] || "var(--c1)"}"></span><div class="body"><div class="t">Study ${esc(x.course || "together")}${who ? ` with ${esc(who)}` : ""}</div><div class="sub"><span class="duelbl">${FMT_TIME.format(new Date(x.at))}</span><span>${PLACE_LABEL[x.place] || ""}${x.note ? " · " + esc(x.note) : ""}${w ? " · " + esc(w) : ""}</span><span class="etag">~${fmtMins(SESSION_MINS)}</span></div></div><div class="side"><button class="minibtn" data-act="room-open" data-cid="${esc(x.cid)}">Room</button></div></div>`; }).join("")}</div></div>`;
+}
+function nextSession(cid){ const v = ROOMS.view[cid]; if (!v || !v.ok || !v.member) return null; const n = Date.now() - 3600e3; return (v.sessions || []).filter(x => x.at > n).sort((a, b) => a.at - b.at)[0] || null; }
+function sessionsBlockHtml(v, c){
+  const n = Date.now() - 3600e3, list = (v.sessions || []).filter(x => x.at > n).sort((a, b) => a.at - b.at);
+  const rows = list.map(x => { const d = new Date(x.at), who = (x.going || []).map(g => g.name).join(", "), w = sessWorking(x);
+    return `<li><span class="when">${FMT_DAY.format(d)} · ${FMT_TIME.format(d)} · ${PLACE_LABEL[x.place] || ""}${x.note ? ` · ${esc(x.note)}` : ""}</span>${w ? `<span class="who">Working on ${esc(w)}</span>` : ""}<span class="who">${(x.going || []).length} going${who ? ": " + esc(who) : ""}</span><span class="acts">${x.me ? `<button class="minibtn" data-act="sess-out" data-id="${esc(x.id)}">Can't make it</button>` : `<button class="btn grad" style="padding:6px 12px;font-size:13px" data-act="sess-in" data-id="${esc(x.id)}">I'm in</button>`}${x.mine ? `<button class="minibtn" data-act="sess-cancel" data-id="${esc(x.id)}" style="color:var(--muted)">Cancel it</button>` : ""}</span></li>`; }).join("");
+  const opts = EVENTS.filter(open).filter(e => e.course === c).slice(0, 12).map(e => `<option value="${esc(e.id.slice(1))}">${esc(e.title.slice(0, 48))}</option>`).join("");
+  const dflt = new Date(Date.now() + 864e5); dflt.setHours(19, 0, 0, 0);
+  const pad = x => String(x).padStart(2, "0"), local = `${dflt.getFullYear()}-${pad(dflt.getMonth() + 1)}-${pad(dflt.getDate())}T${pad(dflt.getHours())}:${pad(dflt.getMinutes())}`;
+  return `<h4 style="margin:14px 0 6px;font:600 11px/1 'Spline Sans Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">Study sessions</h4>
+    ${rows ? `<ul class="sesslist">${rows}</ul>` : `<p class="sub2" style="margin:0 0 8px">None planned. Propose one — a library, a campus spot, or a call.</p>`}
+    <details class="setupway" style="margin:0 0 12px;padding-top:8px;border-top:none"><summary>Propose a session</summary><div class="sessform">
+      <div class="sessrow"><input id="sessAt" class="roomin" type="datetime-local" value="${local}" aria-label="When"><select id="sessPlace" class="roomin" aria-label="Where">${Object.keys(PLACE_LABEL).map(k => `<option value="${k}">${PLACE_LABEL[k]}</option>`).join("")}</select></div>
+      <input id="sessNote" class="roomin" maxlength="80" placeholder="Where exactly, or a note (optional)">
+      ${opts ? `<select id="sessAid" class="roomin" aria-label="Working on"><option value="">Working on anything</option>${opts}</select>` : ""}
+      <div class="row" style="margin-top:2px"><button class="btn grad" data-act="sess-propose">Propose</button></div>
+    </div></details>`;
+}
+async function roomSessionAct(action, id){
+  const cid = ROOMS.cid; const j = await roomApi("/room/session", {cid, action, id});
+  if (j.ok) { ROOMS.view[cid] = j; renderRoom(); render(); toast(action === "in" ? "You're in. It's on your Today when the day comes." : action === "out" ? "Taken off." : "Cancelled."); }
+  else toast(j.error === "no session" ? "That session is gone." : "That didn't go through.");
+}
+async function roomPropose(){
+  const cid = ROOMS.cid, g = id => document.getElementById(id) || {};
+  const at = Date.parse(g("sessAt").value || ""); if (!(at > Date.now() - 3600e3)) { toast("Pick a time that hasn't passed."); return; }
+  if (at > Date.now() + 60 * 864e5) { toast("Within the next 60 days."); return; }
+  const j = await roomApi("/room/session", {cid, action: "propose", at, place: g("sessPlace").value || "library", note: (g("sessNote").value || "").trim().slice(0, 80), aid: g("sessAid").value || ""});
+  if (j.ok) { ROOMS.view[cid] = j; renderRoom(); render(); toast("Proposed. Classmates in the room can join it."); }
+  else toast(j.error === "too many" ? "Five open sessions is the most one person can hold." : "That didn't go through.");
+}
+/* ---- the semester recap countdown (the recap itself is built in Sprint 3; this is the promise and the date) ----
+   The date is derived, never configured: the latest due date across the synced courses plus three days works at
+   any school. A bad Canvas date (more than 150 days out) falls back to ASU's calendar constant. */
+function recapEnd(){
+  if (!EVENTS.length) return null;
+  const last = Math.max(...EVENTS.map(e => e.due instanceof Date && !isNaN(e.due) ? e.due.getTime() : 0));
+  let end = last ? addDays(startOfDay(new Date(last)), 3) : null;
+  if (!end || end.getTime() - Date.now() > 150 * 864e5) end = addDays(SEMESTER_WEEK1_MON, 16 * 7 + 4 + 3);
+  return end;
+}
+function recapDays(){ const end = recapEnd(); return end ? Math.ceil((end.getTime() - startOfDay(now()).getTime()) / 864e5) : null; }
+/* pos: "top" is the two weeks before the date (under the hero), "bottom" the rest of the semester */
+function recapCountdownHtml(pos){
+  const days = recapDays(); if (days === null || days <= 0) return "";
+  const near = days <= 14; if ((pos === "top") !== near) return "";
+  if (!near && store.recapHide) return "";
+  return `<div class="card intro recapline" data-i="1" style="${near ? "" : "margin-top:18px"}"><span class="ic">✦</span><div class="txt"><b>Your semester recap lands in ${days} day${days === 1 ? "" : "s"}</b>Built on your device from your own work. Tap to see what's in it.</div><button class="minibtn" data-act="recap-info">What's in it</button>${near ? "" : `<button class="minibtn" data-act="recap-hide" title="Comes back in the last two weeks">Hide</button>`}</div>`;
+}
+function openRecapInfo(){
+  const end = recapEnd(), a = accuracy(0);
+  document.getElementById("recapModal").innerHTML = `<div class="kicker" style="font:600 11.5px/1 'Spline Sans Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Semester recap · what you'll get</div>
+    <h3 id="recapTitle" style="margin:4px 0 6px">${end ? `Ready 3 days after your last due date · ${FMT_DAY.format(end)}` : "Ready 3 days after your last due date"}</h3>
+    <ul style="margin:8px 0 12px;padding-left:20px;font-size:14px;line-height:1.5;color:var(--ink-2);display:flex;flex-direction:column;gap:6px">
+      <li>Assignments finished, and how many were done ahead of the day they were due</li>
+      <li>Hours of measured work, by class</li>
+      <li>Your longest streak and your steadiest week</li>
+      <li>How close LMK's time estimates got${a && a.n >= 3 ? ` (it is at ${a.pct}% within 25% right now)` : ""}</li>
+      <li>The class that took the most of you, and the one you cleared fastest</li>
+      <li>One card you can post, with your invite link on it — or not; sharing is a button, never automatic</li>
+    </ul>
+    <p class="sub2" style="margin:0 0 12px">Nothing here leaves your device unless you tap share. No grades, no scores, no names of classmates.</p>
+    <div class="row"><button class="minibtn" data-act="recap-close">Close</button></div>`;
+  recapOverlay.classList.add("open");
+}
+function closeRecap(){ recapOverlay.classList.remove("open"); }
+recapOverlay.addEventListener("click", e => { if (e.target === recapOverlay || e.target.closest('[data-act="recap-close"]')) closeRecap(); });
+document.getElementById("overlay").addEventListener("click", e => { if (e.target.closest('[data-act="recap-info"]')) openRecapInfo(); });
 function roomInviteLink(cid, c){ return LMK_CONFIG.appUrl.replace(/\/$/, "") + "/#join=" + String((store.ext || {}).host || "").toLowerCase() + "." + cid + "." + myCode() + (c ? "&c=" + encodeURIComponent(c) : ""); }
 /* Says only what is true: the extension is real, the LMS name follows the school, the room is a roster. */
 function roomShareText(cid, c){
@@ -3178,6 +3278,7 @@ function renderRoom(){
     const others = v.count - 1;
     body = `<p class="sub2">${others ? `${others} classmate${others === 1 ? "" : "s"} here.` : "Just you so far. The link below is how the room fills."}</p>
       <ul class="roster">${v.roster.map(r => `<li><span class="rname">${esc(r.name)}${r.me ? ' <span class="etag">you</span>' : ""}</span>${r.handle ? `<span class="rhandle">${esc(r.handle)}</span>` : ""}${r.me ? `<button class="minibtn rrep" data-act="room-edit">Edit</button>` : `<button class="minibtn rrep" data-act="room-report" data-mid="${esc(r.id)}" title="Report this entry">Report</button>`}</li>`).join("")}</ul>
+      ${sessionsBlockHtml(v, c)}
       ${v.chat ? `<p style="margin:0 0 12px"><a class="btn ghost" href="${esc(v.chat)}" target="_blank" rel="noopener">Class chat ↗</a></p>`
                : `<details class="setupway" style="margin:0 0 12px"><summary>Add the class chat link (GroupMe, Discord…)</summary><div class="row" style="margin-top:8px"><input id="roomChat" class="roomin" placeholder="https://…" style="flex:1 1 200px"><button class="minibtn" data-act="room-chat-set">Save</button></div></details>`}
       <div class="row"><button class="btn grad" data-act="room-share">Share ${esc(c)}</button>${close}<button class="minibtn" data-act="room-leave" style="margin-left:auto;color:var(--muted)">Leave</button></div>`;
@@ -3227,8 +3328,10 @@ roomOverlay.addEventListener("click", e => {
   else if (a === "room-leave") roomLeaveNow();
   else if (a === "room-chat-set") roomChatSet();
   else if (a === "room-report") roomReport(act.dataset.mid);
+  else if (a === "sess-in" || a === "sess-out" || a === "sess-cancel") roomSessionAct(a === "sess-in" ? "in" : a === "sess-out" ? "out" : "cancel", act.dataset.id);
+  else if (a === "sess-propose") roomPropose();
 });
-document.addEventListener("keydown", e => { if (e.key === "Escape" && roomOverlay.classList.contains("open")) closeRoom(); });
+document.addEventListener("keydown", e => { if (e.key !== "Escape") return; if (roomOverlay.classList.contains("open")) closeRoom(); if (recapOverlay.classList.contains("open")) closeRecap(); });
 /* The reward, claimed after a verified sync. "cloud" means the server has not seen this student's sync yet
    (the extension registers the key on its next Canvas visit) — keep the invite and try after the next one. */
 async function refClaimMaybe(){
@@ -3378,14 +3481,17 @@ function renderNow(root){
   const dueToday = EVENTS.filter(visible).filter(e => dayKey(e.due) === dayKey(n));
   const icToday = dueToday.filter(e => e.kind === "inclass" && !store.done[e.id]);
   const day = PLAN[dayKey(today)] || {cap:0, mins:0, items:[], date:today};
-  const bl = budgetLine(day);
-  const pct = day.cap ? Math.min(100, Math.round(day.mins / day.cap * 100)) : 0;
+  // a study session the student said yes to takes its minutes out of today like any other work
+  const sessMins = sessMinsToday(), bday = sessMins ? Object.assign({}, day, {mins: day.mins + sessMins}) : day;
+  const bl = day.items.length || !sessMins ? budgetLine(bday) : {tone: bday.mins <= bday.cap ? "good" : "warn", txt: bday.mins <= bday.cap ? "Just the study session today." : "The session runs past your hours."};
+  const pct = bday.cap ? Math.min(100, Math.round(bday.mins / bday.cap * 100)) : 0;
   const doneTodayIds = Object.keys(store.done).filter(id => dayKey(new Date(store.done[id])) === dayKey(n));
-  html += roomLineHtml();
-  html += `<h2 class="sec">Today <span class="count">${day.items.length ? `${day.items.length} thing${day.items.length > 1 ? "s" : ""} · ~${fmtMins(day.mins)}` : "clear"}</span></h2>`;
+  html += recapCountdownHtml("top") + roomLineHtml();
+  const nThings = day.items.length + (sessMins ? 1 : 0);
+  html += `<h2 class="sec">Today <span class="count">${nThings ? `${nThings} thing${nThings > 1 ? "s" : ""} · ~${fmtMins(bday.mins)}` : "clear"}</span></h2>`;
   html += `<div class="card budget ${bl.tone}">
     <div class="bar"><i style="width:${animNext ? 0 : pct}%" data-w="${pct}%"></i></div>
-    <div class="btxt"><span>~${fmtMins(day.mins)} of your ${fmtMins(day.cap)}</span><b>${esc(bl.txt)}</b></div>
+    <div class="btxt"><span>~${fmtMins(bday.mins)} of your ${fmtMins(bday.cap)}</span><b>${esc(bl.txt)}</b></div>
     ${(() => { const k = PLAN_OVER.find(x => x !== dayKey(today)); if (!k || day.mins > day.cap) return ""; const od = PLAN[k]; return `<div class="bdiff">Heads up: <b>${FMT_DAY.format(od.date)}</b> is packed — ~${fmtMins(od.mins)} of ${fmtMins(od.cap)}. An extra hour today pulls some of it forward.</div>`; })()}
     <div class="bacts">
       ${bl.slip ? `<button class="minibtn" data-act="slip" data-id="${bl.slip.e.id}">Slip it</button>` : ""}
@@ -3396,7 +3502,8 @@ function renderNow(root){
   </div>`;
   if (showCap || !store.capacity) html += capacityCard();
   if (day.items.length) html += `<div class="card"><div class="list">${day.items.map(c => planRow(c, today)).join("")}</div></div>`;
-  else if (!doneTodayIds.length) html += `<div class="empty">Nothing to do today. Tomorrow's plan is already set — go outside.</div>`;
+  else if (!doneTodayIds.length && !sessMins) html += `<div class="empty">Nothing to do today. Tomorrow's plan is already set — go outside.</div>`;
+  html += sessionsTodayHtml(today);
   if (icToday.length) html += `<div class="empty" style="margin-top:8px;border-style:solid;font-size:12.5px">🏫 In class today: ${icToday.map(e => `<b>${esc(e.course)}</b> ${esc(e.title.slice(0, 40))}`).join(" · ")} — just show up.</div>`;
 
   html += triageCard(overdue);
@@ -3455,7 +3562,7 @@ function renderNow(root){
   if (undatedCt){
     html += `<div class="empty" style="margin-top:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">📦 ${undatedCt} assignment${undatedCt>1?"s have":" has"} no due date yet — don’t let ${undatedCt>1?"them":"it"} hide. <button class="minibtn keep" data-act="goto-plan">Set deadlines</button></div>`;
   }
-  html += roomNudgeHtml();
+  html += recapCountdownHtml("bottom") + roomNudgeHtml();
   root.innerHTML = html;
 }
 
@@ -3845,7 +3952,7 @@ function cachePlanLine(days, today){
 /* The sync bookmarklet, generated from ~/lmk-extension/bookmarklet.txt — regenerate both together.
    It works on ANY school's Canvas, which is the whole point: it takes the origin from the page it runs on. */
 const LMK_SYNC_BOOKMARKLET = "javascript:(function(){%0A  let BASE = \"\";%0A  async function getJSON(path){%0A    const out = [];%0A    let url = BASE + path + (path.includes(\"?\") ? \"&\" : \"?\") + \"per_page=100\";%0A    for (let hop = 0; url && hop < 20; hop++){%0A      const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000);%0A      let r; try { r = await fetch(url, {credentials:\"include\", headers:{\"Accept\":\"application/json\"}, signal: ctl.signal}); } finally { clearTimeout(timer); }%0A      if (!r.ok) throw new Error(r.status + \" \" + path);%0A      let txt = await r.text();%0A      if (txt.startsWith(\"while(1);\")) txt = txt.slice(9);%0A      const data = JSON.parse(txt);%0A      if (Array.isArray(data)) out.push(...data); else return data;%0A      const link = r.headers.get(\"Link\") || \"\";%0A      const m = link.match(/<([^>]+)>;%5Cs*rel=\"next\"/);%0A      url = m ? m[1] : null;%0A    }%0A    return out;%0A  }%0A  const strip = h => (h || \"\").replace(/<[^>]+>/g, \" \").replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/%5Cs+/g, \" \").trim();%0A  /* Canvas's own grade for this course: exactly what the student sees, with group weights, drop rules,%0A     late policies and excused work already applied. Null when the instructor hides totals. */%0A  function courseScores(c){%0A    const num = v => (v === null || v === undefined || v === \"\" || !isFinite(+v)) ? null : +v;%0A    const es = (c.enrollments || []).filter(e => /student/i.test(e.type || e.role || \"\"));%0A    const e = es.find(x => x.computed_current_score != null) || es[0] || {};%0A    return {cur: num(e.computed_current_score), fin: num(e.computed_final_score)};%0A  }%0A  function courseTag(c){%0A    const s = (c.course_code || c.name || \"\");%0A    if (/asuready/i.test(s)) return \"ASU Ready\";%0A    const m = s.match(/([A-Z]{2,4})%5Cs?-?(%5Cd{2,3}[A-Z]?)/);%0A    return m ? m[1] + \" \" + m[2] : s.slice(0, 18);%0A  }%0A  function rubricText(a){%0A    const r = Array.isArray(a.rubric) ? a.rubric : [];%0A    return r.slice(0, 12).map(c => String(c.description || \"\").replace(/%5Cs+/g, \" \").trim().slice(0, 80) + (c.points != null ? \" (\" + c.points + \" pts)\" : \"\")).filter(x => x.trim() && x.trim() !== \"(0 pts)\").join(\"; \").slice(0, 900);%0A  }%0A  function kindHint(a){%0A    const st = a.submission_types || [];%0A    if (a.grading_type === \"not_graded\" || (a.points_possible === 0 && !st.includes(\"online_quiz\"))) return \"fyi\";%0A    if (st.includes(\"none\") || st.includes(\"on_paper\")) return \"inclass\";%0A    if (/attendance|participation|in.?class|clicker/i.test(a.name || \"\")) return \"inclass\";%0A    if (st.includes(\"online_quiz\")) return \"quiz\";%0A    if (st.includes(\"discussion_topic\")) return \"discussion\";%0A    return \"\";%0A  }%0A  (typeof window !== \"undefined\" ? window : self).lmkCollect = async function(base){%0A    BASE = (base || location.origin).replace(/%5C/$/, \"\");%0A    const HOST = BASE.replace(/^https?:%5C/%5C//, \"\");%0A    const courses = (await getJSON(\"/api/v1/courses?enrollment_state=active&include[]=term&include[]=total_scores\")).filter(c => c.name && !c.access_restricted_by_date);%0A    const items = {};%0A    const groups = {};%0A    for (const c of courses){%0A      const tag = courseTag(c);%0A      let list = [];%0A      try { list = await getJSON(`/api/v1/courses/${c.id}/assignments?include[]=submission&order_by=due_at`); } catch(e){ continue; }%0A      /* What the instructor actually wrote back. One request per course, only this student's submissions,%0A         only comments from someone who is not the student. It is the most useful thing LMK can know. */%0A      let fb = {};%0A      try {%0A        const subs = await getJSON(`/api/v1/courses/${c.id}/students/submissions?student_ids[]=self&include[]=submission_comments&per_page=100`);%0A        for (const sub of (Array.isArray(subs) ? subs : [])) {%0A          const mine = String(sub.user_id || \"\");%0A          const notes = (sub.submission_comments || []).filter(x => x && x.comment && String(x.author_id || \"\") !== mine);%0A          if (notes.length) fb[String(sub.assignment_id)] = strip(notes[notes.length - 1].comment).slice(0, 400);%0A        }%0A      } catch(e){}%0A      try {%0A        const g = await getJSON(`/api/v1/courses/${c.id}/assignment_groups`);%0A        groups[c.id] = g.map(x => ({id:x.id, name:x.name, w:x.group_weight}));%0A      } catch(e){}%0A      for (const a of list){%0A        if (a.only_visible_to_overrides && !a.due_at && !a.has_overrides) continue;%0A        const s = a.submission || {};%0A        items[String(a.id)] = {%0A          t: a.name, c: tag, cid: String(c.id),%0A          due: a.due_at || \"\", lock: a.lock_at || \"\",%0A          pts: a.points_possible, gt: a.grading_type, st: (a.submission_types || []).join(\",\"),%0A          grp: a.assignment_group_id, k: kindHint(a),%0A          sub: s.workflow_state || \"\", subAt: s.submitted_at || \"\", score: s.score == null ? null : s.score,%0A          late: !!s.late, missing: !!s.missing, excused: !!s.excused,%0A          url: a.html_url || \"\",%0A          desc: strip(a.description).slice(0, 1200),%0A          rub: rubricText(a),%0A          fb: fb[String(a.id)] || \"\",%0A          qid: a.quiz_id ? String(a.quiz_id) : \"\",%0A        };%0A      }%0A    }%0A    // Canvas keeps seconds spent on every quiz attempt %E2%80%94 exact durations, no sensor needed.%0A    const quizTime = {}, quizMap = {};%0A    const quizzes = Object.entries(items).filter(([aid, x]) => x.qid && /^(submitted|graded|pending_review)$/.test(x.sub)).slice(0, 40);%0A    for (const [aid, x] of quizzes){%0A      quizMap[x.cid + \"/\" + x.qid] = aid;%0A      try {%0A        const r = await getJSON(`/api/v1/courses/${x.cid}/quizzes/${x.qid}/submissions`);%0A        const subs = (r && r.quiz_submissions) || [];%0A        const secs = subs.map(q => +q.time_spent || 0).filter(v => v > 0);%0A        if (secs.length) quizTime[aid] = Math.round(Math.max(...secs) / 60);%0A      } catch(e){}%0A    }%0A    for (const aid in items) if (items[aid].qid) quizMap[items[aid].cid + \"/\" + items[aid].qid] = aid;%0A    // apply_assignment_group_weights is the course-level switch: when it is false Canvas ignores%0A    // the group weights entirely and grades on total points, however the weights are set.%0A    return {lmk:\"canvas\", v:3, at: Date.now(), host: HOST,%0A      courses: courses.map(c => Object.assign({id:String(c.id), tag:courseTag(c), name:c.name, wt: !!c.apply_assignment_group_weights}, courseScores(c))),%0A      groups, items, quizTime, quizMap};%0A  };%0A})();%0A%0A(async()=>{try{const p=await window.lmkCollect();const s=JSON.stringify(p);const n=Object.keys(p.items).length;%0Alet ok=false;try{await navigator.clipboard.writeText(s);ok=true}catch(e){}%0Aif(!ok){const ta=document.createElement(\"textarea\");ta.value=s;ta.style.cssText=\"position:fixed;top:8px;left:8px;width:90vw;height:40vh;z-index:99999;font-size:12px\";document.body.appendChild(ta);ta.focus();ta.select();try{ok=document.execCommand(\"copy\")}catch(e){}if(ok)ta.remove();else alert(\"Select all + copy the box, then paste it into LMK (gear %E2%86%92 Paste from Canvas).\")}%0Aif(ok)alert(\"LMK: copied \"+n+\" assignments. Open LMK %E2%86%92 gear %E2%86%92 Paste from Canvas %E2%86%92 paste.\")}catch(e){alert(\"LMK: could not read Canvas %E2%80%94 are you logged in on this tab? \"+e)}})();";
-const APP_BUILD = "v61.0";
+const APP_BUILD = "v62.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -4003,6 +4110,10 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="examplan") { const ex = act.closest("[data-id]"); if (ex) openExamPlan(ex.dataset.id); }
   else if (a==="room-open") openRoom(act.dataset.cid);
   else if (a==="room-nudge-done") { store.roomNudge = Date.now(); save(); render(); }
+  else if (a==="recap-info") openRecapInfo();
+  else if (a==="recap-hide") { store.recapHide = Date.now(); save(); render(); toast("Hidden. It comes back for the last two weeks."); }
+  else if (a==="adm-room-seen") adminRoom({action: "seen", id: act.dataset.id});
+  else if (a==="adm-room-remove") { if (confirm("Take this student out of the room? Their entry is deleted; they can rejoin unless you use the kill switch.")) adminRoom({action: "remove", sid: act.dataset.sid, host: act.dataset.host, cid: act.dataset.cid}); }
   else if (a==="recap-done") { store.recapSeen = store.recapSeen || {}; store.recapSeen[act.dataset.rk] = 1; save(); render(); }
   else if (a==="brief-prev") { briefWeek = Math.max(1, (briefWeek || currentWeekNum()) - 1); render(); }
   else if (a==="brief-next") { briefWeek = Math.min(17, (briefWeek || currentWeekNum()) + 1); render(); }
@@ -4809,6 +4920,7 @@ function mergeStores(a, b){
      empty one, like adminKey; roomNudge is the instant the one-time room nudge was dismissed, latest wins. */
   for (const k of ["roomName", "roomHandle"]) { m[k] = newer[k] || older[k] || ""; if (!m[k]) delete m[k]; }
   m.roomNudge = Math.max(+(a.roomNudge || 0), +(b.roomNudge || 0)); if (!m.roomNudge) delete m.roomNudge;
+  m.recapHide = Math.max(+(a.recapHide || 0), +(b.recapHide || 0)); if (!m.recapHide) delete m.recapHide;   // the countdown card, hidden until the last two weeks
   /* The instant of the last gift this student has actually been shown. Newest wins, so a sponsorship
      celebrated on the laptop does not pop again on the phone. */
   m.giftSeen = Math.max(+(a.giftSeen || 0), +(b.giftSeen || 0)); if (!m.giftSeen) delete m.giftSeen;
@@ -5512,6 +5624,14 @@ async function adminSaveTiers(){
   catch(_) { toast("Packs must be a JSON list like [{\"units\":60,\"price\":\"$3\",\"link\":\"…\"}]."); return; }
   adminSave({tiers, tierMap: map, packs});
 }
+async function adminRoom(body){
+  try {
+    const r = await fetch(apiUrl("/admin/room?key=" + encodeURIComponent(ADMIN.key)), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"}, body: JSON.stringify(body)});
+    const j = await r.json();
+    toast(j.ok ? (body.action === "seen" ? "Filed." : "Removed from the room.") : "The worker said: " + (j.error || r.status));
+  } catch(_) { toast("Couldn't reach the worker."); }
+  adminFetch(true);
+}
 async function adminStudent(sid, action, months, level){
   if (action === "forget" && !confirm("Forget this student on the server? Their app keeps working from the extension; the server copy and key are deleted.")) return;
   if (action === "revoke" && !confirm("Take Plus away from this code now?")) return;
@@ -5689,6 +5809,8 @@ function renderAdmin(root){
   if (!PL.plusLink) attention.push(["plus", "No Payment Link saved; nobody can buy Plus."]);
   if ((CL.errors || 0) > 0) attention.push(["students", `${CL.errors} student sync${CL.errors === 1 ? " needs" : "s need"} attention.`]);
   if (errToday) attention.push(["ops", `${errToday} app error${errToday === 1 ? "" : "s"} reported today.`]);
+  const RM = d.rooms || null, rmReports = RM ? (RM.reports || []).length : 0;
+  if (rmReports) attention.push(["ops", `${rmReports} room report${rmReports === 1 ? "" : "s"} waiting for a person to read ${rmReports === 1 ? "it" : "them"}.`]);
   if (S.cloudPaused) attention.push(["students", "Sync from anywhere is paused (kill switch on)."]);
   if (installs >= 5 && syncs / installs < 0.5) attention.push(["students", `Only ${conv}% of devices ever connected to Canvas. Activation, not features, is the bottleneck.`]);
   if (!TU.tutorOn) attention.push(["tutor", "The tutor is switched off."]);
@@ -5696,7 +5818,7 @@ function renderAdmin(root){
   if (CO && costGap > 0) attention.push(["tutor", `${n(costGap)} of ${n(msgsTracked)} tutor message${msgsTracked === 1 ? "" : "s"} since cost tracking began left no cost row, so what the tutor spends is unknown. Send one message and check the usage table.`]);
   if (CO && RV && spend30 > cash30 && spend30 > 1) attention.push(["revenue", `The tutor cost ${money(spend30)} in 30 days against ${money(cash30)} in cash.`]);
   const TT = PL.tiers || {}, UN = PL.units || {};    // the tier table: read by the Tutor tab and the Plus tab
-  const TABS = [["overview", "Overview", 0], ["revenue", "Revenue", 0], ["students", "Students", CL.errors || 0], ["tutor", "Tutor", 0], ["plus", "Plus", (PL.tray || {}).stuck || 0], ["ops", "Ops", (cronStale ? 1 : 0) + (errToday ? 1 : 0)]];
+  const TABS = [["overview", "Overview", 0], ["revenue", "Revenue", 0], ["students", "Students", CL.errors || 0], ["tutor", "Tutor", 0], ["plus", "Plus", (PL.tray || {}).stuck || 0], ["ops", "Ops", (cronStale ? 1 : 0) + (errToday ? 1 : 0) + rmReports]];
   if (!TABS.some(t => t[0] === ADMIN.tab)) ADMIN.tab = "overview";
   const tile = (k, v, s, extra) => `<div class="card tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div>${extra || ""}</div>`;
   const input = (id, val, w, attrs) => `<input id="${id}" ${attrs || 'type="number" min="0"'} value="${esc(String(val))}" class="adm-in" style="width:${w || 90}px">`;
@@ -5893,6 +6015,11 @@ function renderAdmin(root){
       ${tile("App errors", n(errToday), "today, from reportErr on real devices")}
       ${tile("Build", esc(APP_BUILD), `worker v${esc(String(ops.version || "?"))}`)}
     </div>`;
+    html += `<div class="card adm-card"><h3>Rooms</h3>${RM ? `<div class="tiles" style="margin-bottom:12px">
+      ${tile("Rooms", n(RM.rooms), `${n(RM.members)} member${RM.members === 1 ? "" : "s"} · ${n(RM.filled)} with 3 or more`)}
+      ${tile("Sessions", n(RM.sessionsWeek), "in the next 7 days")}
+      ${tile("Referrals", n(RM.referrals), `${n(RM.refUnits)} units paid, both sides`)}
+    </div>${table(["When", "Room", "By", "About", "What", ""], (RM.reports || []).map(r => `<tr><td class="mono">${esc(ago(r.at))}</td><td class="mono">${esc(r.host)} · ${esc(r.cid)}</td><td class="mono">${esc(r.by)}</td><td class="mono">${esc(r.aboutCode || r.about)}</td><td>${esc(r.what)}</td><td style="white-space:nowrap"><button class="minibtn" data-act="adm-room-seen" data-id="${esc(r.id)}">Seen</button>${r.aboutCode ? ` <button class="minibtn" data-act="adm-room-remove" data-sid="${esc(r.aboutCode)}" data-host="${esc(r.host)}" data-cid="${esc(r.cid)}">Remove from room</button>` : ""}</td></tr>`)) || `<p class="sub2" style="margin:0">No reports waiting. A report names a member's public id or a session; "Seen" files it, "Remove" takes that student out of the one room.</p>`}` : `<p class="sub2" style="margin:0">The worker hasn't answered with room stats${d.roomsError ? ": " + esc(d.roomsError) : ""}.</p>`}</div>`;
     html += `<div class="card adm-card"><h3>App errors · last 7 days</h3>${table(["Build", "Message", "num:Count"], errs.map(e => `<tr><td class="mono">${esc(e.build)}</td><td>${esc(e.msg)}</td><td class="num">${e.n}</td></tr>`)) || `<p class="sub2" style="margin:0">Nothing caught. Every uncaught error on a real device lands here with a build and a message, nothing else.</p>`}</div>`;
     const A = S.announce || {};
     html += `<div class="card adm-card"><h3>Announcement</h3><p class="sub2">A slim banner every student sees above their plan until they dismiss it. Plain text, one link at most.</p>
@@ -6002,6 +6129,7 @@ async function loadRemoteConfig(){
   const rs = $("resetSample");
   if (SEED_EMPTY) rs.hidden = true; else rs.textContent = "Back to " + SEED_LABEL;
   if (store.since) $("setupSync").innerHTML += ` With LMK since ${new Date(store.since).toLocaleDateString(undefined, {month:"long", year:"numeric"})}.`;
+  $("setupSync").innerHTML += ` <button class="minibtn" data-act="recap-info" style="margin-left:6px">Semester recap: what's in it</button>`;
 })();
 
 /* A laptop's "Open on your phone" link: the same sync id and secret, so this phone pulls the same Canvas sync. */
