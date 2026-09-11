@@ -140,6 +140,40 @@ const SYNCED = {onboarded:1, profile:{name:"Emiel"}, cloud:{sid:SID, secret:SEC,
   check('K3 admin Ops: rooms tiles, the report row with Seen and Remove, and an Ops badge', !r.err && r.tiles && r.report && r.seen && r.remove && r.badge==='1', r);
   await ev(ws,`ADMIN.key=null; ADMIN.data=null; ADMIN.tab='overview'`);
 
+  // W1–W6 the semester recap, from local data only
+  const mon = new Date().toISOString().slice(0,7);
+  const WSEED = Object.assign({}, SYNCED, {done:{a901:Date.now()-2*864e5, a903:Date.now()-1*864e5}, dur:{a901:[{m:40,src:"track",at:Date.now()-2*864e5,p:45}], a903:[{m:70,src:"track",at:Date.now()-864e5,p:45}]},
+    streakDays:[new Date(Date.now()-864e5).toISOString().slice(0,10), new Date().toISOString().slice(0,10)], spent:{a901:25}, decks:{d1:{id:"d1",course:"ECN 212",title:"Ch 4",at:Date.now()-3*864e5,cards:[{seen:2},{seen:1},{seen:0}]}},
+    tutorUse:{[mon]:{chat:4,quiz:1,cards:1}}, sessLog:{s9:Date.now()-864e5}, since:Date.now()-30*864e5});
+  await fresh(ws,{seed:WSEED});
+  await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.6.1'}, '*'); window.postMessage({lmk:'canvas-payload', payload:${PAYLOAD}}, '*')`); await sleep(900);
+  r=JSON.parse(await ev(ws,`(function(){ openWrapped('semester'); const P=document.getElementById('recapPage'); const card=k=>(P.querySelector('[data-card="'+k+'"]')||{}).textContent||null;
+    return JSON.stringify({open:!P.hidden, title:(P.querySelector('.sp-title b')||{}).textContent, cards:[...P.querySelectorAll('[data-card]')].map(x=>x.dataset.card), head:card('headline'), ahead:card('ahead'), streak:card('streak'), tutor:card('tutor'), sprints:card('sprints'), mates:card('classmates'), grades:card('grades'), canvas:(()=>{const c=P.querySelector('#wrCanvas'); return c?[c.width,c.height]:null})(), leaked:/\\$\\{/.test(P.innerText)}); })()`));
+  check('W1 the recap opens as "so far" with the cards that have data, in order', r.open && /so far/i.test(r.title) && r.cards.slice(0,3).join()==='headline,ahead,rhythm' && r.cards.includes('byclass') && r.cards.includes('bykind') && r.cards.includes('bigone') && r.cards.includes('pace') && r.cards.includes('months') && r.cards.includes('share') && !r.leaked, {cards:r.cards, title:r.title});
+  check('W1 headline: 2 assignments across 2 classes, hours from measured minutes', /2 assignments/.test(r.head) && /2 classes/.test(r.head) && /1 h 50 m|1h 50m|110 min|1\.8 h/.test(r.head), r.head);
+  check('W1 ahead of the clock: both finished before the due day', /2 of 2/.test(r.ahead), r.ahead);
+  check('W1 streak card: longest 2', /2 days|2-day|2 day/.test(r.streak), r.streak);
+  check('W1 tutor, sprints, classmates cards only because they were used', /4 conversation/.test(r.tutor) && /1 quiz/.test(r.tutor) && /3 cards made/.test(r.tutor) && /3 reviews|3 times/.test(r.tutor) && /1 sprint/.test(r.sprints) && /25 min/.test(r.sprints) && /1 session/.test(r.mates), {t:r.tutor, s:r.sprints, m:r.mates});
+  check('W1 no grades card when Canvas sent no scores; no milestones under 50', r.grades===null && !r.cards.includes('milestones'), r.cards);
+  check('W1 the share card is a story-sized canvas', r.canvas && r.canvas[0]===1080 && r.canvas[1]===1920, r.canvas);
+  await ev(ws,`document.querySelector('#recapPage [data-act="wr-mode"][data-mode="year"]').click()`); await sleep(200);
+  r=JSON.parse(await ev(ws,`JSON.stringify({title:(document.querySelector('#recapPage .sp-title b')||{}).textContent, head:(document.querySelector('#recapPage [data-card="headline"]')||{}).textContent})`));
+  check('W2 the year view is the same deck over the calendar year', /Your 20[0-9][0-9]/.test(r.title) && /2 assignments/.test(r.head), r);
+  await send(ws,'Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27}); await sleep(200);
+  check('W2 Escape closes the recap', (await ev(ws,`document.getElementById('recapPage').hidden`))===true);
+  // W3 the tutor counter and the session log are written where the work happens
+  r=JSON.parse(await ev(ws,`(function(){ tutorUseBump('chat'); tutorUseBump('quiz'); const m=new Date().toISOString().slice(0,7); return JSON.stringify(store.tutorUse[m]); })()`));
+  check('W3 tutorUseBump counts per month', r.chat===5 && r.quiz===2 && r.cards===1, r);
+  // W4 with a semester that has ended, the line says the recap is ready and is not hideable
+  await fresh(ws,{seed:WSEED});
+  await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.6.1'}, '*'); window.postMessage({lmk:'canvas-payload', payload:(function(){ const p=${PAYLOAD}; for (const k in p.items) p.items[k].due=new Date(Date.now()-10*864e5).toISOString(); return p; })()}, '*')`); await sleep(900);
+  r=JSON.parse(await ev(ws,`JSON.stringify({days:recapDays(), txt:(document.querySelector('.recapline .txt')||{}).textContent, hide:!!document.querySelector('[data-act="recap-hide"]'), open:!!document.querySelector('.recapline [data-act="recap-open"]')})`));
+  check('W4 after the last due date + 3 the line says the recap is ready, with Open and no Hide', r.days<=0 && /recap is ready/i.test(r.txt) && r.open && !r.hide, r);
+  await ev(ws,`document.querySelector('.recapline [data-act="recap-open"]').click()`); await sleep(300);
+  r=JSON.parse(await ev(ws,`JSON.stringify({open:!document.getElementById('recapPage').hidden, title:(document.querySelector('#recapPage .sp-title b')||{}).textContent, seen:Object.keys(store.wrappedSeen||{}).length})`));
+  check('W4 opening the final recap drops "so far" and stamps wrappedSeen', r.open && !/so far/i.test(r.title) && r.seen===1, r);
+  await ev(ws,`closeWrapped()`);
+
   // R8 cloud sync off: the sheet explains, asks nothing of the worker
   await fresh(ws,{seed:Object.assign({},SYNCED,{cloud:{sid:SID,secret:SEC,on:false,at:1}})});
   await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.6.1'}, '*'); window.postMessage({lmk:'canvas-payload', payload:${PAYLOAD}}, '*')`); await sleep(900);

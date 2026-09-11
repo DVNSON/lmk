@@ -34,6 +34,11 @@ check("roomName / roomHandle: a real value beats a newer empty one", m.roomName 
 check("roomNudge: the later dismissal wins", m.roomNudge === t - 9000, m.roomNudge);
 m = merge({savedAt: t - 1, recapHide: t - 500}, {savedAt: t, recapHide: t - 900});
 check("recapHide: the later dismissal wins", m.recapHide === t - 500, m.recapHide);
+m = merge({savedAt: t - 1, tutorUse: {"2026-09": {chat: 4, quiz: 1, cards: 0}}, sessLog: {s1: 5}, wrappedSeen: {a: 1}}, {savedAt: t, tutorUse: {"2026-09": {chat: 2, quiz: 3, cards: 1}, "2026-10": {chat: 1, quiz: 0, cards: 0}}, sessLog: {s2: 6}, wrappedSeen: {b: 2}});
+check("tutorUse: per month per kind the larger count wins, months union", m.tutorUse["2026-09"].chat === 4 && m.tutorUse["2026-09"].quiz === 3 && m.tutorUse["2026-09"].cards === 1 && m.tutorUse["2026-10"].chat === 1, m.tutorUse);
+check("sessLog and wrappedSeen union", m.sessLog.s1 === 5 && m.sessLog.s2 === 6 && m.wrappedSeen.a === 1 && m.wrappedSeen.b === 2, [m.sessLog, m.wrappedSeen]);
+m = merge({savedAt: t}, {savedAt: t - 1});
+check("absent tutorUse stays absent", !("tutorUse" in m), Object.keys(m).filter(k => /tutorUse/.test(k)));
 m = merge({savedAt: t - 1, roomName: "Old"}, {savedAt: t, roomName: "New"});
 check("roomName: newer non-empty wins", m.roomName === "New", m.roomName);
 m = merge({savedAt: t}, {savedAt: t - 1});

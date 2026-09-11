@@ -603,6 +603,18 @@
   .mat span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .mat small{color:var(--muted);font-size:11px}
   .rv-body{display:flex;flex-direction:column;gap:16px;justify-content:center;width:100%;max-width:620px;margin:0 auto;padding:20px;flex:1}
+  .wr-body{display:flex;flex-direction:column;gap:14px;width:100%;max-width:640px;margin:0 auto;padding:18px 20px 48px}
+  .wr{padding:18px 20px;display:flex;flex-direction:column;gap:6px}
+  .wr .kicker{font:600 11px/1 "Spline Sans Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .wr .big{font:800 clamp(30px,6vw,44px)/1.05 "Bricolage Grotesque",sans-serif;letter-spacing:-.02em;background:var(--splash);-webkit-background-clip:text;background-clip:text;color:transparent;width:fit-content;max-width:100%}
+  .wr .line{font-size:14px;color:var(--ink-2)} .wr .line b{color:var(--ink)}
+  .wr-bars{display:flex;align-items:flex-end;gap:6px;height:96px;margin-top:8px}
+  .wr-bars div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;height:100%;font:500 10px/1 "Spline Sans Mono",monospace;color:var(--muted)}
+  .wr-bars i{display:block;width:100%;border-radius:6px 6px 3px 3px;background:var(--c1);min-height:3px}
+  .wr-row{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:7px 0;border-top:1px solid var(--line)} .wr-row:first-of-type{border-top:none} .wr-row b{font-variant-numeric:tabular-nums}
+  .wr-modes{display:flex;gap:6px;margin-left:auto}
+  .wr-share{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .wr-card{width:100%;max-width:300px;border-radius:14px;border:1px solid var(--line);box-shadow:var(--shadow);display:block}
   .rv-card{min-height:230px;font-size:20px}
   .rv-card .front{font-size:22px}
   .rv-acts{display:flex;gap:10px;justify-content:center}
@@ -926,6 +938,7 @@
 <div class="overlay" id="planOverlay" role="dialog" aria-modal="true" aria-labelledby="ppTitle"><div class="modal" id="planModal"></div></div>
 <div class="studypage" id="studyPage" role="region" aria-labelledby="aiTitle" hidden></div>
 <div class="studypage" id="reviewPage" role="region" aria-label="Review" hidden></div>
+<div class="studypage" id="recapPage" role="region" aria-label="Your recap" hidden></div>
 <div class="overlay" id="plusOverlay" role="dialog" aria-modal="true" aria-labelledby="plusTitle"><div class="modal" id="plusModal" style="max-width:540px"></div></div>
 <div class="overlay" id="roomOverlay" role="dialog" aria-modal="true" aria-labelledby="roomTitle"><div class="modal" id="roomModal" style="max-width:520px"></div></div>
 <div class="overlay" id="recapOverlay" role="dialog" aria-modal="true" aria-labelledby="recapTitle"><div class="modal" id="recapModal" style="max-width:520px"></div></div>
@@ -2532,6 +2545,7 @@ async function tutorMake(id, kind, focus){
   t.push({role: "user", content: `Make me a ${label} on this${focus ? ", focused on: " + focus : ""}.`}); tutorSave(id); tutorRenderThread(id);
   const bubble = document.createElement("div"); bubble.className = "msg ai thinking"; bubble.textContent = kind === "quiz" ? "Writing your quiz" : "Writing your cards"; box.appendChild(bubble); box.scrollTop = box.scrollHeight;
   TUTOR.busy = true; const sb = document.getElementById("aiSend"); if (sb) sb.disabled = true;
+  tutorUseBump(kind);
   try {
     const r = await fetch(apiUrl("/tutor"), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"},
       body: JSON.stringify({sid: store.cloud.sid, secret: store.cloud.secret, ctx: tutorCtx(e), make: kind, focus: focus || ""})});
@@ -2597,6 +2611,7 @@ async function tutorSend(id, preset){
   const t = tutorThread(id); t.push({role:"user", content: text + (STUDY.image ? "  [photo attached]" : "")}); ta.value = ""; try { localStorage.removeItem("lmk_draft_" + id); } catch(_){} tutorSave(id); tutorRenderThread(id);
   const box = document.getElementById("aiChat"); const bubble = document.createElement("div"); bubble.className = "msg ai thinking"; box.appendChild(bubble); box.scrollTop = box.scrollHeight;
   TUTOR.busy = true; document.getElementById("aiSend").disabled = true;
+  tutorUseBump("chat");
   try {
     const r = await fetch(apiUrl("/tutor"), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"},
       body: JSON.stringify(Object.assign({sid: store.cloud.sid, secret: store.cloud.secret, ctx: tutorCtx(e), messages: t.slice(-12)},
@@ -3190,7 +3205,7 @@ function sessionsBlockHtml(v, c){
 }
 async function roomSessionAct(action, id){
   const cid = ROOMS.cid; const j = await roomApi("/room/session", {cid, action, id});
-  if (j.ok) { ROOMS.view[cid] = j; renderRoom(); render(); toast(action === "in" ? "You're in. It's on your Today when the day comes." : action === "out" ? "Taken off." : "Cancelled."); }
+  if (j.ok) { ROOMS.view[cid] = j; sessLogSync(j); renderRoom(); render(); toast(action === "in" ? "You're in. It's on your Today when the day comes." : action === "out" ? "Taken off." : "Cancelled."); }
   else toast(j.error === "no session" ? "That session is gone." : "That didn't go through.");
 }
 async function roomPropose(){
@@ -3198,7 +3213,7 @@ async function roomPropose(){
   const at = Date.parse(g("sessAt").value || ""); if (!(at > Date.now() - 3600e3)) { toast("Pick a time that hasn't passed."); return; }
   if (at > Date.now() + 60 * 864e5) { toast("Within the next 60 days."); return; }
   const j = await roomApi("/room/session", {cid, action: "propose", at, place: g("sessPlace").value || "library", note: (g("sessNote").value || "").trim().slice(0, 80), aid: g("sessAid").value || ""});
-  if (j.ok) { ROOMS.view[cid] = j; renderRoom(); render(); toast("Proposed. Classmates in the room can join it."); }
+  if (j.ok) { ROOMS.view[cid] = j; sessLogSync(j); renderRoom(); render(); toast("Proposed. Classmates in the room can join it."); }
   else toast(j.error === "too many" ? "Five open sessions is the most one person can hold." : "That didn't go through.");
 }
 /* ---- the semester recap countdown (the recap itself is built in Sprint 3; this is the promise and the date) ----
@@ -3214,7 +3229,11 @@ function recapEnd(){
 function recapDays(){ const end = recapEnd(); return end ? Math.ceil((end.getTime() - startOfDay(now()).getTime()) / 864e5) : null; }
 /* pos: "top" is the two weeks before the date (under the hero), "bottom" the rest of the semester */
 function recapCountdownHtml(pos){
-  const days = recapDays(); if (days === null || days <= 0) return "";
+  const days = recapDays(); if (days === null) return "";
+  if (days <= 0) {   // the recap is final: say so under the hero for three weeks, then only from the gear
+    if (pos !== "top" || days < -21) return "";
+    return `<div class="card intro recapline" data-i="1"><span class="ic">✦</span><div class="txt"><b>Your semester recap is ready</b>Built on your device from your own work. Nothing leaves it unless you tap share.</div><button class="btn grad" data-act="recap-open" data-mode="semester">Open</button></div>`;
+  }
   const near = days <= 14; if ((pos === "top") !== near) return "";
   if (!near && store.recapHide) return "";
   return `<div class="card intro recapline" data-i="1" style="${near ? "" : "margin-top:18px"}"><span class="ic">✦</span><div class="txt"><b>Your semester recap lands in ${days} day${days === 1 ? "" : "s"}</b>Built on your device from your own work. Tap to see what's in it.</div><button class="minibtn" data-act="recap-info">What's in it</button>${near ? "" : `<button class="minibtn" data-act="recap-hide" title="Comes back in the last two weeks">Hide</button>`}</div>`;
@@ -3232,12 +3251,146 @@ function openRecapInfo(){
       <li>One card you can post, with your invite link on it — or not; sharing is a button, never automatic</li>
     </ul>
     <p class="sub2" style="margin:0 0 12px">Nothing here leaves your device unless you tap share. No grades, no scores, no names of classmates.</p>
-    <div class="row"><button class="minibtn" data-act="recap-close">Close</button></div>`;
+    <div class="row"><button class="btn grad" data-act="recap-open" data-mode="semester">${recapWindow("semester").final ? "Open your recap" : "See it so far"}</button><button class="minibtn" data-act="recap-close">Close</button></div>`;
   recapOverlay.classList.add("open");
 }
 function closeRecap(){ recapOverlay.classList.remove("open"); }
-recapOverlay.addEventListener("click", e => { if (e.target === recapOverlay || e.target.closest('[data-act="recap-close"]')) closeRecap(); });
+recapOverlay.addEventListener("click", e => { if (e.target === recapOverlay || e.target.closest('[data-act="recap-close"]')) closeRecap(); else if (e.target.closest('[data-act="recap-open"]')) { closeRecap(); openWrapped(e.target.closest('[data-act="recap-open"]').dataset.mode); } });
 document.getElementById("overlay").addEventListener("click", e => { if (e.target.closest('[data-act="recap-info"]')) openRecapInfo(); });
+/* the sessions this student said yes to, kept locally so the recap can count them after the server forgets them */
+function sessLogSync(v){ let ch = false; store.sessLog = store.sessLog || {}; for (const x of (v.sessions || [])) { if (x.me && !store.sessLog[x.id]) { store.sessLog[x.id] = x.at; ch = true; } if (!x.me && store.sessLog[x.id]) { delete store.sessLog[x.id]; ch = true; } } if (ch) save(); }
+/* ================= the semester recap ("Wrapped") =================
+   Every number is computed on this device from what is already in the store; nothing is sent to make it, and the
+   only thing that can leave is the share card, by a tap. Live all semester as "so far"; final three days after the
+   last due date. No personas, no ranking against other students: numbers a student did not know about themselves. */
+function tutorUseBump(kind){ const k = new Date().toISOString().slice(0, 7); store.tutorUse = store.tutorUse || {}; const m = store.tutorUse[k] = store.tutorUse[k] || {chat: 0, quiz: 0, cards: 0}; m[kind === "quiz" ? "quiz" : kind === "cards" ? "cards" : "chat"]++; save(); }
+const WR = {mode: "semester", grades: false};
+function recapWindow(mode){
+  const end = recapEnd() || addDays(SEMESTER_WEEK1_MON, 16 * 7 + 7), n = now();
+  if (mode === "year") { const y = (n < end ? n : end).getFullYear(); const st = new Date(y, 0, 1), en = new Date(y, 11, 31, 23, 59, 59); return {mode, start: st, end: en, final: n > en, key: "y" + y, label: `Your ${y}`, sub: n > en ? "the whole year" : "the year so far"}; }
+  const mo = end.getMonth(), season = (mo >= 10 || mo === 0) ? "fall" : (mo >= 3 && mo <= 5) ? "spring" : (mo >= 6 && mo <= 8) ? "summer" : "";
+  const final = n >= end;
+  return {mode, start: addDays(end, -125), end, final, key: "s" + dayKey(end), label: final ? `Your ${season || "semester"}${season ? " semester" : ""}` : "Your semester, so far", sub: final ? `ended ${FMT_DAY.format(addDays(end, -3))}` : `final on ${FMT_DAY.format(end)}`};
+}
+function wrKind(e){
+  const t = (e.title || "").toLowerCase();
+  if (e.exam || e.kind === "quiz" || /\b(quiz|exam|test|midterm|final)\b/.test(t)) return "Quizzes & exams";
+  if (e.kind === "discussion" || /\b(discussion|post|reply|forum)\b/.test(t)) return "Discussions";
+  if (/\b(essay|paper|writing|reflection|journal|memo|report)\b/.test(t)) return "Writing";
+  if (/\b(problem|homework|hw|pset|worksheet|exercise)\b/.test(t)) return "Problem sets";
+  if (/\b(read|reading|chapter|ch\.)\b/.test(t)) return "Readings";
+  if (/\blab\b/.test(t)) return "Labs";
+  if (/\b(project|presentation|proposal)\b/.test(t)) return "Projects";
+  return "Everything else";
+}
+function recapStats(win){
+  const s = win.start.getTime(), e = Math.min(win.end.getTime(), Date.now());
+  const byId = {}; EVENTS.forEach(x => { byId[x.id] = x; });
+  const fin = Object.entries(store.done || {}).map(([id, ts]) => ({id, ts: +ts, e: byId[id]})).filter(x => x.ts >= s && x.ts <= e).sort((a, b) => a.ts - b.ts);
+  const withE = fin.filter(x => x.e);
+  const mins = id => { const l = measuredMins(id); return l.length ? median(l) : 0; };
+  let measured = 0, measuredN = 0; fin.forEach(x => { const m = mins(x.id); if (m > 0) { measured += m; measuredN++; } });
+  const daysAhead = withE.map(x => Math.round((startOfDay(x.e.due) - startOfDay(new Date(x.ts))) / 864e5));
+  const ahead = daysAhead.filter(d => d > 0).length;
+  const avgAhead = daysAhead.length ? daysAhead.reduce((a, b) => a + b, 0) / daysAhead.length : 0;
+  const earliest = daysAhead.length ? Math.max(...daysAhead) : 0;
+  const dow = [0, 0, 0, 0, 0, 0, 0], hours = new Array(24).fill(0);
+  fin.forEach(x => { const d = new Date(x.ts); dow[d.getDay()]++; hours[d.getHours()]++; });
+  const busiestDow = fin.length ? dow.indexOf(Math.max(...dow)) : -1;
+  let bandStart = 0, bandBest = -1; for (let h = 0; h < 24; h++) { const v = hours[h] + hours[(h + 1) % 24] + hours[(h + 2) % 24]; if (v > bandBest) { bandBest = v; bandStart = h; } }
+  const weeks = {}; fin.forEach(x => { const d = startOfDay(new Date(x.ts)), mon = addDays(d, -((d.getDay() + 6) % 7)), k = dayKey(mon); (weeks[k] = weeks[k] || {n: 0, items: [], mon}).n++; weeks[k].items.push(x); });
+  const weekList = Object.values(weeks).sort((a, b) => a.mon - b.mon);
+  const biggest = weekList.slice().sort((a, b) => b.n - a.n)[0] || null;
+  let run = 0, bestRun = 0, runStart = null, bestStart = null;
+  for (let i = 0; i < weekList.length; i++) { if (i > 0 && Math.round((weekList[i].mon - weekList[i - 1].mon) / 864e5) === 7) run++; else { run = 1; runStart = weekList[i].mon; } if (run > bestRun) { bestRun = run; bestStart = runStart; } }
+  const days = (store.streakDays || []).filter(k => { const t = new Date(k + "T12:00:00").getTime(); return t >= s && t <= e + 864e5; }).sort();
+  let longest = 0, cur = 0, prev = null; for (const k of days) { const t = new Date(k + "T12:00:00").getTime(); cur = prev !== null && t - prev < 1.5 * 864e5 ? cur + 1 : 1; prev = t; longest = Math.max(longest, cur); }
+  const byClass = {}; withE.forEach((x, i) => { const c = x.e.course, o = byClass[c] = byClass[c] || {course: c, n: 0, mins: 0, ahead: []}; o.n++; o.mins += mins(x.id); o.ahead.push(daysAhead[i]); });
+  const classes = Object.values(byClass).sort((a, b) => b.n - a.n);
+  const most = classes.slice().sort((a, b) => b.mins - a.mins)[0] || null;
+  const fastest = classes.filter(c => c.n >= 2).map(c => Object.assign({avg: c.ahead.reduce((a, b) => a + b, 0) / c.ahead.length}, c)).sort((a, b) => b.avg - a.avg)[0] || null;
+  const byKind = {}; withE.forEach(x => { const k = wrKind(x.e), o = byKind[k] = byKind[k] || {kind: k, n: 0, mins: 0}; o.n++; o.mins += mins(x.id); });
+  const kinds = Object.values(byKind).sort((a, b) => b.mins - a.mins || b.n - a.n);
+  const big = fin.map(x => ({x, m: mins(x.id)})).filter(v => v.m > 0 && v.x.e).sort((a, b) => b.m - a.m)[0] || null;
+  const mid = s + (e - s) / 2; let h1 = 0, n1 = 0, h2 = 0, n2 = 0, sumM = 0, sumP = 0;
+  for (const id in store.dur || {}) for (const x of store.dur[id]) { if (!x.p || x.at < s || x.at > e) continue; const hit = Math.abs(x.m - x.p) / x.p <= .25; if (x.at < mid) { n1++; if (hit) h1++; } else { n2++; if (hit) h2++; } sumM += x.m; sumP += x.p; }
+  const pace = sumP ? sumM / sumP : null;
+  const tu = {chat: 0, quiz: 0, cards: 0}; for (const k in store.tutorUse || {}) { const t = new Date(k + "-15T12:00:00").getTime(); if (t >= s - 16 * 864e5 && t <= e + 16 * 864e5) for (const q of ["chat", "quiz", "cards"]) tu[q] += +(store.tutorUse[k] || {})[q] || 0; }
+  const decks = Object.values(store.decks || {}).filter(d => d && d.at >= s && d.at <= e);
+  const cardsMade = decks.reduce((t, d) => t + (d.cards || []).length, 0), reviews = decks.reduce((t, d) => t + (d.cards || []).reduce((u, c) => u + (c.seen || 0), 0), 0);
+  let sprintMins = 0; for (const id in store.spent || {}) { const ev = byId[id]; if (ev && ev.due.getTime() >= s && ev.due.getTime() <= win.end.getTime()) sprintMins += +store.spent[id] || 0; }
+  const sessions = Object.values(store.sessLog || {}).filter(at => at >= s && at <= e).length;
+  const grades = (typeof GRADES === "object" && GRADES) ? Object.keys(GRADES).filter(c => GRADES[c] && GRADES[c].pct != null).map(c => ({course: c, g: GRADES[c]})) : [];
+  const milestones = [50, 100, 150, 200, 300].filter(n => fin.length >= n).map(n => ({n, at: fin[n - 1].ts}));
+  const months = []; { const d0 = new Date(win.start.getFullYear(), win.start.getMonth(), 1), d1 = new Date(e); for (let d = d0; d <= d1; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) months.push({k: d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"), label: d.toLocaleDateString(undefined, {month: "short"}), n: 0}); }
+  fin.forEach(x => { const d = new Date(x.ts), k = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); const m = months.find(mm => mm.k === k); if (m) m.n++; });
+  return {fin, n: fin.length, classesN: new Set(withE.map(x => x.e.course)).size, measured, measuredN, ahead, avgAhead, earliest, busiestDow, bandStart, bandBest, biggest, bestRun, bestStart, longest, activeDays: days.length,
+          classes, most, fastest, kinds, big, acc: {h1, n1, h2, n2}, pace, tu, cardsMade, reviews, sprintMins, sessions, grades, milestones, months};
+}
+const DOW = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const hourWord = h => { const x = h % 24; return x === 0 ? "midnight" : x === 12 ? "noon" : x < 12 ? x + " am" : (x - 12) + " pm"; };
+const wrHours = m => m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? " " + Math.round(m % 60) + " m" : ""}` : `${Math.round(m)} min`;
+function renderWrapped(){
+  const win = recapWindow(WR.mode), S = recapStats(win), code = myCode();
+  const card = (k, kicker, big, lines) => `<div class="card wr" data-card="${k}"><div class="kicker">${kicker}</div><div class="big">${big}</div>${(lines || []).filter(Boolean).map(l => `<div class="line">${l}</div>`).join("")}</div>`;
+  const cards = [];
+  cards.push(card("headline", win.final ? "Finished" : "Finished so far", `${S.n} assignment${S.n === 1 ? "" : "s"}`, [S.classesN ? `across <b>${S.classesN} class${S.classesN === 1 ? "" : "es"}</b>` : "", S.measured ? `<b>${wrHours(S.measured)}</b> of measured work${S.measuredN < S.n ? ` on the ${S.measuredN} LMK timed` : ""}` : "LMK times work quietly as you go; the hours show up here once it has."]));
+  if (S.n) cards.push(card("ahead", "Ahead of the clock", `${S.ahead} of ${S.n}`, [`finished before the day they were due`, S.avgAhead ? `on average <b>${S.avgAhead.toFixed(1)} day${Math.abs(S.avgAhead) === 1 ? "" : "s"}</b> ahead` : "", S.earliest > 1 ? `your earliest: <b>${S.earliest} days</b> before a deadline` : ""]));
+  if (S.n) cards.push(card("rhythm", "Your rhythm", S.busiestDow >= 0 ? `${DOW[S.busiestDow]}s` : "—", [`your busiest day of the week`, S.bandBest > 0 ? `most things get finished between <b>${hourWord(S.bandStart)} and ${hourWord(S.bandStart + 3)}</b>` : "", S.bestRun >= 2 ? `steadiest stretch: <b>${S.bestRun} weeks in a row</b> with something finished${S.bestStart ? ", from " + FMT_DAY.format(S.bestStart) : ""}` : ""]));
+  if (S.biggest && S.biggest.n >= 2) cards.push(card("bigweek", "Biggest week", `${S.biggest.n} finished`, [`the week of <b>${FMT_DAY.format(S.biggest.mon)}</b>`, S.biggest.items.filter(x => x.e).slice(0, 4).map(x => esc(x.e.title.slice(0, 40))).join(" · ")]));
+  if (S.longest) cards.push(card("streak", "Streak", `${S.longest} day${S.longest === 1 ? "" : "s"}`, [`your longest run of days with something done`, `<b>${S.activeDays}</b> active day${S.activeDays === 1 ? "" : "s"} in all`]));
+  if (S.classes.length) cards.push(card("byclass", "By class", S.most && S.most.mins ? esc(S.most.course) : esc(S.classes[0].course), [S.most && S.most.mins ? `took the most of you: <b>${wrHours(S.most.mins)}</b>` : `the most finished: <b>${S.classes[0].n}</b>`, S.fastest && S.fastest.avg > 0 ? `cleared fastest: <b>${esc(S.fastest.course)}</b>, ${S.fastest.avg.toFixed(1)} days ahead on average` : ""].concat(S.classes.map(c => `<div class="wr-row"><span><span class="cdot" style="background:${COLOR[c.course] || "var(--c1)"};margin-right:6px"></span>${esc(c.course)}</span><b>${c.n} done${c.mins ? " · " + wrHours(c.mins) : ""}</b></div>`))));
+  if (S.kinds.length) cards.push(card("bykind", "By kind", esc(S.kinds[0].kind), [S.kinds[0].mins ? `where the hours went: <b>${wrHours(S.kinds[0].mins)}</b>` : `the most of them: <b>${S.kinds[0].n}</b>`].concat(S.kinds.slice(0, 6).map(k => `<div class="wr-row"><span>${esc(k.kind)}</span><b>${k.n}${k.mins ? " · " + wrHours(k.mins) : ""}</b></div>`))));
+  if (S.big) cards.push(card("bigone", "The big one", esc(S.big.x.e.title.slice(0, 60)), [`<b>${wrHours(S.big.m)}</b> of real work · ${esc(S.big.x.e.course)}`, S.big.x.e.effort ? `LMK's first guess was ${wrHours(EFFORT[S.big.x.e.effort].mins)}` : ""]));
+  if (S.acc.n1 + S.acc.n2 >= 3 || S.pace) cards.push(card("pace", "Your pace vs the guess", S.pace ? (Math.abs(1 - S.pace) < .1 ? "About what LMK guessed" : S.pace < 1 ? `${Math.round((1 - S.pace) * 100)}% faster` : `${Math.round((S.pace - 1) * 100)}% slower`) : "Still learning", [S.pace ? `${Math.abs(1 - S.pace) < .1 ? "over" : "than LMK's estimates, over"} ${S.acc.n1 + S.acc.n2} timed piece${S.acc.n1 + S.acc.n2 === 1 ? "" : "s"} of work` : "", S.acc.n2 ? `estimates within 25%: <b>${Math.round(S.acc.h2 / S.acc.n2 * 100)}%</b> lately${S.acc.n1 ? ` (was ${Math.round(S.acc.h1 / S.acc.n1 * 100)}% earlier)` : ""}` : S.acc.n1 ? `estimates within 25%: <b>${Math.round(S.acc.h1 / S.acc.n1 * 100)}%</b>` : ""]));
+  if (S.tu.chat + S.tu.quiz + S.tu.cards + S.cardsMade > 0) cards.push(card("tutor", "The tutor", `${S.tu.chat} conversation${S.tu.chat === 1 ? "" : "s"}`, [S.tu.quiz ? `<b>${S.tu.quiz} quiz${S.tu.quiz === 1 ? "" : "zes"}</b> taken` : "", S.cardsMade ? `<b>${S.cardsMade} cards made</b>, reviewed <b>${S.reviews} times</b>` : ""]));
+  if (S.sprintMins) cards.push(card("sprints", "Sprints", `${Math.ceil(S.sprintMins / 25)} sprint${Math.ceil(S.sprintMins / 25) === 1 ? "" : "s"}`, [`<b>${S.sprintMins} min</b> of 25-minute focus`]));
+  if (S.sessions) cards.push(card("classmates", "Classmates", `${S.sessions} session${S.sessions === 1 ? "" : "s"}`, [`study sessions you said yes to`]));
+  if (S.grades.length) cards.push(WR.grades ? card("grades", "Where you landed", esc(S.grades[0].g.letter || ""), [`as ${lmsWord()} calculates it — on this device only, never on the card`].concat(S.grades.map(x => `<div class="wr-row"><span>${esc(x.course)}</span><b>${esc(x.g.letter || "")} · ${Math.round(x.g.pct)}%</b></div>`))) : `<div class="card wr" data-card="grades"><div class="kicker">Where you landed</div><div class="line">Your ${lmsWord()} grade per class, on this device only. <button class="minibtn" data-act="wr-grades">Show</button></div></div>`);
+  if (S.milestones.length) cards.push(card("milestones", "Milestones", `${S.milestones[S.milestones.length - 1].n}th`, S.milestones.map(m => `<div class="wr-row"><span>${m.n}th finish</span><b>${FMT_DAY.format(new Date(m.at))}</b></div>`)));
+  if (S.months.length) { const mx = Math.max(1, ...S.months.map(m => m.n)); cards.push(card("months", "Month by month", `${S.months.reduce((t, m) => Math.max(t, m.n), 0)}`, [`your busiest month, in finishes`, `<div class="wr-bars">${S.months.map(m => `<div><i style="height:${Math.max(3, Math.round(m.n / mx * 78))}px" title="${m.n}"></i>${m.label}</div>`).join("")}</div>`])); }
+  cards.push(`<div class="card wr" data-card="share"><div class="kicker">The card</div><div class="line">Five numbers on one image${code ? ", with your invite link" : ""}. Yours to post, or not.</div><canvas id="wrCanvas" width="1080" height="1920" class="wr-card" aria-label="Your recap card"></canvas><div class="wr-share">${MODE === "web" ? `<button class="btn grad" data-act="wr-share">Share</button><button class="btn ghost" data-act="wr-download">Save image</button>` : `<span class="line">Open lmktoday.app to save or share it.</span>`}</div></div>`);
+  recapPage.innerHTML = `<div class="sp-head"><button class="sp-back" data-act="wr-close">← Plan</button><div class="sp-title"><b>${esc(win.label)}</b><span>${esc(win.sub)} · built on this device</span></div><div class="wr-modes"><button class="mode" data-act="wr-mode" data-mode="semester" aria-pressed="${WR.mode === "semester"}">Semester</button><button class="mode" data-act="wr-mode" data-mode="year" aria-pressed="${WR.mode === "year"}">Year</button></div></div><div class="wr-body">${cards.join("")}</div>`;
+  drawWrappedCard(S, win, code);
+}
+function drawWrappedCard(S, win, code){
+  const cv = document.getElementById("wrCanvas"); if (!cv) return; const g = cv.getContext("2d"); if (!g) return;
+  const W = cv.width, H = cv.height;
+  const grad = g.createLinearGradient(0, 0, W, H); grad.addColorStop(0, "#ff5d52"); grad.addColorStop(.48, "#e0489a"); grad.addColorStop(1, "#f7a521");
+  g.fillStyle = "#14161a"; g.fillRect(0, 0, W, H); g.fillStyle = grad; g.globalAlpha = .92; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
+  g.fillStyle = "rgba(20,22,26,.28)"; g.fillRect(0, 0, W, H);
+  const F = (w, px) => `${w} ${px}px "Bricolage Grotesque", "Public Sans", system-ui, sans-serif`;
+  g.fillStyle = "#fff"; g.font = F(800, 54); g.fillText("LMK", 90, 150);
+  g.font = F(600, 40); g.globalAlpha = .9; g.fillText(win.label.replace(/^Your /, "My "), 90, 230); g.globalAlpha = 1;
+  const rows = [[String(S.n), `assignment${S.n === 1 ? "" : "s"} finished`], [S.measured ? wrHours(S.measured) : "—", "of measured work"], [S.n ? `${Math.round(S.ahead / S.n * 100)}%` : "—", "finished ahead of the due day"], [String(S.longest), `day streak at longest`], [String(S.classesN), `class${S.classesN === 1 ? "" : "es"}`]];
+  let y = 420; for (const [big, small] of rows) { g.font = F(800, 150); g.fillText(big, 90, y); g.font = F(500, 42); g.globalAlpha = .92; g.fillText(small, 90, y + 66); g.globalAlpha = 1; y += 270; }
+  g.font = F(500, 36); g.globalAlpha = .9; g.fillText("Built on my device. No grades, no names.", 90, H - 160); g.globalAlpha = 1;
+  g.font = F(700, 40); g.fillText(code ? `lmktoday.app/app/#ref=${code}` : "lmktoday.app", 90, H - 90);
+}
+function openWrapped(mode){
+  WR.mode = mode === "year" ? "year" : "semester"; WR.grades = false;
+  const win = recapWindow(WR.mode);
+  if (win.final) { store.wrappedSeen = store.wrappedSeen || {}; if (!store.wrappedSeen[win.key]) { store.wrappedSeen[win.key] = Date.now(); save(); } }
+  renderWrapped(); recapPage.hidden = false; document.documentElement.style.overflow = "hidden"; window.scrollTo(0, 0);
+}
+function closeWrapped(){ if (recapPage.hidden) return; recapPage.hidden = true; recapPage.innerHTML = ""; document.documentElement.style.overflow = ""; render(); }
+async function wrBlob(){ const cv = document.getElementById("wrCanvas"); if (!cv) return null; return new Promise(res => cv.toBlob(res, "image/png")); }
+async function wrShare(download){
+  const blob = await wrBlob(); if (!blob) return;
+  const file = new File([blob], "lmk-recap.png", {type: "image/png"});
+  ping("wrapped_shared");
+  if (!download && navigator.share && navigator.canShare && navigator.canShare({files: [file]})) { try { await navigator.share({files: [file], text: "My semester on LMK"}); return; } catch(_) { return; } }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "lmk-recap.png"; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+  toast("Saved. Post it wherever your classmates are.");
+}
+recapPage.addEventListener("click", e => {
+  const act = e.target.closest("[data-act]"); if (!act) return; const a = act.dataset.act;
+  if (a === "wr-close") closeWrapped();
+  else if (a === "wr-mode") { WR.mode = act.dataset.mode === "year" ? "year" : "semester"; renderWrapped(); }
+  else if (a === "wr-grades") { WR.grades = true; renderWrapped(); }
+  else if (a === "wr-share") wrShare(false);
+  else if (a === "wr-download") wrShare(true);
+});
 function roomInviteLink(cid, c){ return LMK_CONFIG.appUrl.replace(/\/$/, "") + "/#join=" + String((store.ext || {}).host || "").toLowerCase() + "." + cid + "." + myCode() + (c ? "&c=" + encodeURIComponent(c) : ""); }
 /* Says only what is true: the extension is real, the LMS name follows the school, the room is a roster. */
 function roomShareText(cid, c){
@@ -3330,7 +3483,7 @@ roomOverlay.addEventListener("click", e => {
   else if (a === "sess-in" || a === "sess-out" || a === "sess-cancel") roomSessionAct(a === "sess-in" ? "in" : a === "sess-out" ? "out" : "cancel", act.dataset.id);
   else if (a === "sess-propose") roomPropose();
 });
-document.addEventListener("keydown", e => { if (e.key !== "Escape") return; if (roomOverlay.classList.contains("open")) closeRoom(); if (recapOverlay.classList.contains("open")) closeRecap(); });
+document.addEventListener("keydown", e => { if (e.key !== "Escape") return; if (roomOverlay.classList.contains("open")) closeRoom(); if (recapOverlay.classList.contains("open")) closeRecap(); if (!recapPage.hidden) closeWrapped(); });
 /* The reward, claimed after a verified sync. "cloud" means the server has not seen this student's sync yet
    (the extension registers the key on its next Canvas visit) — keep the invite and try after the next one. */
 async function refClaimMaybe(){
@@ -3809,10 +3962,15 @@ function postPlanToExtension(){
       days[k] = {n: d.items.length, mins: d.mins, cap: d.cap,
         first: first ? {title: first.e.title.slice(0, 80), course: first.e.course, mins: first.mins} : null};
     }
-    const key = JSON.stringify(days) + hour;
+    /* Per-assignment estimates for the card the extension draws on a Canvas assignment page: the same learned
+       minutes and start-by day the app shows, with whether they are measured (a check) or a guess (a question
+       mark). Open work only, ids are Canvas assignment ids, nothing about the student beyond the estimate. */
+    const est = {};
+    for (const e of EVENTS.filter(open).slice(0, 400)) { const aid = e.id.slice(1); if (!/^\d+$/.test(aid)) continue; const l = learnedMins(e); est[aid] = {m: l.mins, k: !!l.learned, n: l.n || 0, s: dayKey(startBy(e))}; }
+    const key = JSON.stringify(days) + hour + JSON.stringify(est);
     if (key === lastPlanMsg) return;
     lastPlanMsg = key;
-    window.postMessage({lmk:"plan", at: Date.now(), days, hour,
+    window.postMessage({lmk:"plan", est, at: Date.now(), days, hour,
       openUrl: MODE === "artifact" ? LMK_CONFIG.artifactUrl : location.origin + location.pathname}, "*");
     if (MODE === "web") { cachePlanLine(days, today); pushQueueSync(days, today, hour); }
   } catch(_){}
@@ -3951,7 +4109,7 @@ function cachePlanLine(days, today){
 /* The sync bookmarklet, generated from ~/lmk-extension/bookmarklet.txt — regenerate both together.
    It works on ANY school's Canvas, which is the whole point: it takes the origin from the page it runs on. */
 const LMK_SYNC_BOOKMARKLET = "javascript:(function(){%0A  let BASE = \"\";%0A  async function getJSON(path){%0A    const out = [];%0A    let url = BASE + path + (path.includes(\"?\") ? \"&\" : \"?\") + \"per_page=100\";%0A    for (let hop = 0; url && hop < 20; hop++){%0A      const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000);%0A      let r; try { r = await fetch(url, {credentials:\"include\", headers:{\"Accept\":\"application/json\"}, signal: ctl.signal}); } finally { clearTimeout(timer); }%0A      if (!r.ok) throw new Error(r.status + \" \" + path);%0A      let txt = await r.text();%0A      if (txt.startsWith(\"while(1);\")) txt = txt.slice(9);%0A      const data = JSON.parse(txt);%0A      if (Array.isArray(data)) out.push(...data); else return data;%0A      const link = r.headers.get(\"Link\") || \"\";%0A      const m = link.match(/<([^>]+)>;%5Cs*rel=\"next\"/);%0A      url = m ? m[1] : null;%0A    }%0A    return out;%0A  }%0A  const strip = h => (h || \"\").replace(/<[^>]+>/g, \" \").replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/%5Cs+/g, \" \").trim();%0A  /* Canvas's own grade for this course: exactly what the student sees, with group weights, drop rules,%0A     late policies and excused work already applied. Null when the instructor hides totals. */%0A  function courseScores(c){%0A    const num = v => (v === null || v === undefined || v === \"\" || !isFinite(+v)) ? null : +v;%0A    const es = (c.enrollments || []).filter(e => /student/i.test(e.type || e.role || \"\"));%0A    const e = es.find(x => x.computed_current_score != null) || es[0] || {};%0A    return {cur: num(e.computed_current_score), fin: num(e.computed_final_score)};%0A  }%0A  function courseTag(c){%0A    const s = (c.course_code || c.name || \"\");%0A    if (/asuready/i.test(s)) return \"ASU Ready\";%0A    const m = s.match(/([A-Z]{2,4})%5Cs?-?(%5Cd{2,3}[A-Z]?)/);%0A    return m ? m[1] + \" \" + m[2] : s.slice(0, 18);%0A  }%0A  function rubricText(a){%0A    const r = Array.isArray(a.rubric) ? a.rubric : [];%0A    return r.slice(0, 12).map(c => String(c.description || \"\").replace(/%5Cs+/g, \" \").trim().slice(0, 80) + (c.points != null ? \" (\" + c.points + \" pts)\" : \"\")).filter(x => x.trim() && x.trim() !== \"(0 pts)\").join(\"; \").slice(0, 900);%0A  }%0A  function kindHint(a){%0A    const st = a.submission_types || [];%0A    if (a.grading_type === \"not_graded\" || (a.points_possible === 0 && !st.includes(\"online_quiz\"))) return \"fyi\";%0A    if (st.includes(\"none\") || st.includes(\"on_paper\")) return \"inclass\";%0A    if (/attendance|participation|in.?class|clicker/i.test(a.name || \"\")) return \"inclass\";%0A    if (st.includes(\"online_quiz\")) return \"quiz\";%0A    if (st.includes(\"discussion_topic\")) return \"discussion\";%0A    return \"\";%0A  }%0A  (typeof window !== \"undefined\" ? window : self).lmkCollect = async function(base){%0A    BASE = (base || location.origin).replace(/%5C/$/, \"\");%0A    const HOST = BASE.replace(/^https?:%5C/%5C//, \"\");%0A    const courses = (await getJSON(\"/api/v1/courses?enrollment_state=active&include[]=term&include[]=total_scores\")).filter(c => c.name && !c.access_restricted_by_date);%0A    const items = {};%0A    const groups = {};%0A    for (const c of courses){%0A      const tag = courseTag(c);%0A      let list = [];%0A      try { list = await getJSON(`/api/v1/courses/${c.id}/assignments?include[]=submission&order_by=due_at`); } catch(e){ continue; }%0A      /* What the instructor actually wrote back. One request per course, only this student's submissions,%0A         only comments from someone who is not the student. It is the most useful thing LMK can know. */%0A      let fb = {};%0A      try {%0A        const subs = await getJSON(`/api/v1/courses/${c.id}/students/submissions?student_ids[]=self&include[]=submission_comments&per_page=100`);%0A        for (const sub of (Array.isArray(subs) ? subs : [])) {%0A          const mine = String(sub.user_id || \"\");%0A          const notes = (sub.submission_comments || []).filter(x => x && x.comment && String(x.author_id || \"\") !== mine);%0A          if (notes.length) fb[String(sub.assignment_id)] = strip(notes[notes.length - 1].comment).slice(0, 400);%0A        }%0A      } catch(e){}%0A      try {%0A        const g = await getJSON(`/api/v1/courses/${c.id}/assignment_groups`);%0A        groups[c.id] = g.map(x => ({id:x.id, name:x.name, w:x.group_weight}));%0A      } catch(e){}%0A      for (const a of list){%0A        if (a.only_visible_to_overrides && !a.due_at && !a.has_overrides) continue;%0A        const s = a.submission || {};%0A        items[String(a.id)] = {%0A          t: a.name, c: tag, cid: String(c.id),%0A          due: a.due_at || \"\", lock: a.lock_at || \"\",%0A          pts: a.points_possible, gt: a.grading_type, st: (a.submission_types || []).join(\",\"),%0A          grp: a.assignment_group_id, k: kindHint(a),%0A          sub: s.workflow_state || \"\", subAt: s.submitted_at || \"\", score: s.score == null ? null : s.score,%0A          late: !!s.late, missing: !!s.missing, excused: !!s.excused,%0A          url: a.html_url || \"\",%0A          desc: strip(a.description).slice(0, 1200),%0A          rub: rubricText(a),%0A          fb: fb[String(a.id)] || \"\",%0A          qid: a.quiz_id ? String(a.quiz_id) : \"\",%0A        };%0A      }%0A    }%0A    // Canvas keeps seconds spent on every quiz attempt %E2%80%94 exact durations, no sensor needed.%0A    const quizTime = {}, quizMap = {};%0A    const quizzes = Object.entries(items).filter(([aid, x]) => x.qid && /^(submitted|graded|pending_review)$/.test(x.sub)).slice(0, 40);%0A    for (const [aid, x] of quizzes){%0A      quizMap[x.cid + \"/\" + x.qid] = aid;%0A      try {%0A        const r = await getJSON(`/api/v1/courses/${x.cid}/quizzes/${x.qid}/submissions`);%0A        const subs = (r && r.quiz_submissions) || [];%0A        const secs = subs.map(q => +q.time_spent || 0).filter(v => v > 0);%0A        if (secs.length) quizTime[aid] = Math.round(Math.max(...secs) / 60);%0A      } catch(e){}%0A    }%0A    for (const aid in items) if (items[aid].qid) quizMap[items[aid].cid + \"/\" + items[aid].qid] = aid;%0A    // apply_assignment_group_weights is the course-level switch: when it is false Canvas ignores%0A    // the group weights entirely and grades on total points, however the weights are set.%0A    return {lmk:\"canvas\", v:3, at: Date.now(), host: HOST,%0A      courses: courses.map(c => Object.assign({id:String(c.id), tag:courseTag(c), name:c.name, wt: !!c.apply_assignment_group_weights}, courseScores(c))),%0A      groups, items, quizTime, quizMap};%0A  };%0A})();%0A%0A(async()=>{try{const p=await window.lmkCollect();const s=JSON.stringify(p);const n=Object.keys(p.items).length;%0Alet ok=false;try{await navigator.clipboard.writeText(s);ok=true}catch(e){}%0Aif(!ok){const ta=document.createElement(\"textarea\");ta.value=s;ta.style.cssText=\"position:fixed;top:8px;left:8px;width:90vw;height:40vh;z-index:99999;font-size:12px\";document.body.appendChild(ta);ta.focus();ta.select();try{ok=document.execCommand(\"copy\")}catch(e){}if(ok)ta.remove();else alert(\"Select all + copy the box, then paste it into LMK (gear %E2%86%92 Paste from Canvas).\")}%0Aif(ok)alert(\"LMK: copied \"+n+\" assignments. Open LMK %E2%86%92 gear %E2%86%92 Paste from Canvas %E2%86%92 paste.\")}catch(e){alert(\"LMK: could not read Canvas %E2%80%94 are you logged in on this tab? \"+e)}})();";
-const APP_BUILD = "v62.0";
+const APP_BUILD = "v63.0";
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -4110,6 +4268,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="room-open") openRoom(act.dataset.cid);
   else if (a==="room-nudge-done") { store.roomNudge = Date.now(); save(); render(); }
   else if (a==="recap-info") openRecapInfo();
+  else if (a==="recap-open") openWrapped(act.dataset.mode);
   else if (a==="recap-hide") { store.recapHide = Date.now(); save(); render(); toast("Hidden. It comes back for the last two weeks."); }
   else if (a==="adm-room-seen") adminRoom({action: "seen", id: act.dataset.id});
   else if (a==="adm-room-remove") { if (confirm("Take this student out of the room? Their entry is deleted; they can rejoin unless you use the kill switch.")) adminRoom({action: "remove", sid: act.dataset.sid, host: act.dataset.host, cid: act.dataset.cid}); }
@@ -4899,7 +5058,7 @@ function mergeStores(a, b){
   const newer = (b.savedAt||0) >= (a.savedAt||0) ? b : a;
   const older = newer === b ? a : b;
   const m = {};
-  for (const k of ["done","dropped","starred","triaged","itemNotes","courseNotes","grades","effortOv","leadOv","seriesRules","kindOv","extGraded","extDone","handDone","capOv","tutorCtx","celebrated","recapSeen","lmkSyllabusIds"]) {
+  for (const k of ["done","dropped","starred","triaged","itemNotes","courseNotes","grades","effortOv","leadOv","seriesRules","kindOv","extGraded","extDone","handDone","capOv","tutorCtx","celebrated","recapSeen","lmkSyllabusIds","sessLog","wrappedSeen"]) {
     m[k] = Object.assign({}, older[k]||{}, newer[k]||{});
   }
   // learning data: measurements union by timestamp, tracked minutes take the max
@@ -4920,6 +5079,10 @@ function mergeStores(a, b){
   for (const k of ["roomName", "roomHandle"]) { m[k] = newer[k] || older[k] || ""; if (!m[k]) delete m[k]; }
   m.roomNudge = Math.max(+(a.roomNudge || 0), +(b.roomNudge || 0)); if (!m.roomNudge) delete m.roomNudge;
   m.recapHide = Math.max(+(a.recapHide || 0), +(b.recapHide || 0)); if (!m.recapHide) delete m.recapHide;   // the countdown card, hidden until the last two weeks
+  /* tutor use per month, for the recap: each device counts what it sent, so a key takes the larger count — a sum
+     would double on every merge, a newer-wins would drop the other device's month */
+  m.tutorUse = {}; for (const src of [older.tutorUse || {}, newer.tutorUse || {}]) for (const mo in src) { const t = m.tutorUse[mo] = m.tutorUse[mo] || {chat: 0, quiz: 0, cards: 0}; for (const k of ["chat", "quiz", "cards"]) t[k] = Math.max(t[k], +(src[mo] || {})[k] || 0); }
+  if (!Object.keys(m.tutorUse).length) delete m.tutorUse;
   /* The instant of the last gift this student has actually been shown. Newest wins, so a sponsorship
      celebrated on the laptop does not pop again on the phone. */
   m.giftSeen = Math.max(+(a.giftSeen || 0), +(b.giftSeen || 0)); if (!m.giftSeen) delete m.giftSeen;
