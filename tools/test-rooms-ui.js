@@ -99,6 +99,8 @@ const SYNCED = {onboarded:1, profile:{name:"Emiel"}, cloud:{sid:SID, secret:SEC,
   await ev(ws,`document.getElementById('sessNote').value='Noble library, 3rd floor'; document.getElementById('sessPlace').value='campus'; document.querySelector('[data-act="sess-propose"]').click()`); await sleep(500);
   r=JSON.parse(await ev(ws,`JSON.stringify({sent:window.__calls.filter(c=>/room\\/session/.test(c.url)).map(c=>c.body).slice(-1)[0], rows:document.querySelectorAll('.sesslist li').length, cancel:!!document.querySelector('[data-act="sess-cancel"][data-id="s2"]')})`));
   check('S3 proposing sends when, where and the note, and the new session is yours to cancel', r.sent.action==='propose' && r.sent.place==='campus' && r.sent.note==='Noble library, 3rd floor' && r.sent.at>Date.now() && r.rows===2 && r.cancel, r);
+  r=JSON.parse(await ev(ws,`(function(){ const li=document.querySelector('.sesslist li'); const g=li.querySelector('a[href^="https://calendar.google.com/calendar/render"]'), i=li.querySelector('a[download="lmk-session.ics"]'); const ics=i?decodeURIComponent(i.getAttribute('href').split(',')[1]):''; return JSON.stringify({g:g&&g.href, ics:ics.slice(0,400)}); })()`));
+  check('S3b a session has Google Calendar and .ics links: 90 minutes, the place and note, LMK in the description', /text=Study%20ECN%20212/.test(r.g||'') && /dates=\d{8}T\d{6}Z%2F\d{8}T\d{6}Z|dates=\d{8}T\d{6}Z\/\d{8}T\d{6}Z/.test(r.g||'') && /BEGIN:VCALENDAR/.test(r.ics) && /SUMMARY:Study ECN 212/.test(r.ics) && /LOCATION:Library · Hayden 2nd floor/.test(r.ics) && /lmktoday\.app/.test(r.ics), r);
   await ev(ws,`document.querySelector('[data-act="sess-cancel"][data-id="s2"]').click()`); await sleep(400);
   await ev(ws,`document.querySelector('[data-act="sess-out"][data-id="s1"]').click()`); await sleep(400);
   r=JSON.parse(await ev(ws,`JSON.stringify({rows:document.querySelectorAll('.sesslist li').length, mins:sessMinsToday(), today:[...document.querySelectorAll('#view-now .item .t')].some(x=>/^Study/.test(x.textContent))})`));
@@ -115,6 +117,11 @@ const SYNCED = {onboarded:1, profile:{name:"Emiel"}, cloud:{sid:SID, secret:SEC,
   r=JSON.parse(await ev(ws,`JSON.stringify({nudge:!!document.querySelector('[data-act="room-nudge-done"]'), stamped:!!store.roomNudge})`));
   check('R7 dismissing the nudge stamps the store and removes it', !r.nudge && r.stamped, r);
 
+  // P1 the Canvas line's sprint link: #study=<id>&sprint=1 opens the Study screen with the timer running
+  await ev(ws,`location.hash='#study=901&sprint=1'`); await send(ws,'Page.reload'); await sleep(2600);
+  r=JSON.parse(await ev(ws,`JSON.stringify({open:!document.getElementById('studyPage').hidden, sprint:sprint?sprint.id:null, left:sprint?Math.round((sprint.end-Date.now())/60000):null, hash:location.hash})`));
+  check('P1 #study=901&sprint=1 opens the assignment and starts a 25-minute sprint on it', r.open && r.sprint==='a901' && r.left>=24 && r.hash==='#study=901', r);
+  await ev(ws,`stopSprint(false); closeStudy({fromHistory:true})`); await sleep(200);
   // K1 the semester-recap countdown: derived from the latest due date (+3), placed under the hero in the last two weeks
   r=JSON.parse(await ev(ws,`JSON.stringify({days:recapDays(), txt:(document.querySelector('.recapline .txt')||{}).textContent, idx:[...document.querySelectorAll('#view-now > *')].findIndex(x=>x.classList.contains('recapline')), hide:!!document.querySelector('[data-act="recap-hide"]')})`));
   check('K1 countdown: 8 days (latest due +5d, +3), under the hero, no Hide button this close', r.days===8 && /lands in 8 days/.test(r.txt) && r.idx===1 && !r.hide, r);
