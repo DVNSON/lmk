@@ -5598,7 +5598,7 @@ function openWelcome(){
   if (MODE === "artifact") show("wAct3", false);
   if (MODE === "web" && IS_MOBILE) { /* the phone's step 3 is written above and must not be overwritten */ }
   else if (MODE === "web" && !gdReady()) set("wBody3", "No account, no password. Everything you do here saves privately on this device. Nothing is sent anywhere.");
-  else if (MODE === "web" && !IS_MOBILE && cloudPossible()) { set("wBody3", `No account, no password, so no name or email is on file anywhere. Everything saves on this device; sign in with Google and it follows you to your phone through your own Drive. Every assignment comes with a tutor that has already read it: ${unitPhrase("free")}, then more on a plan.`); const cr = document.getElementById("wCloudRow"); if (cr) cr.hidden = false; }
+  else if (MODE === "web" && !IS_MOBILE && cloudPossible()) { set("wBody3", `No account, no password, so no name or email is on file anywhere. Everything saves on this device; sign in with Google and it follows you to your phone through your own Drive. Every assignment comes with a tutor that has already read it: ${unitPhrase("free")}, then more on a plan.`); const cr = document.getElementById("wCloudRow"); if (cr) cr.hidden = lmsName() === "Brightspace" || (!(EXT.lms || (store.ext || {}).lms) && lmsHint() === "d2l"); }   // Brightspace has no student access keys: no key, no server read
   joinWelcomeCopy();
   document.getElementById("wName").value = (store.profile && store.profile.name) || draftName();
   welcomeOverlay.classList.add("open");
