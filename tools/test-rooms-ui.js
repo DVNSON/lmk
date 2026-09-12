@@ -12,7 +12,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const SID='a41f9c02'+'0'.repeat(24), SEC='s'.repeat(40);
 const PAYLOAD = `(function(){ const now=Date.now(); const it={}, mk=(aid,c,cid,d,t)=>it[aid]={t,c,cid,due:new Date(now+d*864e5).toISOString(),pts:10,st:"online_upload",grp:"g",k:"",sub:"",score:null,url:"https://x/"+aid,desc:"",rub:"",fb:""};
   mk("901","ECN 212","184220",2,"Problem set 4"); mk("902","ECN 212","184220",5,"Problem set 5"); mk("903","HST 102","190001",3,"Reading response 6");
-  return {lmk:"canvas",v:3,at:now,host:"canvas.asu.edu",items:it,groups:{},courses:[{id:"184220",tag:"ECN 212",wt:true},{id:"190001",tag:"HST 102",wt:true}]}; })()`;
+  return {lmk:"canvas",v:3,at:now,host:"canvas.asu.edu",items:it,groups:{},courses:[{id:"184220",tag:"ECN 212",wt:true,uuid:"Uu1dEcn212"},{id:"190001",tag:"HST 102",wt:true,uuid:"Uu1dHst102"}]}; })()`;
 /* the worker, as the page sees it: every call the app makes and what a room looks like */
 const STUB = `(function(){ window.__calls=[]; window.__room={ok:true,member:false,count:3,course:"ECN 212: Microeconomic Principles",chat:""};
   const J=o=>new Response(JSON.stringify(o),{status:200,headers:{"content-type":"application/json"}});
@@ -181,13 +181,20 @@ const SYNCED = {onboarded:1, profile:{name:"Emiel"}, cloud:{sid:SID, secret:SEC,
   check('W4 opening the final recap drops "so far" and stamps wrappedSeen', r.open && !/so far/i.test(r.title) && r.seen===1, r);
   await ev(ws,`closeWrapped()`);
 
-  // R8 cloud sync off: the sheet explains, asks nothing of the worker
-  await fresh(ws,{seed:Object.assign({},SYNCED,{cloud:{sid:SID,secret:SEC,on:false,at:1}})});
+  // R8 the proof: every room call carries sha256(host|cid|uuid), never the uuid; without a uuid (old extension) the sheet says so and asks nothing
+  await fresh(ws,{seed:SYNCED});
   await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.6.1'}, '*'); window.postMessage({lmk:'canvas-payload', payload:${PAYLOAD}}, '*')`); await sleep(900);
+  await ev(ws,`document.querySelector('#courseChips [data-course="ECN 212"]').click()`); await sleep(700);
+  await ev(ws,`document.querySelector('.roomline [data-act="room-open"]').click()`); await sleep(500);
+  await ev(ws,`document.querySelector('#roomModal [data-act="room-join"]').click()`); await sleep(600);
+  r=JSON.parse(await ev(ws,`(async function(){ const p=await courseProof('184220'); const calls=window.__calls.filter(c=>/room\\/(get|join)/.test(c.url)); return JSON.stringify({p, sent:calls.map(c=>c.body.proof), host:calls[0]&&calls[0].body.host, uuidLeaked:calls.some(c=>JSON.stringify(c.body).includes('Uu1d'))}); })()`));
+  check('R8 room calls carry the proof hash and the host, and never the uuid', /^[a-f0-9]{64}$/.test(r.p) && r.sent.length>0 && r.sent.every(x=>x===r.p) && r.host==='canvas.asu.edu' && !r.uuidLeaked, {p:r.p&&r.p.slice(0,12), n:r.sent.length, host:r.host, leaked:r.uuidLeaked});
+  await fresh(ws,{seed:Object.assign({},SYNCED,{cloud:{sid:SID,secret:SEC,on:false,at:1}})});
+  await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.6.1'}, '*'); window.postMessage({lmk:'canvas-payload', payload:(function(){ const p=${PAYLOAD}; p.courses.forEach(c=>{ delete c.uuid; }); return p; })()}, '*')`); await sleep(900);
   await ev(ws,`document.querySelector('#courseChips [data-course="HST 102"]').click()`); await sleep(300);
   await ev(ws,`document.querySelector('.roomline [data-act="room-open"]').click()`); await sleep(300);
   r=JSON.parse(await ev(ws,`JSON.stringify({copy:document.getElementById('roomModal').textContent, gets:window.__calls.filter(c=>/room\\/get/.test(c.url)).length, line:(document.querySelector('.roomline .txt')||{}).textContent})`));
-  check('R8 with Sync from anywhere off, the line still invites and the sheet says what to turn on — no /room/get', /Sync from anywhere/.test(r.copy) && r.gets===0 && /Find classmates in HST 102/.test(r.line), r);
+  check('R8 with no course code from the extension (pre-0.7), the sheet says what is needed and asks the worker nothing', /0\.7/.test(r.copy) && /only that class/.test(r.copy) && r.gets===0 && /Find classmates in HST 102/.test(r.line), r);
   await send(ws,'Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27}); await sleep(200);
   check('R8 Escape closes the sheet', (await ev(ws,`roomOverlay.classList.contains('open')`))===false);
 
@@ -202,9 +209,9 @@ const SYNCED = {onboarded:1, profile:{name:"Emiel"}, cloud:{sid:SID, secret:SEC,
   check('C1 the room opens for the invited course', r.open && r.title==='ECN 212', r);
   // C2 the server has not seen the sync yet: the invite is kept for the next one
   await fresh(ws,{seed:SYNCED, hash:'#join=canvas.asu.edu.184220.b7c1d2e3&c=ECN%20212'});
-  await ev(ws,`window.__claim={ok:false,error:"cloud"}; window.postMessage({lmk:'ext-hello', version:'0.6.1'}, '*'); window.postMessage({lmk:'canvas-payload', payload:${PAYLOAD}}, '*')`); await sleep(2600);
-  r=JSON.parse(await ev(ws,`JSON.stringify({join:!!localStorage.getItem('lmk_join'), claims:window.__calls.filter(c=>/ref\\/claim/.test(c.url)).length})`));
-  check('C2 "cloud" keeps the invite for the next sync', r.join && r.claims===1, r);
+  await ev(ws,`window.__claim={ok:false,error:"proof"}; window.postMessage({lmk:'ext-hello', version:'0.6.1'}, '*'); window.postMessage({lmk:'canvas-payload', payload:${PAYLOAD}}, '*')`); await sleep(2600);
+  r=JSON.parse(await ev(ws,`JSON.stringify({join:!!localStorage.getItem('lmk_join'), claims:window.__calls.filter(c=>/ref\\/claim/.test(c.url)).map(c=>({proof:c.body.proof, host:c.body.host}))})`));
+  check('C2 "proof" keeps the invite for the next sync, and the claim carried the course proof', r.join && r.claims.length===1 && /^[a-f0-9]{64}$/.test(r.claims[0].proof||'') && r.claims[0].host==='canvas.asu.edu', r);
 
   // A1 artifact mode: nothing of this exists
   await send(ws,'Page.addScriptToEvaluateOnNewDocument',{source:'window.claude={use:async()=>null}'});
