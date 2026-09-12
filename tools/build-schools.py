@@ -101,6 +101,24 @@ def school_page(slug, school, short, host, native, lmsname):
     body.append(FOOT)
     return "".join(body)
 
+def brightspace_page():
+    title = "Brightspace in LMK — one daily plan"
+    desc = "Turn your school's D2L Brightspace into a calm daily plan. LMK reads what's due, sizes it to the hours you have, and learns how long your work really takes. Free."
+    body = [HEAD.format(title=e(title), desc=e(desc), path="../brightspace/", css=CSS)]
+    body.append('<div class="eyebrow">D2L Brightspace</div><h1>Your Brightspace, as one daily plan.</h1>')
+    body.append('<p class="lede">If your school runs D2L Brightspace, LMK reads it the same way it reads Canvas: a Chrome extension, your own login, nothing to configure. It never changes anything in Brightspace and never sees your password.</p>')
+    body.append('<ol class="steps">')
+    body.append('<li><div><b>Add LMK Today to Chrome.</b><span>On a laptop or desktop — a phone can\'t install an extension. It\'s free.</span></div></li>')
+    body.append('<li><div><b>Open your school\'s Brightspace once, like you normally would.</b><span>An address ending in <code>brightspace.com</code> is read out of the box. If your school runs Brightspace on its own address, open LMK, choose <b>Add my school\'s site</b> under the gear and approve it — Chrome asks once.</span></div></li>')
+    body.append('<li><div><b>Come back to LMK.</b><span>Your classes land here by themselves a few seconds after Brightspace loads. The first thing on screen is the one thing to start with today.</span></div></li>')
+    body.append('</ol>')
+    body.append(f'<div class="row"><a class="btn grad" href="{STORE}" target="_blank" rel="noopener">Add to Chrome →</a><a class="btn" href="/app/">Open LMK</a></div>')
+    body.append('<div class="note"><b>Two honest differences from Canvas.</b> Brightspace has no student access keys, so <i>Sync from anywhere</i> (LMK\'s server keeping your phone fresh while the laptop is closed) isn\'t available — your phone stays current through your own Google Drive whenever the laptop has LMK open. And each school allows the extension different Brightspace routes; the first sync at a new school tells LMK which ones, and the collector gets fixed for that school from there.</div>')
+    body.append('<h2>What LMK keeps, and where</h2>')
+    body.append('<p>Your plan lives in your own browser and, if you sign in with Google, in one file in your own Drive. The <a href="/privacy.html">privacy page</a> lists every item.</p>')
+    body.append(FOOT)
+    return "".join(body)
+
 def index_page():
     title = "Schools LMK works with"
     desc = "Which Canvas addresses LMK reads out of the box, which ones you add under the gear, and the steps for each school."
@@ -111,6 +129,7 @@ def index_page():
     for slug, school, short, host, native, lmsname in SCHOOLS:
         body.append(f'<li><a href="/canvas/{slug}/"><b>{e(short)}</b><span>{e(host)} · {"out of the box" if native else "add under the gear"}</span></a></li>')
     body.append('</ul>')
+    body.append('<h2>On D2L Brightspace?</h2><p>Same steps, one Chrome extension: <a href="/brightspace/">LMK for Brightspace</a>.</p>')
     body.append('<h2>Your school isn\'t here?</h2>')
     body.append('<p>If your Canvas address ends in <code>instructure.com</code>, nothing to add — install and open Canvas once. Otherwise install, open LMK, and choose <b>Add my school\'s Canvas</b> under the gear; or use the Canvas access-token route there, which works on any school and on a phone. Brightspace schools work the same way through <code>brightspace.com</code>.</p>')
     body.append(f'<div class="row"><a class="btn grad" href="{STORE}" target="_blank" rel="noopener">Add to Chrome →</a><a class="btn" href="/app/">Open LMK</a></div>')
@@ -121,7 +140,9 @@ if __name__ == "__main__":
     out = os.path.join(ROOT, "canvas")
     os.makedirs(out, exist_ok=True)
     io.open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(index_page())
+    bs = os.path.join(ROOT, "brightspace"); os.makedirs(bs, exist_ok=True)
+    io.open(os.path.join(bs, "index.html"), "w", encoding="utf-8").write(brightspace_page())
     for row in SCHOOLS:
         d = os.path.join(out, row[0]); os.makedirs(d, exist_ok=True)
         io.open(os.path.join(d, "index.html"), "w", encoding="utf-8").write(school_page(*row))
-    print("wrote", len(SCHOOLS) + 1, "pages under", out)
+    print("wrote", len(SCHOOLS) + 1, "pages under", out, "+ /brightspace/")

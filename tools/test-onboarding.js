@@ -147,6 +147,18 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
   check('T16 ASU note: shown on a fresh laptop', r===true, r);
   await fresh(ws,{mobile:true}); r=await ev(ws,`/opens ASU's Canvas/.test(document.querySelector('section.view .hero').textContent)`);
   check('T16 ASU note: not on a phone', r===false, r);
+  // T18 the LMS choice on the first-run card: Brightspace hides the Canvas-only routes and says where to go; it survives a reload
+  await fresh(ws); r=JSON.parse(await ev(ws,`JSON.stringify({chips:document.querySelectorAll('[data-act="lms-hint"]').length, canvasBtn:!!document.querySelector('section.view .hero a[href*="lmk-sync"]'), asu:/opens ASU's Canvas/.test(document.querySelector('section.view .hero').textContent)})`));
+  check('T18 fresh: both LMS chips, the Canvas button and the ASU note (Canvas is the default)', r.chips===2 && r.canvasBtn && r.asu, r);
+  await ev(ws,`document.querySelector('[data-act="lms-hint"][data-lms="d2l"]').click()`); await sleep(300);
+  r=JSON.parse(await ev(ws,`JSON.stringify({hint:localStorage.getItem('lmk_lms_hint'), txt:document.querySelector('section.view .hero').textContent, canvasBtn:!!document.querySelector('section.view .hero a[href*="lmk-sync"]'), token:!!document.querySelector('section.view .hero [data-act="open-token"]'), rows:[...document.querySelectorAll('.checks li')].map(li=>li.textContent.trim())})`));
+  check('T18 Brightspace chosen: no Canvas button, no token route, the brightspace.com line, the checklist says Brightspace', r.hint==='d2l' && !r.canvasBtn && !r.token && /brightspace\.com/.test(r.txt) && !/opens ASU's Canvas/.test(r.txt) && /finds it there/.test(r.txt) && !/opens your school's site by itself/.test(r.txt) && /Brightspace read once/.test(r.rows[1]), r);
+  await send(ws,'Page.reload'); await sleep(2200);
+  r=JSON.parse(await ev(ws,`JSON.stringify({txt:document.querySelector('section.view .hero').textContent, pressed:(document.querySelector('[data-act="lms-hint"][data-lms="d2l"]')||{}).getAttribute&&document.querySelector('[data-act="lms-hint"][data-lms="d2l"]').getAttribute('aria-pressed')})`));
+  check('T18 the choice survives a reload', /brightspace\.com/.test(r.txt) && r.pressed==='true', r);
+  await ev(ws,`document.querySelector('[data-act="lms-hint"][data-lms="canvas"]').click()`); await sleep(300);
+  r=JSON.parse(await ev(ws,`JSON.stringify({canvasBtn:!!document.querySelector('section.view .hero a[href*="lmk-sync"]'), hint:localStorage.getItem('lmk_lms_hint')})`));
+  check('T18 back to Canvas: the button returns', r.canvasBtn && r.hint==='canvas', r);
   console.log('\\nJS errors during run:', errs.length? errs.slice(0,4) : 'none');
   console.log(`\\n${fail? fail+' FAILED' : 'ALL OK'}  (${pass} passed)`);
   ws.close(); process.exit(fail?1:0);
