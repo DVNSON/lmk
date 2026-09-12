@@ -759,7 +759,7 @@
 
 <div class="wrap">
   <header class="top">
-    <h1 class="srconly">LMK — your Canvas planner</h1>
+    <h1 class="srconly">LMK — your assignment planner</h1>
     <div class="wordmark" aria-label="LMK — Let Me Know">
       <span class="lmkmark" aria-hidden="true">LMK</span>
       <span class="lmksub" id="lmkSub">let me know.</span>
@@ -772,10 +772,10 @@
     <button class="gear" id="findBtn" aria-label="Search assignments" title="Search (press /)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
     </button>
-    <button class="gear" id="addBtn" aria-label="Add your own assignment" title="Add your own — for work outside Canvas">
+    <button class="gear" id="addBtn" aria-label="Add your own assignment" title="Add your own — for work outside your classes">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
     </button>
-    <button class="gear" id="syncBtn" aria-label="Refresh everything" title="Reconnect and pull the latest from Canvas, Drive and your plan">
+    <button class="gear" id="syncBtn" aria-label="Refresh everything" title="Reconnect and pull the latest from your classes, Drive and your plan">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/><path d="M20.5 4.5V10H15"/></svg>
     </button>
     <button class="gear" id="gearBtn" aria-label="Connect your calendar and settings">
@@ -824,9 +824,9 @@
 
     <div class="setupway" id="setupExt">
       <h3 class="h4">Chrome extension</h3>
-      <p class="sub2">On a computer, add it to Chrome, then open Canvas once like you normally would. Come back to LMK and your classes appear on their own, usually within a few seconds. LMK learns every assignment, what's already submitted, your scores, and which items are in-class or not graded. It re-syncs whenever you're in Canvas.</p>
+      <p class="sub2">On a computer, add it to Chrome, then open Canvas or Brightspace once like you normally would. Come back to LMK and your classes appear on their own, usually within a few seconds. LMK learns every assignment, what's already submitted, your scores, and which items are in-class or not graded. It re-syncs whenever you're in Canvas.</p>
       <div class="row" style="margin-top:4px"><a class="btn grad" id="setupInstall" href="#" target="_blank" rel="noopener">Add to Chrome →</a></div>
-      <p class="sub2" id="setupPhone" style="margin:10px 0 0;font-size:12.5px" hidden>On a phone? The extension is a Chrome extension, so it has to go on a computer first. Add it there and open Canvas once; then sign in with Google (bottom of this page) and your plan appears here. No computer at all? Use the access token way below.</p>
+      <p class="sub2" id="setupPhone" style="margin:10px 0 0;font-size:12.5px" hidden>On a phone? The extension is a Chrome extension, so it has to go on a computer first. Add it there and open your school's site once; then sign in with Google (bottom of this page) and your plan appears here. No computer at all? Use the access token way below.</p>
       <p class="sub2" id="setupBg" style="margin:10px 0 0;font-size:12.5px" hidden></p>
       <p class="sub2" id="setupHost" style="margin:10px 0 0;font-size:12.5px" hidden></p>
       <div class="adm-row" id="setupInstallApp" style="margin:12px 0 0;font-size:13px;color:var(--ink-2)" hidden></div>
@@ -840,7 +840,7 @@
     </div>
 
     <details class="setupway" id="cloudTokenWay" hidden>
-      <summary class="h4">Connect any school's Canvas</summary>
+      <summary class="h4">Connect any school's Canvas with a token</summary>
       <p class="sub2">Two reasons to use this: your phone has no laptop around, or your school's Canvas lives at its own address — <b>canvas.uw.edu</b>, <b>bruinlearn.ucla.edu</b> and most large universities — which the extension can't read yet. This route works at <b>every</b> school. In Canvas open Account → Settings → <b>New Access Token</b>, copy it, paste it here, and LMK's server keeps your assignments fresh by itself. Delete the token in Canvas any time to stop.</p>
       <div class="fgrid">
         <label class="field">Your Canvas address<input id="ctHost" placeholder="canvas.uw.edu" autocomplete="off"></label>
@@ -852,9 +852,10 @@
     <div class="setupway">
       <h3 class="h4">Or paste a page</h3>
       <p class="sub2">Open a course in Canvas → <b>Assignments</b> → select the whole page (Ctrl/Cmd-A), copy, paste it here.</p>
-      <p class="sub2" style="margin:6px 0 10px">Faster, and it reads your <i>whole</i> semester rather than one page: drag this to your bookmarks bar, then click it while you're on any Canvas page. It works at every school, because it reads whatever Canvas it is standing on.<br>
+      <p class="sub2" style="margin:6px 0 10px">Faster, and it reads your <i>whole</i> semester rather than one page: drag this to your bookmarks bar, then click it while you're on any Canvas page — the second one on any Brightspace page. They work at every school, because they read whatever site they are standing on.<br>
         <a class="btn ghost" id="bmkLink" draggable="true" style="margin-top:8px;display:inline-flex">⇱ LMK sync</a>
-        <button class="minibtn" id="bmkCopy" style="margin-left:6px">Copy it instead</button>
+        <button class="minibtn" id="bmkCopy" style="margin-left:6px">Copy it instead</button><br>
+        <a class="btn ghost" id="bmkLinkD2L" draggable="true" style="margin-top:8px;display:inline-flex">⇱ LMK sync (Brightspace)</a>
         <span class="parse-msg" id="bmkMsg" role="status"></span></p>
       <label class="field" style="margin-bottom:10px">Which course is that page from?<input id="impCourse" list="courseList2" placeholder="BIO 101"><datalist id="courseList2"></datalist></label>
       <textarea id="impPaste" placeholder="Paste the LMK sync from your phone, or a whole Assignments page — messy is fine, I’ll sort it out."></textarea>
@@ -899,7 +900,7 @@
       <button class="minibtn" id="closeModal">Close</button>
     </div>
     <p class="privacy" id="setupSync"></p>
-    <p class="privacy">The + button up top covers work that isn’t in Canvas at all.<span id="extOrigin" hidden></span></p>
+    <p class="privacy">The + button up top covers work that isn’t in Canvas or Brightspace at all.<span id="extOrigin" hidden></span></p>
   </div>
 </div>
 
@@ -912,7 +913,7 @@
     <div class="wstep"><span class="wnum">1</span><div><b>What should LMK call you?</b>
       <input id="wName" placeholder="First name" autocomplete="off"></div></div>
     <div class="wstep"><span class="wnum">2</span><div><b id="wHead2">Get your classes in.</b>
-      <span class="whint" id="wBody2">That's the card right behind this window: one click adds the LMK for Canvas extension, and it brings your classes here by itself. About a minute, once.</span>
+      <span class="whint" id="wBody2">That's the card right behind this window: one click adds the LMK Today extension, and it brings your classes here by itself. About a minute, once.</span>
       <div class="wchips" id="wClasses" hidden></div>
       <div class="wact">
         <a class="btn grad" id="wInstall" href="#" target="_blank" rel="noopener">Add to Chrome →</a>
@@ -921,7 +922,7 @@
       </div></div></div>
     <div class="wstep"><span class="wnum">3</span><div><b id="wHead3">Private by design.</b>
       <span class="whint" id="wBody3">No account, no password. Everything saves on this device; sign in with Google and it follows you to your phone through your own Drive. LMK times your work quietly so its estimates get honest — no names, no grades, ever.</span>
-      <label class="wopt" id="wCloudRow" hidden><input type="checkbox" id="wCloud" checked><span><b>Keep my phone fresh while my laptop is closed.</b> LMK's server reads Canvas for you with an access key the extension makes in your own Canvas account. The key is stored encrypted; your assignment list, scores included, in plain form. Off any time under the gear.</span></label>
+      <label class="wopt" id="wCloudRow" hidden><input type="checkbox" id="wCloud" checked><span><b>Keep my phone fresh while my laptop is closed (Canvas schools).</b> LMK's server reads Canvas for you with an access key the extension makes in your own Canvas account. The key is stored encrypted; your assignment list, scores included, in plain form. Off any time under the gear.</span></label>
       <div class="wact" id="wAct3" hidden><button class="btn grad" id="wSignin3">Sign in with Google</button><span class="whint" style="font-size:12.5px">Already used LMK on another device? This brings it back.</span></div></div></div>
     <div class="row" style="margin-top:16px"><button class="btn primary" id="wGo">Let's go →</button></div>
   </div>
@@ -945,7 +946,7 @@
 <div class="overlay" id="addOverlay" role="dialog" aria-modal="true" aria-labelledby="addTitle">
   <div class="modal">
     <h3 id="addTitle">Add your own assignment</h3>
-    <p class="sub2">For work that lives outside Canvas — Connect, Edfinity, ALEKS, or anything a professor said out loud.</p>
+    <p class="sub2">For work that lives outside Canvas or Brightspace — Connect, Edfinity, ALEKS, or anything a professor said out loud.</p>
     <div class="fgrid">
       <label class="field" style="grid-column:1/-1">Title<input id="caTitle" placeholder="Connect Ch. 3 homework"></label>
       <label class="field">Course<input id="caCourse" list="courseList" placeholder="ENG 102"><datalist id="courseList"></datalist></label>
@@ -1356,11 +1357,11 @@ function applyCanvasPayload(p, opts = {}){
     /* Canvas answered — that is a fact the first-run card can show — it just had nothing in it (wrong account,
        or a term whose courses are not published yet). Remember it on EXT, never in the store, and let the
        card say so persistently; a toast lasts three seconds and the student may be on the Canvas tab. */
-    EXT.emptyAt = Date.now(); if (p.host) EXT.host = String(p.host); if (!store.ext) render();
-    if (!opts.quiet) toast("Canvas answered, but no active courses came back. Are you signed in to the right Canvas account?");
+    EXT.emptyAt = Date.now(); if (p.host) EXT.host = String(p.host); EXT.lms = p.lms === "d2l" ? "d2l" : "canvas"; if (!store.ext) render();
+    if (!opts.quiet) toast(`${lmsName()} answered, but no active courses came back. Are you signed in to the right ${lmsName()} account?`);
     return null;
   }
-  store.ext = {at:p.at || Date.now(), host:p.host || "", items, courses:(p.courses && p.courses.length) ? p.courses : ((store.ext || {}).courses || []), groups:p.groups || (store.ext || {}).groups || {}};
+  store.ext = {at:p.at || Date.now(), host:p.host || "", lms: p.lms === "d2l" ? "d2l" : "canvas", items, courses:(p.courses && p.courses.length) ? p.courses : ((store.ext || {}).courses || []), groups:p.groups || (store.ext || {}).groups || {}};
   EXT.emptyAt = 0;
   save(); loadData(); render();
   if (firstSync) {
@@ -1371,13 +1372,13 @@ function applyCanvasPayload(p, opts = {}){
     try { localStorage.setItem("lmk_synced_first", String(Date.now())); } catch(_){}
     welcomeSync();
   }
-  syncNote(`<b>Canvas synced.</b> ${n} assignment${n === 1 ? "" : "s"}${newDone ? ` · ${newDone} marked done` : ""}${unDone ? ` · ${unDone} back to in progress` : ""}${newGrades ? ` · ${newGrades} grade${newGrades === 1 ? "" : "s"} in` : ""}${shelfAdd ? ` · ${shelfAdd} undated on the shelf` : ""}`, !!(newDone || unDone || newGrades || shelfAdd));
-  if (!opts.quiet && !firstSync) toast(`Canvas synced: ${n} assignments${newDone ? ` · ${newDone} marked done` : ""}${unDone ? ` · ${unDone} back to in-progress` : ""}${newGrades ? ` · ${newGrades} grades` : ""}${shelfAdd ? ` · ${shelfAdd} undated on the shelf` : ""}.`);
+  syncNote(`<b>${lmsName()} synced.</b> ${n} assignment${n === 1 ? "" : "s"}${newDone ? ` · ${newDone} marked done` : ""}${unDone ? ` · ${unDone} back to in progress` : ""}${newGrades ? ` · ${newGrades} grade${newGrades === 1 ? "" : "s"} in` : ""}${shelfAdd ? ` · ${shelfAdd} undated on the shelf` : ""}`, !!(newDone || unDone || newGrades || shelfAdd));
+  if (!opts.quiet && !firstSync) toast(`${lmsName()} synced: ${n} assignments${newDone ? ` · ${newDone} marked done` : ""}${unDone ? ` · ${unDone} back to in-progress` : ""}${newGrades ? ` · ${newGrades} grades` : ""}${shelfAdd ? ` · ${shelfAdd} undated on the shelf` : ""}.`);
   if (firstSync) celebrateMaybe();
   return {n, newDone, newGrades, shelfAdd};
 }
 /* The extension says hello when it is on the page — so "installed but never synced" gets its own guidance. */
-const EXT = {present:false, version:"", drive:{state:"off"}, resync:null, at:0, cloud:null, emptyAt:0, host:""};
+const EXT = {present:false, version:"", drive:{state:"off"}, resync:null, at:0, cloud:null, emptyAt:0, host:"", lms:""};
 /* What the extension's own background sync has been doing. Shown under the gear so "it never
    refreshed" has an answer: when it last ran, whether Canvas let it in, and how many items came back. */
 function renderBgStatus(){
@@ -1385,14 +1386,14 @@ function renderBgStatus(){
   /* The first-run card's "Add my school's Canvas" used to be the only door, and it closed the moment any data
      existed. A student who got in once by another route (a token, a paste) needs it after that day too. */
   const hr = document.getElementById("setupHost");
-  if (hr) { if (EXT.present && extCanAdopt() && MODE === "web") { hr.innerHTML = `Your school's Canvas isn't canvas.asu.edu or an instructure.com address? <button class="minibtn" data-act="host-add">Add my school's Canvas</button>`; hr.hidden = false; } else hr.hidden = true; }
+  if (hr) { if (EXT.present && extCanAdopt() && MODE === "web") { hr.innerHTML = `Your school's Canvas or Brightspace isn't on canvas.asu.edu, instructure.com or brightspace.com? <button class="minibtn" data-act="host-add">Add my school's Canvas</button>`; hr.hidden = false; } else hr.hidden = true; }
   const el = document.getElementById("setupBg"); if (!el) return;
   if (!EXT.present || MODE !== "web" && MODE !== "artifact") { el.hidden = true; return; }
   const r = EXT.resync, ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 1440 ? Math.round(m / 60) + " h ago" : Math.round(m / 1440) + " d ago"; };
   let txt;
-  if (!r) txt = "Background sync: hasn't run yet. It runs every 30 minutes while Chrome is open, using your Canvas login.";
+  if (!r) txt = "Background sync: hasn't run yet. It runs every 30 minutes while Chrome is open, using your " + lmsName() + " login.";
   else if (r.ok) txt = `Background sync: ran ${ago(r.at)} ✓ ${r.n} assignments. It runs every 30 minutes while Chrome is open.`;
-  else txt = `Background sync: tried ${ago(r.at)} and couldn't read Canvas (${esc(r.err || "unknown")}). Open any Canvas page once and it picks back up.`;
+  else txt = `Background sync: tried ${ago(r.at)} and couldn't read ${lmsName()} (${esc(r.err || "unknown")}). Open any ${lmsName()} page once and it picks back up.`;
   el.textContent = ""; el.innerHTML = txt; el.hidden = false;
 }
 /* ================= "Sync from anywhere" =================
@@ -1486,6 +1487,10 @@ function canvasHref(){
   const h = String((store.ext || {}).host || EXT.host || "").trim();
   return /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(h) ? "https://" + h + "/#lmk-sync" : LMK_CONFIG.canvasUrl;
 }
+/* Which LMS the student's classes come from. The payload says (`lms`); before any sync it is unknown, and copy
+   for that moment says "Canvas or Brightspace" instead of guessing. Canvas-only routes (calendar feed, access
+   token, Sync from anywhere) keep saying Canvas, because that is what they are. */
+function lmsName(){ return ((store.ext || {}).lms || EXT.lms) === "d2l" ? "Brightspace" : "Canvas"; }
 function cloudPairLink(){ return LMK_CONFIG.appUrl.replace(/\/$/, "") + "/#pair=" + store.cloud.sid + "." + store.cloud.secret; }
 function renderCloudStatus(){
   const el = document.getElementById("setupCloud"), way = document.getElementById("cloudTokenWay"); if (!el) return;
@@ -1545,10 +1550,10 @@ function renderDriveOffer(){
   if (!driveOfferPossible()) { el.hidden = true; return; }
   const st = EXT.drive || {state:"off"};
   let html = "";
-  if (!drive.ready) html = `<span>Sign in with Google (bottom of the page) and the extension can also save each Canvas sync to your Drive, so your phone stays fresh even when this tab is closed.</span>`;
-  else if (st.state === "on") html = `<span>✓ The extension saves each Canvas sync to your Drive${st.pushedAt ? " · last " + new Date(st.pushedAt).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) : ""}. Your phone picks it up by itself.</span><button class="minibtn drop" data-act="drive-off">Turn off</button>`;
-  else if (st.state === "needs-signin") html = `<span>The extension needs a fresh Google sign-in to keep saving your Canvas sync to your Drive.${/could not be loaded|redirect/i.test(st.err || "") && st.redirect ? ` <span style="color:var(--muted)">(Developer note: Google refused the extension's address. Add <span style="font-family:'Spline Sans Mono',monospace;font-size:12px">${esc(st.redirect)}</span> to the OAuth client's redirect URIs.)</span>` : ""}</span><button class="minibtn" data-act="drive-on">Sign in</button>`;
-  else html = `<span><b>Keep your phone fresh.</b> Let the extension save each Canvas sync to your Drive, even when LMK isn't open here. One Google window, same account.</span><button class="minibtn" data-act="drive-on">Turn on</button>`;
+  if (!drive.ready) html = `<span>Sign in with Google (bottom of the page) and the extension can also save each ${lmsName()} sync to your Drive, so your phone stays fresh even when this tab is closed.</span>`;
+  else if (st.state === "on") html = `<span>✓ The extension saves each ${lmsName()} sync to your Drive${st.pushedAt ? " · last " + new Date(st.pushedAt).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) : ""}. Your phone picks it up by itself.</span><button class="minibtn drop" data-act="drive-off">Turn off</button>`;
+  else if (st.state === "needs-signin") html = `<span>The extension needs a fresh Google sign-in to keep saving your ${lmsName()} sync to your Drive.${/could not be loaded|redirect/i.test(st.err || "") && st.redirect ? ` <span style="color:var(--muted)">(Developer note: Google refused the extension's address. Add <span style="font-family:'Spline Sans Mono',monospace;font-size:12px">${esc(st.redirect)}</span> to the OAuth client's redirect URIs.)</span>` : ""}</span><button class="minibtn" data-act="drive-on">Sign in</button>`;
+  else html = `<span><b>Keep your phone fresh.</b> Let the extension save each ${lmsName()} sync to your Drive, even when LMK isn't open here. One Google window, same account.</span><button class="minibtn" data-act="drive-on">Turn on</button>`;
   el.innerHTML = html; el.hidden = false;
 }
 document.getElementById("setupDrive").addEventListener("click", e => {
@@ -1566,7 +1571,7 @@ function maybeOfferDrive(){
 }
 function applyExtPresence(){
   const b = document.getElementById("setupInstall"); if (!b) return;
-  if (EXT.present) { b.textContent = "Extension installed ✓ · Open Canvas →"; b.href = canvasHref(); }
+  if (EXT.present) { b.textContent = "Extension installed ✓ · Open " + lmsName() + " →"; b.href = canvasHref(); }
 }
 /* While the first-run card is waiting on Canvas, ask the extension every few seconds for whatever it
    has. The extension answers a "canvas-ping" with its latest payload, so the sync the student just
@@ -1621,7 +1626,7 @@ function nudgeExtension(){
        had done anything wrong. The payload still arrives by push while hidden; only the clock pauses. */
     if (document.hidden) return;
     try { window.postMessage({lmk:"canvas-ping"}, "*"); } catch(_){}
-    if (tries === 5) { try { syncNote(`Still quiet. If Canvas is asking you to sign in, finish that and it syncs by itself. If your school's Canvas isn't an <b>instructure.com</b> address, there's a route below that works everywhere.`, true); } catch(_){} }
+    if (tries === 5) { try { syncNote(`Still quiet. If Canvas or Brightspace is asking you to sign in, finish that and it syncs by itself. If your school's Canvas or Brightspace isn't an <b>instructure.com</b> address, there's a route below that works everywhere.`, true); } catch(_){} }
     if (++tries >= 15 && !extStuck) { extStuck = true; render(); }      // a minute of silence is an answer
   }, 4000);
 }
@@ -1635,7 +1640,7 @@ window.addEventListener("message", ev => {
   if (d && d.lmk === "resync-status") { EXT.resync = d.resync || null; if (d.at) EXT.at = d.at; renderBgStatus(); }
   if (d && d.lmk === "drive-status" && d.drive) {
     const was = (EXT.drive || {}).state; EXT.drive = d.drive; renderDriveOffer();
-    if (was !== "on" && d.drive.state === "on") toast("Done. The extension now saves each Canvas sync to your Drive, and your phone picks it up.");
+    if (was !== "on" && d.drive.state === "on") toast("Done. The extension now saves each " + lmsName() + " sync to your Drive, and your phone picks it up.");
     else if (was !== d.drive.state && d.drive.state === "needs-signin") toast("Google sign-in didn't finish. Nothing changed; try again from the gear menu.");
   }
 });
@@ -1654,17 +1659,17 @@ function loadData(){
   document.getElementById("srcLabel").textContent = fresh
     ? "No classes connected yet"
     : (SEED_OK ? "" : "⚠ bad sync detected — showing cached data · ") +
-      (store.custom ? store.custom.label : (SEED_EMPTY ? "Your Canvas" : SEED_LABEL)) + ` · ${EVENTS.length} assignments` +
+      (store.custom ? store.custom.label : (SEED_EMPTY ? "Your classes" : SEED_LABEL)) + ` · ${EVENTS.length} assignments` +
       (store.custom ? (store.custom.loadedAt ? ` · uploaded ${store.custom.loadedAt}` : "") : (SEED_EMPTY ? "" : ` · auto-synced ${SYNCED_AT}`)) +
-      (store.ext ? ` · Canvas via extension ${extAgo()}` : "");
+      (store.ext ? ` · ${lmsName()} via extension ${extAgo()}` : "");
 }
 /* the "5 min ago" in the footer must age with the page, not freeze at load */
 function refreshSrcAge(){
   const el = document.getElementById("srcLabel"); if (!el || !store.ext) return;
-  el.textContent = el.textContent.replace(/Canvas via extension .*$/, "Canvas via extension " + extAgo());
+  el.textContent = el.textContent.replace(/(Canvas|Brightspace) via extension .*$/, lmsName() + " via extension " + extAgo());
   const stale = Date.now() - (store.ext.at || 0) > 24 * 3600e3;
   el.style.color = stale ? "var(--warn-text)" : "";
-  el.title = stale ? "Canvas hasn't been read in over a day. Open Canvas once, or check the extension." : "";
+  el.title = stale ? lmsName() + " hasn't been read in over a day. Open " + lmsName() + " once, or check the extension." : "";
 }
 
 /* ================= helpers ================= */
@@ -1979,7 +1984,7 @@ function studyPrompt(e){
   const an = (store.itemNotes||{})[e.id];
   const assemble = (dCap, cCap, aCap) => {
     let p = head + body;
-    if (e.desc) p += `\n\nThe assignment's actual instructions, straight from Canvas: ${trimAt(e.desc, dCap)}`;
+    if (e.desc) p += `\n\nThe assignment's actual instructions, straight from ${lmsName()}: ${trimAt(e.desc, dCap)}`;
     if (cn) p += `\n\nAbout my ${e.course} class, from my syllabus: ${trimAt(cn, cCap)}`;
     if (an) p += `\n\nMy own notes about this assignment: ${trimAt(an, aCap)}`;
     return p;
@@ -2081,7 +2086,7 @@ function giftHtml(){
 function giftMessage(){
   /* One link, not a raw Stripe URL: the page explains what it is, shows every length, and asks for the code.
      A bare checkout link texted to a parent is a payment demand with no context. */
-  return "I'm using LMK for school \u2014 it reads my Canvas assignments, plans my week around the time I "
+  return "I'm using LMK for school \u2014 it reads my " + lmsName() + " assignments, plans my week around the time I "
     + "actually have, and the tutor already knows what each assignment is asking for.\n\n"
     + "If you wanted to cover it: " + LMK_CONFIG.giftUrl
     + "\nMy code is " + myCode() + " \u2014 it asks for that at checkout.\n\n"
@@ -2708,7 +2713,7 @@ function openStudy(id, opts = {}){
       <aside class="sp-brief">
         <div class="card sp-facts">${facts.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")}</div>
         ${e.isCourse ? `<div class="card sp-block"><h4>Coming up</h4>${f.up && f.up.length ? `<ul>${f.up.map(y => `<li>${esc(y.title.slice(0, 60))} · ${FMT_DAY.format(y.due)}</li>`).join("")}</ul>` : `<p class="privacy" style="margin:0">Nothing else is due in this course.</p>`}</div>`
-        : `<div class="card sp-block"><h4>Instructions from Canvas</h4>${e.desc ? `<div class="sp-scroll">${esc(e.desc)}</div>` : `<p class="privacy" style="margin:0">Nothing came through for this one yet. Open it in Canvas and paste what matters into your notes; the tutor reads them.</p>`}</div>`}
+        : `<div class="card sp-block"><h4>Instructions from ${lmsName()}</h4>${e.desc ? `<div class="sp-scroll">${esc(e.desc)}</div>` : `<p class="privacy" style="margin:0">Nothing came through for this one yet. Open it in Canvas and paste what matters into your notes; the tutor reads them.</p>`}</div>`}
         ${rub.length ? `<div class="card sp-block"><h4>Rubric</h4><ul>${rub.map(r => `<li>${esc(r)}</li>`).join("")}</ul></div>` : ""}
         <div class="card sp-block"><h4>Course material</h4>
           ${tierOf(myLevel()).files ? `${mats.length ? `<div class="matlist">${mats.map(m => `<label class="mat"><input type="radio" name="spMat" value="${esc(m.id)}" ${STUDY.mat === m.id ? "checked" : ""}><span>${esc(m.name)}</span><small>${FMT_DAY.format(new Date(m.at))} · ${Math.round((m.text || "").length / 1000)}k</small></label>`).join("")}<label class="mat"><input type="radio" name="spMat" value="" ${STUDY.mat ? "" : "checked"}><span>Don't use any</span></label></div>` : `<p class="privacy" style="margin:0 0 8px">Attach the lecture slides or a reading and the tutor answers from them, quoting the page.</p>`}
@@ -2717,7 +2722,7 @@ function openStudy(id, opts = {}){
           : `<p class="privacy" style="margin:0">Ask about your lecture slides and readings with <button class="minibtn" data-act="plus-open" style="padding:3px 8px">Pro</button>.</p>`}
         </div>
         <div class="card sp-block"><h4>${e.isCourse ? "Syllabus and course notes" : "Your notes"}</h4><textarea id="spNotes" placeholder="${e.isCourse ? "Paste the syllabus, the exam format, the chapters covered, anything the tutor should know about this course…" : "What you've tried, what the professor said, anything the tutor should know…"}">${esc(notes)}</textarea><p class="privacy" style="margin:6px 0 0">Saved on this device and in your Drive. The tutor reads them.</p></div>
-        <div class="row" style="margin:0">${e.url ? `<a class="btn ghost" href="${esc(e.url)}" target="_blank" rel="noopener">Open in Canvas ↗</a>` : ""}${e.isCourse ? "" : `<button class="btn ghost" id="spDone">${store.done[e.id] ? "Not done after all" : "Done ✓"}</button>`}</div>
+        <div class="row" style="margin:0">${e.url ? `<a class="btn ghost" href="${esc(e.url)}" target="_blank" rel="noopener">Open in ${lmsName()} ↗</a>` : ""}${e.isCourse ? "" : `<button class="btn ghost" id="spDone">${store.done[e.id] ? "Not done after all" : "Done ✓"}</button>`}</div>
       </aside></details>
       <section class="sp-chat">
         ${inApp && !locked ? `<div class="modes" role="group" aria-label="How do you want to work?">${STUDY_MODES.map(m => `<button class="mode ${m.make ? "make" : ""}" data-mode="${m.id}" aria-pressed="${STUDY.mode === m.id}" ${m.title ? `title="${m.title}"` : ""}>${m.make ? "✦ " : ""}${m.label}</button>`).join("")}</div>
@@ -3112,9 +3117,6 @@ function joinLoad(){
 }
 function joinClear(){ JOIN.code = ""; JOIN.cid = ""; JOIN.host = ""; JOIN.tag = ""; JOIN.count = null; try { localStorage.removeItem("lmk_join"); } catch(_){} }
 function roomsPossible(){ return MODE === "web" && cloudPossible(); }   // a phone can use rooms too; only the artifact copy cannot
-/* the LMS by name, the same rule the d2l branch uses (store.ext.lms is stamped by the ingest); self-contained here so
-   main does not depend on that branch */
-function lmsWord(){ return ((store.ext || {}).lms === "d2l" || (typeof EXT !== "undefined" && EXT.lms === "d2l")) ? "Brightspace" : "Canvas"; }
 /* Enrollment, proven without a token: Canvas shows a course's uuid only to people in it; the extension collected it
    inside the student's session (0.7.0+) and the hash of host|cid|uuid is what a room checks. The uuid never leaves. */
 async function courseProof(cid){
@@ -3168,14 +3170,14 @@ function roomLineHtml(){
   const who = others === null ? "" : others === 0 ? (member ? "Just you so far — share the link" : "Nobody here yet — be first") : `${others} classmate${others === 1 ? "" : "s"} on LMK`;
   const nx = member ? nextSession(cid) : null;
   const txt = member ? `<b>${who || "Your classmates"}</b>${nx ? `Session ${FMT_DAY.format(new Date(nx.at))} · ${FMT_TIME.format(new Date(nx.at))}${nx.me ? " — you're in." : "."}` : ok && v.chat ? "Class chat is linked." : "See who's here, or share the link."}`
-                     : `<b>${who || "Find classmates in " + esc(courseFilter)}</b>Only classmates ${lmsWord()} confirms can see the room, and only if you join.`;
+                     : `<b>${who || "Find classmates in " + esc(courseFilter)}</b>Only classmates ${lmsName()} confirms can see the room, and only if you join.`;
   return `<div class="card intro roomline" data-i="1"><span class="ic">👥</span><div class="txt">${txt}</div><button class="minibtn" data-act="room-open" data-cid="${esc(cid)}">${member ? "Open" : "See who's here"}</button></div>`;
 }
 /* once, at the bottom of Today after the first sync: the door to every room, dismissable */
 function roomNudgeHtml(){
   if (!roomsPossible() || !store.ext || store.roomNudge || courseFilter || !COURSES.length) return "";
   const cs = COURSES.filter(c => courseCid(c)).slice(0, 8); if (!cs.length) return "";
-  return `<div class="card intro" data-i="2" style="margin-top:18px"><span class="ic">👥</span><div class="txt"><b>Anyone else from your classes on LMK yet?</b>Each class has a room: who's here, and one link to share in the class chat. Only classmates ${lmsWord()} confirms can see it, and only if you join.<div class="chips" style="padding:8px 0 0">${cs.map(c => `<button class="chip" data-act="room-open" data-cid="${esc(courseCid(c))}"><span class="dot" style="background:${COLOR[c]}"></span>${esc(c)}</button>`).join("")}</div></div><button class="minibtn" data-act="room-nudge-done">Not now</button></div>`;
+  return `<div class="card intro" data-i="2" style="margin-top:18px"><span class="ic">👥</span><div class="txt"><b>Anyone else from your classes on LMK yet?</b>Each class has a room: who's here, and one link to share in the class chat. Only classmates ${lmsName()} confirms can see it, and only if you join.<div class="chips" style="padding:8px 0 0">${cs.map(c => `<button class="chip" data-act="room-open" data-cid="${esc(courseCid(c))}"><span class="dot" style="background:${COLOR[c]}"></span>${esc(c)}</button>`).join("")}</div></div><button class="minibtn" data-act="room-nudge-done">Not now</button></div>`;
 }
 const PLACE_LABEL = {library: "Library", campus: "On campus", online: "Online", other: "Somewhere else"};
 const SESSION_MINS = 90;   // what a study session takes out of the day's budget; nobody has measured one yet, so it is a guess and says so nowhere
@@ -3373,7 +3375,7 @@ function renderWrapped(){
   if (S.tu.chat + S.tu.quiz + S.tu.cards + S.cardsMade > 0) cards.push(card("tutor", "The tutor", `${S.tu.chat} conversation${S.tu.chat === 1 ? "" : "s"}`, [S.tu.quiz ? `<b>${S.tu.quiz} quiz${S.tu.quiz === 1 ? "" : "zes"}</b> taken` : "", S.cardsMade ? `<b>${S.cardsMade} cards made</b>, reviewed <b>${S.reviews} times</b>` : ""]));
   if (S.sprintMins) cards.push(card("sprints", "Sprints", `${Math.ceil(S.sprintMins / 25)} sprint${Math.ceil(S.sprintMins / 25) === 1 ? "" : "s"}`, [`<b>${S.sprintMins} min</b> of 25-minute focus`]));
   if (S.sessions) cards.push(card("classmates", "Classmates", `${S.sessions} session${S.sessions === 1 ? "" : "s"}`, [`study sessions you said yes to`]));
-  if (S.grades.length) cards.push(WR.grades ? card("grades", "Where you landed", esc(S.grades[0].g.letter || ""), [`as ${lmsWord()} calculates it — on this device only, never on the card`].concat(S.grades.map(x => `<div class="wr-row"><span>${esc(x.course)}</span><b>${esc(x.g.letter || "")} · ${Math.round(x.g.pct)}%</b></div>`))) : `<div class="card wr" data-card="grades"><div class="kicker">Where you landed</div><div class="line">Your ${lmsWord()} grade per class, on this device only. <button class="minibtn" data-act="wr-grades">Show</button></div></div>`);
+  if (S.grades.length) cards.push(WR.grades ? card("grades", "Where you landed", esc(S.grades[0].g.letter || ""), [`as ${lmsName()} calculates it — on this device only, never on the card`].concat(S.grades.map(x => `<div class="wr-row"><span>${esc(x.course)}</span><b>${esc(x.g.letter || "")} · ${Math.round(x.g.pct)}%</b></div>`))) : `<div class="card wr" data-card="grades"><div class="kicker">Where you landed</div><div class="line">Your ${lmsName()} grade per class, on this device only. <button class="minibtn" data-act="wr-grades">Show</button></div></div>`);
   if (S.milestones.length) cards.push(card("milestones", "Milestones", `${S.milestones[S.milestones.length - 1].n}th`, S.milestones.map(m => `<div class="wr-row"><span>${m.n}th finish</span><b>${FMT_DAY.format(new Date(m.at))}</b></div>`)));
   if (S.months.length) { const mx = Math.max(1, ...S.months.map(m => m.n)); cards.push(card("months", "Month by month", `${S.months.reduce((t, m) => Math.max(t, m.n), 0)}`, [`your busiest month, in finishes`, `<div class="wr-bars">${S.months.map(m => `<div><i style="height:${Math.max(3, Math.round(m.n / mx * 78))}px" title="${m.n}"></i>${m.label}</div>`).join("")}</div>`])); }
   cards.push(`<div class="card wr" data-card="share"><div class="kicker">The card</div><div class="line">Five numbers on one image${code ? ", with your invite link" : ""}. Yours to post, or not.</div><canvas id="wrCanvas" width="1080" height="1920" class="wr-card" aria-label="Your recap card"></canvas><div class="wr-share">${MODE === "web" ? `<button class="btn grad" data-act="wr-share">Share</button><button class="btn ghost" data-act="wr-download">Save image</button>` : `<span class="line">Open lmktoday.app to save or share it.</span>`}</div></div>`);
@@ -3422,7 +3424,7 @@ function roomInviteLink(cid, c){ return LMK_CONFIG.appUrl.replace(/\/$/, "") + "
 /* Says only what is true: the extension is real, the LMS name follows the school, the room is a roster. */
 function roomShareText(cid, c){
   const v = ROOMS.view[cid], n = v && v.ok ? v.count : 0;
-  return `Anyone else tired of checking ${lmsWord()} ten times a day? I'm using LMK for ${c} — it pulls every deadline into one daily plan, and there's a room for our class to find each other.${n > 1 ? ` ${n} of us are on it.` : ""} Free, a Chrome extension, about a minute to set up: ${roomInviteLink(cid, c)}`;
+  return `Anyone else tired of checking ${lmsName()} ten times a day? I'm using LMK for ${c} — it pulls every deadline into one daily plan, and there's a room for our class to find each other.${n > 1 ? ` ${n} of us are on it.` : ""} Free, a Chrome extension, about a minute to set up: ${roomInviteLink(cid, c)}`;
 }
 async function roomShare(cid){
   const c = courseOfCid(cid) || "our class"; if (!myCode()) { toast("Finish the welcome screen first, then share."); return; }
@@ -3442,11 +3444,11 @@ function renderRoom(){
   let body;
   const form = (v && v.ok && v.member) ? true : false;
   const noProof = !((store.ext || {}).courses || []).some(x => String(x.id) === String(cid) && x.uuid);
-  if (noProof) body = `<p class="sub2">LMK confirms you're in ${esc(c)} through a code that only that class's ${lmsWord()} page shows to its students. Your extension hasn't sent it yet — it needs LMK Today <b>0.7</b> or newer, and one visit to ${lmsWord()} with it on. Nothing else to set up.</p><div class="row">${close}</div>`;
+  if (noProof) body = `<p class="sub2">LMK confirms you're in ${esc(c)} through a code that only that class's ${lmsName()} page shows to its students. Your extension hasn't sent it yet — it needs LMK Today <b>0.7</b> or newer, and one visit to ${lmsName()} with it on. Nothing else to set up.</p><div class="row">${close}</div>`;
   else if (!(store.cloud && store.cloud.sid && store.cloud.secret)) body = `<p class="sub2">Finish the welcome screen once and the room opens.</p><div class="row">${close}</div>`;
   else if (!v) body = `<p class="sub2">Checking who's here…</p>`;
-  else if (!v.ok) body = `<p class="sub2">${v.error === "proof" || v.error === "cloud" ? `LMK couldn't confirm you're in ${esc(c)} yet. Open ${lmsWord()} once with the extension on (0.7 or newer), then come back.`
-      : v.error === "not enrolled" ? `${lmsWord()} doesn't list you in this class right now, so the room stays closed.`
+  else if (!v.ok) body = `<p class="sub2">${v.error === "proof" || v.error === "cloud" ? `LMK couldn't confirm you're in ${esc(c)} yet. Open ${lmsName()} once with the extension on (0.7 or newer), then come back.`
+      : v.error === "not enrolled" ? `${lmsName()} doesn't list you in this class right now, so the room stays closed.`
       : v.error === "off" ? "Rooms aren't available for this school." : "Couldn't reach LMK's server. Try again in a moment."}</p><div class="row">${close}</div>`;
   else if (!v.member || ROOMS.edit) {
     const others = v.member ? v.count - 1 : v.count;
@@ -3476,7 +3478,7 @@ async function roomJoinSave(){
   ROOMS.view[cid] = j.ok ? j : (was || j);
   if (j.ok && !roomMember(cid)) ROOMS.list.push({host: (store.ext || {}).host || "", cid: String(cid)});
   renderRoom(); render();
-  toast(j.ok ? "You're in. Only confirmed classmates can see this." : j.error === "cloud" ? `Open ${lmsWord()} once with the extension on, then try again.` : "That didn't go through. Try again in a moment.");
+  toast(j.ok ? "You're in. Only confirmed classmates can see this." : j.error === "cloud" ? `Open ${lmsName()} once with the extension on, then try again.` : "That didn't go through. Try again in a moment.");
 }
 async function roomLeaveNow(){
   const cid = ROOMS.cid; if (!confirm("Leave this room? Your entry is deleted right away.")) return;
@@ -3566,8 +3568,8 @@ function renderNow(root){
       </div>
       <div class="why">Why this: <b>${esc(whyTxt)}</b></div>
       <div class="actions">
-        <button class="btn primary" data-act="done-submit" data-id="${e.id}">${e.url ? "Done ✓ — submit in Canvas ↗" : "Done — next ✓"}</button>
-        ${e.url?`<a class="btn ghost" href="${esc(e.url)}" target="_blank" rel="noopener">Open in Canvas ${"↗"}</a>`:""}
+        <button class="btn primary" data-act="done-submit" data-id="${e.id}">${e.url ? "Done ✓ — submit in " + lmsName() + " ↗" : "Done — next ✓"}</button>
+        ${e.url?`<a class="btn ghost" href="${esc(e.url)}" target="_blank" rel="noopener">Open in ${lmsName()} ${"↗"}</a>`:""}
         <button class="btn grad" data-act="ai" data-id="${e.id}">✦ Ask the tutor</button>
         ${sprint ? `<span class="countchip soon" id="sprintClock">25:00</span><button class="btn ghost" data-act="sprint-stop">End sprint</button>` : `<button class="btn ghost" data-act="sprint" data-id="${e.id}">▶ 25-min sprint</button>`}
         <button class="btn ghost" data-act="skip" data-id="${e.id}">Not now — skip</button>
@@ -3583,13 +3585,15 @@ function renderNow(root){
          Nothing lives in the DOM and nothing in the string depends on the clock, so the minute render swaps
          nothing and the waiting pulse never restarts; the two install-time reloads cannot desynchronise it. */
       const state = phone ? "phone" : !live ? "artifact" : installed && answered ? "empty" : installed && extStuck ? "stuck" : installed ? "waiting" : EXT_HINT ? "checking" : "fresh";
+      const LMSW = (EXT.lms || (store.ext || {}).lms) ? lmsName() : "Canvas or Brightspace";   // known only once something answered
+      const openLbl = canvasHref() === LMK_CONFIG.canvasUrl ? "Canvas" : lmsName();            // the button opens ASU's Canvas until a school is known
       if (state === "phone" || state === "artifact") {
         html += `<div class="card hero" style="--hero-tint:color-mix(in srgb, var(--c1) 20%, transparent)">
           <div class="kicker">First run</div>
           <h1>${phone ? "Start on a computer, not here." : "Let's get your classes in."}</h1>
-          <div class="why">${phone ? "LMK reads Canvas through a Chrome extension, and a phone can't install one. On a computer, add the <b>LMK for Canvas</b> extension to Chrome and open Canvas once. Then sign in with Google here and your plan arrives on this phone by itself." : "Three steps, about a minute: <b>1.</b> Add the <b>LMK for Canvas</b> extension to Chrome. <b>2.</b> Open Canvas once like you normally would. <b>3.</b> Come back here; your classes appear by themselves. LMK stays empty until you've opened Canvas, and the first refresh or two can still show nothing while it syncs. That's normal."}</div>
+          <div class="why">${phone ? "LMK reads Canvas or Brightspace through a Chrome extension, and a phone can't install one. On a computer, add the <b>LMK Today</b> extension to Chrome and open your school's site once. Then sign in with Google here and your plan arrives on this phone by itself." : "Three steps, about a minute: <b>1.</b> Add the <b>LMK</b> extension to Chrome. <b>2.</b> Open Canvas or Brightspace once like you normally would. <b>3.</b> Come back here; your classes appear by themselves. LMK stays empty until you've opened it, and the first refresh or two can still show nothing while it syncs. That's normal."}</div>
           <div class="actions">
-            ${phone ? (gdReady() ? `<button class="btn grad" data-act="web-signin">Sign in with Google</button>` : "") : `<a class="btn grad" href="${LMK_CONFIG.storeUrl}" target="_blank" rel="noopener">Add to Chrome →</a><a class="btn ghost" href="${esc(canvasHref())}" target="_blank" rel="noopener">Already added it? Open Canvas →</a>`}
+            ${phone ? (gdReady() ? `<button class="btn grad" data-act="web-signin">Sign in with Google</button>` : "") : `<a class="btn grad" href="${LMK_CONFIG.storeUrl}" target="_blank" rel="noopener">Add to Chrome →</a><a class="btn ghost" href="${esc(canvasHref())}" target="_blank" rel="noopener">Already added it? Open ${openLbl} →</a>`}
             ${phone ? `<button class="btn ghost" data-act="open-token" title="A Canvas access token lets LMK's server read Canvas for you">No laptop? Use a Canvas token</button>` : ""}
             <button class="btn ghost" data-act="open-gear">Other ways</button>
           </div>
@@ -3598,42 +3602,42 @@ function renderNow(root){
       }
       const rowCls = (done, now) => done ? "done" : now ? "now" : "todo";
       const checks = `<ol class="checks">
-          <li class="${rowCls(installed, state === "fresh" || state === "checking")}">${state === "checking" ? "Checking for the extension\u2026" : installed ? "Extension added" : "Add the LMK for Canvas extension"}</li>
-          <li class="${rowCls(answered, state === "waiting" || state === "stuck")}">Canvas read once</li>
+          <li class="${rowCls(installed, state === "fresh" || state === "checking")}">${state === "checking" ? "Checking for the extension\u2026" : installed ? "Extension added" : "Add the LMK Today extension"}</li>
+          <li class="${rowCls(answered, state === "waiting" || state === "stuck")}">${LMSW} read once</li>
           <li class="${rowCls(false, state === "empty")}">Your classes land here</li>
         </ol>`;
-      const h1 = state === "waiting" ? "Extension added. Waiting for Canvas\u2026"
-        : state === "stuck" ? "Nothing has come back from Canvas yet."
-        : state === "empty" ? "Canvas answered, but no active courses came back."
+      const h1 = state === "waiting" ? `Extension added. Waiting for ${LMSW}\u2026`
+        : state === "stuck" ? `Nothing has come back from ${LMSW} yet.`
+        : state === "empty" ? `${LMSW} answered, but no active courses came back.`
         : "Let's get your classes in.";
       const why = state === "waiting"
-          ? "The extension opened Canvas in another tab. If it's asking you to sign in, sign in and it does the rest; your classes land here by themselves a few seconds after Canvas loads. If the Canvas that opened isn't your school's, open your own school's Canvas instead — any <b>instructure.com</b> address works out of the box."
+          ? "The extension opened your school's Canvas or Brightspace in another tab. If it's asking you to sign in, sign in and it does the rest; your classes land here by themselves a few seconds after it loads. If the site that opened isn't your school's, open your own school's Canvas or Brightspace instead — any <b>instructure.com</b> or <b>brightspace.com</b> address works out of the box."
         : state === "stuck"
-          ? `Almost always one of three things. <b>1.</b> Canvas hasn't finished loading in this browser — if it's still asking you to sign in, finish that and come straight back. <b>2.</b> You're signed out of Canvas. <b>3.</b> Your school runs Canvas on its own address, like <b>canvas.uw.edu</b> or <b>bruinlearn.ucla.edu</b> — out of the box LMK reads <b>canvas.asu.edu</b> and any <b>*.instructure.com</b> address. ${extCanAdopt() ? "If that's you, add it below: Chrome will ask you to approve it, and then it works like any other school." : "If that's you, the Canvas token below works on <i>any</i> school and takes a minute."}`
+          ? `Almost always one of three things. <b>1.</b> Your school's site hasn't finished loading in this browser — if it's still asking you to sign in, finish that and come straight back. <b>2.</b> You're signed out of Canvas. <b>3.</b> Your school runs Canvas on its own address, like <b>canvas.uw.edu</b> or <b>bruinlearn.ucla.edu</b> — out of the box LMK reads <b>canvas.asu.edu</b>, any <b>*.instructure.com</b> and any <b>*.brightspace.com</b> address. ${extCanAdopt() ? "If that's you, add it below: Chrome will ask you to approve it, and then it works like any other school." : "If that's you, the Canvas token below works on <i>any</i> school and takes a minute."}`
         : state === "empty"
-          ? "That usually means Canvas was signed in to a different account, or this term's courses aren't published yet. Sign in to the Canvas you use for class, then open it once more and LMK reads it again."
-          : "One click in Chrome, then the extension opens Canvas by itself and brings your classes back here. About a minute, once.";
+          ? "That usually means " + LMSW + " was signed in to a different account, or this term's courses aren't published yet. Sign in to the " + LMSW + " you use for class, then open it once more and LMK reads it again."
+          : "One click in Chrome, then the extension opens your school's site by itself and brings your classes back here. About a minute, once.";
       const actions = state === "fresh"
-          ? `<a class="btn grad" href="${LMK_CONFIG.storeUrl}" target="_blank" rel="noopener">Add to Chrome →</a><a class="btn ghost" href="${esc(canvasHref())}" target="_blank" rel="noopener" title="Already added the extension? This is the only other step.">Already added it? Open Canvas →</a>${gdReady() ? `<button class="btn ghost" data-act="web-signin">Sign in with Google</button>` : ""}`
+          ? `<a class="btn grad" href="${LMK_CONFIG.storeUrl}" target="_blank" rel="noopener">Add to Chrome →</a><a class="btn ghost" href="${esc(canvasHref())}" target="_blank" rel="noopener" title="Already added the extension? This is the only other step.">Already added it? Open ${openLbl} →</a>${gdReady() ? `<button class="btn ghost" data-act="web-signin">Sign in with Google</button>` : ""}`
         : state === "checking" ? ""
         : state === "stuck"
-          ? `<a class="btn grad" href="${esc(canvasHref())}" target="_blank" rel="noopener">Open Canvas →</a>${extCanAdopt() ? `<button class="btn grad" data-act="host-add" title="Chrome will ask you to approve your school's Canvas">Add my school's Canvas →</button><button class="btn ghost" data-act="open-token">Or use a Canvas token</button>` : `<button class="btn ghost" data-act="open-token" title="Works on any school's Canvas, whatever its address">Use a Canvas token instead</button>`}`
+          ? `<a class="btn grad" href="${esc(canvasHref())}" target="_blank" rel="noopener">Open ${openLbl} →</a>${extCanAdopt() ? `<button class="btn grad" data-act="host-add" title="Chrome will ask you to approve your school's Canvas">Add my school's Canvas →</button><button class="btn ghost" data-act="open-token">Or use a Canvas token</button>` : `<button class="btn ghost" data-act="open-token" title="Works on any school's Canvas, whatever its address">Use a Canvas token instead</button>`}`
         : state === "empty"
-          ? `<a class="btn grad" href="${esc(canvasHref())}" target="_blank" rel="noopener">Open Canvas →</a><button class="btn ghost" data-act="open-token">Use a Canvas token instead</button>`
-          : `<a class="btn grad" href="${esc(canvasHref())}" target="_blank" rel="noopener">Open Canvas →</a>${gdReady() ? `<button class="btn ghost" data-act="web-signin">Sign in with Google</button>` : ""}`;
+          ? `<a class="btn grad" href="${esc(canvasHref())}" target="_blank" rel="noopener">Open ${openLbl} →</a><button class="btn ghost" data-act="open-token">Use a Canvas token instead</button>`
+          : `<a class="btn grad" href="${esc(canvasHref())}" target="_blank" rel="noopener">Open ${openLbl} →</a>${gdReady() ? `<button class="btn ghost" data-act="web-signin">Sign in with Google</button>` : ""}`;
       html += `<div class="card hero${state === "waiting" ? " waiting" : ""}" style="--hero-tint:color-mix(in srgb, var(--c1) 20%, transparent)">
         <div class="kicker">${JOIN.tag && JOIN.cid ? "You were invited" : installed ? "One step left" : "First run"}</div>
         <h1>${h1}</h1>
         ${checks}${joinWhyHtml()}
         <div class="why">${why}</div>
         <div class="actions">${actions}<button class="btn ghost" data-act="open-gear">Other ways</button></div>
-        ${canvasHref() === LMK_CONFIG.canvasUrl && state === "fresh" ? `<p class="sub2" style="margin:10px 0 0">That button opens ASU's Canvas. Another school? Open your own Canvas in any tab instead — LMK reads it from there.</p>` : ""}
+        ${canvasHref() === LMK_CONFIG.canvasUrl && state === "fresh" ? `<p class="sub2" style="margin:10px 0 0">That button opens ASU's Canvas. Another school, or Brightspace? Open your own school's site in any tab instead — LMK reads it from there.</p>` : ""}
       </div>`;
       root.innerHTML = html; if (installed) nudgeExtension(); return;
     }
     const undatedOnly = store.ext && !EVENTS.length && (store.undated || []).length;
     html += `<div class="card hero clear${CELEBRATE ? " celebrate" : ""}" style="--hero-tint:color-mix(in srgb, var(--good) 18%, transparent)">${syncedInHtml()}<div class="kicker">Next up</div>${undatedOnly
-      ? `<h1>Canvas is in. Nothing has a due date yet.</h1><div class="why">${(store.undated || []).length} thing${(store.undated || []).length === 1 ? "" : "s"} on the shelf under the gear are waiting for a date; LMK plans around dates, so until your professors set some there is nothing to schedule.</div>`
+      ? `<h1>${lmsName()} is in. Nothing has a due date yet.</h1><div class="why">${(store.undated || []).length} thing${(store.undated || []).length === 1 ? "" : "s"} on the shelf under the gear are waiting for a date; LMK plans around dates, so until your professors set some there is nothing to schedule.</div>`
       : `<h1>All clear. Actually clear.</h1><div class="why">Every assignment in view is done or scheduled ahead. Go touch grass — you earned it.</div>`}</div>`;
   }
 
@@ -3781,7 +3785,7 @@ function renderPlan(root){
           <button class="iconbtn" data-act="del-undated" title="Remove" aria-label="Remove">${ICON_TRASH}</button>
         </div>
       </div>`).join("") + `</div></div>
-    <div class="empty" style="margin-top:8px;border-style:solid;font-size:12.5px">These exist in Canvas without a due date — the morning sync will date them automatically if your professor ever does. Until then, give them your own deadline so they can’t hide.</div>`;
+    <div class="empty" style="margin-top:8px;border-style:solid;font-size:12.5px">These exist in ${lmsName()} without a due date — the morning sync will date them automatically if your professor ever does. Until then, give them your own deadline so they can’t hide.</div>`;
   }
 
   // month calendar
@@ -3877,7 +3881,7 @@ function renderSemester(root){
         <div class="body"><div class="t" style="font-weight:600">${esc(e.title)}</div>
         <div class="sub"><span class="cdot" style="background:${COLOR[e.course]}"></span><span class="ccode">${esc(e.course)}</span><span class="duelbl">${FMT_DAY.format(e.due)} · ${FMT_TIME.format(e.due)}</span></div></div>
         <button class="minibtn keep" data-act="examplan">Study plan</button>
-        ${e.url?`<a class="iconbtn" href="${esc(e.url)}" target="_blank" rel="noopener" aria-label="Open in Canvas">${ICON_LINK}</a>`:""}
+        ${e.url?`<a class="iconbtn" href="${esc(e.url)}" target="_blank" rel="noopener" aria-label="Open in ${lmsName()}">${ICON_LINK}</a>`:""}
       </div>`;
     }).join("") + `</div>`;
   } else html += `<div class="empty">No upcoming exams detected${courseFilter?" for this course":""}. Titles with “exam / midterm / final” land here automatically.</div>`;
@@ -3915,7 +3919,7 @@ function renderSemester(root){
 
   // course health
   html += `<h2 class="sec">Course health</h2>
-    <div class="empty" style="margin:-2px 0 12px;border-style:solid;font-size:12.5px">Grades are calculated from what Canvas has actually scored, weighted by your syllabus categories. Your professor's gradebook is still the official one — it can drop a lowest score or add a curve that LMK can't see.</div>
+    <div class="empty" style="margin:-2px 0 12px;border-style:solid;font-size:12.5px">Grades are calculated from what ${lmsName()} has actually scored, weighted by your syllabus categories. Your professor's gradebook is still the official one — it can drop a lowest score or add a curve that LMK can't see.</div>
     <div class="health">`;
   COURSES.filter(c => !courseFilter || c === courseFilter).forEach(c=>{
     const all = EVENTS.filter(e=>e.course===c && !store.dropped[e.id]);
@@ -4140,7 +4144,8 @@ function cachePlanLine(days, today){
 /* The sync bookmarklet, generated from ~/lmk-extension/bookmarklet.txt — regenerate both together.
    It works on ANY school's Canvas, which is the whole point: it takes the origin from the page it runs on. */
 const LMK_SYNC_BOOKMARKLET = "javascript:(function(){%0A  let BASE = \"\";%0A  async function getJSON(path){%0A    const out = [];%0A    let url = BASE + path + (path.includes(\"?\") ? \"&\" : \"?\") + \"per_page=100\";%0A    for (let hop = 0; url && hop < 20; hop++){%0A      const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000);%0A      let r; try { r = await fetch(url, {credentials:\"include\", headers:{\"Accept\":\"application/json\"}, signal: ctl.signal}); } finally { clearTimeout(timer); }%0A      if (!r.ok) throw new Error(r.status + \" \" + path);%0A      let txt = await r.text();%0A      if (txt.startsWith(\"while(1);\")) txt = txt.slice(9);%0A      const data = JSON.parse(txt);%0A      if (Array.isArray(data)) out.push(...data); else return data;%0A      const link = r.headers.get(\"Link\") || \"\";%0A      const m = link.match(/<([^>]+)>;%5Cs*rel=\"next\"/);%0A      url = m ? m[1] : null;%0A    }%0A    return out;%0A  }%0A  const strip = h => (h || \"\").replace(/<[^>]+>/g, \" \").replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/%5Cs+/g, \" \").trim();%0A  /* Canvas's own grade for this course: exactly what the student sees, with group weights, drop rules,%0A     late policies and excused work already applied. Null when the instructor hides totals. */%0A  function courseScores(c){%0A    const num = v => (v === null || v === undefined || v === \"\" || !isFinite(+v)) ? null : +v;%0A    const es = (c.enrollments || []).filter(e => /student/i.test(e.type || e.role || \"\"));%0A    const e = es.find(x => x.computed_current_score != null) || es[0] || {};%0A    return {cur: num(e.computed_current_score), fin: num(e.computed_final_score)};%0A  }%0A  function courseTag(c){%0A    const s = (c.course_code || c.name || \"\");%0A    if (/asuready/i.test(s)) return \"ASU Ready\";%0A    const m = s.match(/([A-Z]{2,4})%5Cs?-?(%5Cd{2,3}[A-Z]?)/);%0A    return m ? m[1] + \" \" + m[2] : s.slice(0, 18);%0A  }%0A  function rubricText(a){%0A    const r = Array.isArray(a.rubric) ? a.rubric : [];%0A    return r.slice(0, 12).map(c => String(c.description || \"\").replace(/%5Cs+/g, \" \").trim().slice(0, 80) + (c.points != null ? \" (\" + c.points + \" pts)\" : \"\")).filter(x => x.trim() && x.trim() !== \"(0 pts)\").join(\"; \").slice(0, 900);%0A  }%0A  function kindHint(a){%0A    const st = a.submission_types || [];%0A    if (a.grading_type === \"not_graded\" || (a.points_possible === 0 && !st.includes(\"online_quiz\"))) return \"fyi\";%0A    if (st.includes(\"none\") || st.includes(\"on_paper\")) return \"inclass\";%0A    if (/attendance|participation|in.?class|clicker/i.test(a.name || \"\")) return \"inclass\";%0A    if (st.includes(\"online_quiz\")) return \"quiz\";%0A    if (st.includes(\"discussion_topic\")) return \"discussion\";%0A    return \"\";%0A  }%0A  (typeof window !== \"undefined\" ? window : self).lmkCollect = async function(base){%0A    BASE = (base || location.origin).replace(/%5C/$/, \"\");%0A    const HOST = BASE.replace(/^https?:%5C/%5C//, \"\");%0A    const courses = (await getJSON(\"/api/v1/courses?enrollment_state=active&include[]=term&include[]=total_scores\")).filter(c => c.name && !c.access_restricted_by_date);%0A    const items = {};%0A    const groups = {};%0A    for (const c of courses){%0A      const tag = courseTag(c);%0A      let list = [];%0A      try { list = await getJSON(`/api/v1/courses/${c.id}/assignments?include[]=submission&order_by=due_at`); } catch(e){ continue; }%0A      /* What the instructor actually wrote back. One request per course, only this student's submissions,%0A         only comments from someone who is not the student. It is the most useful thing LMK can know. */%0A      let fb = {};%0A      try {%0A        const subs = await getJSON(`/api/v1/courses/${c.id}/students/submissions?student_ids[]=self&include[]=submission_comments&per_page=100`);%0A        for (const sub of (Array.isArray(subs) ? subs : [])) {%0A          const mine = String(sub.user_id || \"\");%0A          const notes = (sub.submission_comments || []).filter(x => x && x.comment && String(x.author_id || \"\") !== mine);%0A          if (notes.length) fb[String(sub.assignment_id)] = strip(notes[notes.length - 1].comment).slice(0, 400);%0A        }%0A      } catch(e){}%0A      try {%0A        const g = await getJSON(`/api/v1/courses/${c.id}/assignment_groups`);%0A        groups[c.id] = g.map(x => ({id:x.id, name:x.name, w:x.group_weight}));%0A      } catch(e){}%0A      for (const a of list){%0A        if (a.only_visible_to_overrides && !a.due_at && !a.has_overrides) continue;%0A        const s = a.submission || {};%0A        items[String(a.id)] = {%0A          t: a.name, c: tag, cid: String(c.id),%0A          due: a.due_at || \"\", lock: a.lock_at || \"\",%0A          pts: a.points_possible, gt: a.grading_type, st: (a.submission_types || []).join(\",\"),%0A          grp: a.assignment_group_id, k: kindHint(a),%0A          sub: s.workflow_state || \"\", subAt: s.submitted_at || \"\", score: s.score == null ? null : s.score,%0A          late: !!s.late, missing: !!s.missing, excused: !!s.excused,%0A          url: a.html_url || \"\",%0A          desc: strip(a.description).slice(0, 1200),%0A          rub: rubricText(a),%0A          fb: fb[String(a.id)] || \"\",%0A          qid: a.quiz_id ? String(a.quiz_id) : \"\",%0A        };%0A      }%0A    }%0A    // Canvas keeps seconds spent on every quiz attempt %E2%80%94 exact durations, no sensor needed.%0A    const quizTime = {}, quizMap = {};%0A    const quizzes = Object.entries(items).filter(([aid, x]) => x.qid && /^(submitted|graded|pending_review)$/.test(x.sub)).slice(0, 40);%0A    for (const [aid, x] of quizzes){%0A      quizMap[x.cid + \"/\" + x.qid] = aid;%0A      try {%0A        const r = await getJSON(`/api/v1/courses/${x.cid}/quizzes/${x.qid}/submissions`);%0A        const subs = (r && r.quiz_submissions) || [];%0A        const secs = subs.map(q => +q.time_spent || 0).filter(v => v > 0);%0A        if (secs.length) quizTime[aid] = Math.round(Math.max(...secs) / 60);%0A      } catch(e){}%0A    }%0A    for (const aid in items) if (items[aid].qid) quizMap[items[aid].cid + \"/\" + items[aid].qid] = aid;%0A    // apply_assignment_group_weights is the course-level switch: when it is false Canvas ignores%0A    // the group weights entirely and grades on total points, however the weights are set.%0A    return {lmk:\"canvas\", v:3, at: Date.now(), host: HOST,%0A      courses: courses.map(c => Object.assign({id:String(c.id), tag:courseTag(c), name:c.name, wt: !!c.apply_assignment_group_weights, uuid: String(c.uuid || \"\")}, courseScores(c))),   // uuid: Canvas shows it only to the enrolled; it is what proves a classmate is a classmate (rooms), hashed before it leaves the browser%0A      groups, items, quizTime, quizMap};%0A  };%0A})();%0A%0A(async()=>{try{const p=await window.lmkCollect();const s=JSON.stringify(p);const n=Object.keys(p.items).length;%0Alet ok=false;try{await navigator.clipboard.writeText(s);ok=true}catch(e){}%0Aif(!ok){const ta=document.createElement(\"textarea\");ta.value=s;ta.style.cssText=\"position:fixed;top:8px;left:8px;width:90vw;height:40vh;z-index:99999;font-size:12px\";document.body.appendChild(ta);ta.focus();ta.select();try{ok=document.execCommand(\"copy\")}catch(e){}if(ok)ta.remove();else alert(\"Select all + copy the box, then paste it into LMK (gear %E2%86%92 Paste from Canvas).\")}%0Aif(ok)alert(\"LMK: copied \"+n+\" assignments. Open LMK %E2%86%92 gear %E2%86%92 Paste from Canvas %E2%86%92 paste.\")}catch(e){alert(\"LMK: could not read Canvas %E2%80%94 are you logged in on this tab? \"+e)}})();";
-const APP_BUILD = "v64.3";
+const APP_BUILD = "v65.0";
+const LMK_SYNC_BOOKMARKLET_D2L = "javascript:(function(){%0A  let BASE = \"\", XSRF = \"\", LP = \"1.0\", LE = \"1.0\", ME = \"\";%0A  const DIAG = [];%0A  const mask = p => p.replace(/%5C/%5Cd{2,}(?=%5C/|$|%5C?)/g, \"/#\");   // ids out of the path names%0A  async function getJSON(path, soft){%0A    const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000);%0A    let r;%0A    try {%0A      const headers = {\"Accept\": \"application/json\"};%0A      if (XSRF) headers[\"X-Csrf-Token\"] = XSRF;%0A      r = await fetch(BASE + path, {credentials: \"include\", headers, signal: ctl.signal});%0A    } catch(e) { clearTimeout(timer); DIAG.push({p: mask(path), s: 0, err: String(e && e.message || e).slice(0, 60)}); if (soft) return null; throw e; }%0A    finally { clearTimeout(timer); }%0A    const rec = {p: mask(path), s: r.status};%0A    if (!r.ok) { DIAG.push(rec); if (soft) return null; throw new Error(r.status + \" \" + path); }%0A    let data = null;%0A    try { data = await r.json(); } catch(e) { rec.err = \"not json\"; DIAG.push(rec); if (soft) return null; throw e; }%0A    const list = Array.isArray(data) ? data : data && Array.isArray(data.Items) ? data.Items : data && Array.isArray(data.Objects) ? data.Objects : null;%0A    rec.n = list ? list.length : 1;%0A    rec.k = Object.keys((list ? list[0] : data) || {}).slice(0, 40);%0A    DIAG.push(rec);%0A    return data;%0A  }%0A  /* Brightspace pages two ways: PagedResultSet {PagingInfo:{Bookmark,HasMoreItems}, Items} and%0A     ObjectListPage {Objects, Next}. Both are walked here; twenty hops is more than any student has. */%0A  async function getAll(path, soft){%0A    const out = []; let next = path;%0A    for (let hop = 0; next && hop < 20; hop++){%0A      const d = await getJSON(next, soft);%0A      if (!d) break;%0A      if (Array.isArray(d)) { out.push(...d); break; }%0A      if (Array.isArray(d.Items)) { out.push(...d.Items); const pi = d.PagingInfo || {}; next = pi.HasMoreItems && pi.Bookmark ? path + (path.includes(\"?\") ? \"&\" : \"?\") + \"bookmark=\" + encodeURIComponent(pi.Bookmark) : null; continue; }%0A      if (Array.isArray(d.Objects)) { out.push(...d.Objects); next = typeof d.Next === \"string\" && d.Next ? d.Next.replace(/^https?:%5C/%5C/[^/]+/, \"\") : null; continue; }%0A      break;%0A    }%0A    return out;%0A  }%0A  const strip = h => (h || \"\").replace(/<[^>]+>/g, \" \").replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/%5Cs+/g, \" \").trim();%0A  const rich = o => o && typeof o === \"object\" ? (o.Html ? strip(o.Html) : strip(o.Text || \"\")) : strip(typeof o === \"string\" ? o : \"\");%0A  const num = v => (v === null || v === undefined || v === \"\" || !isFinite(+v)) ? null : +v;%0A  const iso = v => { const t = Date.parse(v || \"\"); return isNaN(t) ? \"\" : new Date(t).toISOString(); };%0A  function courseTag(ou){%0A    const s = String(ou.Code || ou.Name || \"\");%0A    const m = s.match(/([A-Z]{2,4})[%5Cs_-]?(%5Cd{2,3}[A-Z]?)(?![0-9])/);%0A    return m ? m[1] + \" \" + m[2] : String(ou.Name || s).slice(0, 18);%0A  }%0A  /* D2L ids are org-wide database ids, but a dropbox folder and a quiz can share a number, and progress is%0A     keyed by id alone. One leading digit per kind keeps them apart and keeps the id all digits (invariant 2). */%0A  const idOf = (kind, id) => (kind === \"quiz\" ? \"2\" : \"1\") + String(id).replace(/%5CD/g, \"\");%0A  const pct = (n, d) => (num(n) != null && num(d) > 0) ? Math.round(n / d * 1000) / 10 : null;%0A%0A  (typeof window !== \"undefined\" ? window : self).lmkD2LDiag = DIAG;%0A  (typeof window !== \"undefined\" ? window : self).lmkCollectD2L = async function(base){%0A    BASE = (base || location.origin).replace(/%5C/$/, \"\");%0A    const HOST = BASE.replace(/^https?:%5C/%5C//, \"\");%0A    DIAG.length = 0;%0A    try { XSRF = String((typeof localStorage !== \"undefined\" && localStorage.getItem(\"XSRF.Token\")) || \"\").replace(/^\"|\"$/g, \"\"); } catch(_) { XSRF = \"\"; }%0A    // the API is versioned per product; ask which versions this school runs rather than guessing%0A    const versions = await getJSON(\"/d2l/api/versions/\", true);%0A    for (const v of (Array.isArray(versions) ? versions : [])) { if (v.ProductCode === \"lp\" && v.LatestVersion) LP = v.LatestVersion; if (v.ProductCode === \"le\" && v.LatestVersion) LE = v.LatestVersion; }%0A    const me = await getJSON(`/d2l/api/lp/${LP}/users/whoami`, true);%0A    ME = me && me.Identifier != null ? String(me.Identifier) : \"\";%0A    const now = Date.now();%0A    const enr = await getAll(`/d2l/api/lp/${LP}/enrollments/myenrollments/?orgUnitTypeId=3`, false);%0A    const courses = enr.map(e => e || {}).filter(e => {%0A      const ou = e.OrgUnit || {}, a = e.Access || {};%0A      if (!ou.Id || !ou.Name) return false;%0A      if (a.IsActive === false || a.CanAccess === false) return false;%0A      const end = Date.parse(a.EndDate || \"\"), start = Date.parse(a.StartDate || \"\");%0A      if (!isNaN(end) && end < now - 14 * 864e5) return false;       // a course that ended a fortnight ago%0A      if (!isNaN(start) && start > now + 30 * 864e5) return false;   // one that has not started%0A      return true;%0A    }).map(e => e.OrgUnit);%0A    const items = {}, groups = {}, quizTime = {}, quizMap = {};%0A    let subCalls = 0, attCalls = 0;%0A    const out = [];%0A    for (const ou of courses){%0A      const cid = String(ou.Id), tag = courseTag(ou);%0A      // grades first: a released score is the strongest evidence, and the id map is needed by both lists%0A      const gv = {};%0A      for (const g of (await getAll(`/d2l/api/le/${LE}/${cid}/grades/values/myGradeValues/`, true) || [])) if (g && g.GradeObjectIdentifier != null) gv[String(g.GradeObjectIdentifier)] = g;%0A      const fin = await getJSON(`/d2l/api/le/${LE}/${cid}/grades/final/values/myGradeValue`, true);%0A      const cur = fin ? (pct(fin.WeightedNumerator, fin.WeightedDenominator) ?? pct(fin.PointsNumerator, fin.PointsDenominator)) : null;%0A      // categories carry the weights; these two routes are often instructor-only, and that is fine (points-based grading then)%0A      const setup = await getJSON(`/d2l/api/le/${LE}/${cid}/grades/setup/`, true);%0A      const cats = await getAll(`/d2l/api/le/${LE}/${cid}/grades/categories/`, true);%0A      const gobjs = await getAll(`/d2l/api/le/${LE}/${cid}/grades/`, true);%0A      const catOf = {}; for (const g of gobjs || []) if (g && g.Id != null && g.CategoryId != null) catOf[String(g.Id)] = String(g.CategoryId);%0A      if (Array.isArray(cats) && cats.length) groups[cid] = cats.map(c => ({id: String(c.Id), name: c.Name, w: num(c.Weight)}));%0A      const wt = !!(setup && /weight/i.test(String(setup.GradingSystem || \"\")));%0A      out.push({id: cid, tag, name: ou.Name, wt, cur, fin: null, uuid: ou.Code ? \"d2l:\" + String(ou.Code) : \"\"});   // Brightspace has no course uuid; the offering code is the nearest thing an outsider does not see%0A      // dropbox folders = assignments%0A      const folders = (await getAll(`/d2l/api/le/${LE}/${cid}/dropbox/folders/`, true) || []).filter(f => f && f.Id != null && f.Name && !f.IsHidden);%0A      folders.sort((a, b) => (Date.parse(b.DueDate || (b.Availability || {}).EndDate || \"\") || 0) - (Date.parse(a.DueDate || (a.Availability || {}).EndDate || \"\") || 0));%0A      for (const f of folders){%0A        const av = f.Availability || {}, as = f.Assessment || {};%0A        const due = iso(f.DueDate) || iso(av.EndDate);          // Brightspace instructors often set only \"Ends\"; the student treats that as the deadline%0A        const g = f.GradeItemId != null ? gv[String(f.GradeItemId)] : null;%0A        const stype = ({0: \"online_upload\", 1: \"online_text_entry\", 2: \"on_paper\", 3: \"none\"})[f.SubmissionType] || \"online_upload\";%0A        const pts = num(as.ScoreDenominator) ?? (g ? num(g.PointsDenominator) : null);%0A        let sub = \"\", subAt = \"\", score = g ? num(g.PointsNumerator) : null, fb = \"\";%0A        /* The learner's own submissions: the one call that turns \"graded\" into \"handed in on <date>\". Read for%0A           the recent and coming work only, capped, and never trusted blindly %E2%80%94 a 403 here just means no%0A           auto-check for this school until we know its rules. */%0A        const dueMs = Date.parse(due) || 0;%0A        if (subCalls < 40 && (!dueMs || dueMs > now - 60 * 864e5) && stype !== \"none\") {%0A          subCalls++;%0A          const ent = await getJSON(`/d2l/api/le/${LE}/${cid}/dropbox/folders/${f.Id}/submissions/`, true);%0A          const mine = (Array.isArray(ent) ? ent : []).filter(e => e && e.Entity && (!ME || String(e.Entity.EntityId) === ME || e.Entity.EntityType === \"Group\"));%0A          for (const e of mine){%0A            const subs = Array.isArray(e.Submissions) ? e.Submissions : [];%0A            const latest = subs.map(s => iso(s.SubmissionDate)).filter(Boolean).sort().pop();%0A            if (latest) { sub = \"submitted\"; subAt = latest; }%0A            const fbk = e.Feedback || null;%0A            if (fbk) { if (num(fbk.Score) != null) { score = num(fbk.Score); sub = \"graded\"; } const t = rich(fbk.Feedback); if (t) fb = t.slice(0, 400); }%0A          }%0A        }%0A        if (!sub && score != null) sub = \"graded\";%0A        items[idOf(\"dropbox\", f.Id)] = {%0A          t: f.Name, c: tag, cid, due, lock: iso(av.EndDate),%0A          pts, gt: (pts > 0 || f.GradeItemId != null) ? \"points\" : \"not_graded\", st: stype,%0A          grp: f.GradeItemId != null && catOf[String(f.GradeItemId)] ? catOf[String(f.GradeItemId)] : \"\",%0A          k: stype === \"on_paper\" || stype === \"none\" ? \"inclass\" : (!(pts > 0) && f.GradeItemId == null) ? \"fyi\" : \"\",%0A          sub, subAt, score, late: false, missing: false, excused: false,%0A          url: `${BASE}/d2l/lms/dropbox/user/folder_submit_files.d2l?ou=${cid}&db=${f.Id}`,%0A          desc: rich(f.CustomInstructions).slice(0, 1200),%0A          rub: (Array.isArray(as.Rubrics) ? as.Rubrics : []).map(r => String(r.Name || \"\").trim()).filter(Boolean).slice(0, 12).join(\"; \").slice(0, 900),%0A          fb, qid: \"\",%0A        };%0A      }%0A      // quizzes%0A      const quizzes = (await getAll(`/d2l/api/le/${LE}/${cid}/quizzes/`, true) || []).filter(q => q && q.QuizId != null && q.Name && q.IsActive !== false);%0A      for (const q of quizzes){%0A        const due = iso(q.DueDate) || iso(q.EndDate);%0A        const g = q.GradeItemId != null ? gv[String(q.GradeItemId)] : null;%0A        let sub = \"\", subAt = \"\", score = g ? num(g.PointsNumerator) : null;%0A        const dueMs = Date.parse(due) || 0;%0A        const aid = idOf(\"quiz\", q.QuizId);%0A        if (attCalls < 20 && (!dueMs || dueMs > now - 60 * 864e5)) {%0A          attCalls++;%0A          const att = await getAll(`/d2l/api/le/${LE}/${cid}/quizzes/${q.QuizId}/attempts/`, true);%0A          const mine = (att || []).filter(a => a && (!ME || a.UserId == null || String(a.UserId) === ME));%0A          const done = mine.map(a => ({at: iso(a.TimeCompleted), mins: (Date.parse(a.TimeCompleted || \"\") - Date.parse(a.TimeStarted || \"\")) / 60e3})).filter(a => a.at);%0A          if (done.length) { sub = \"submitted\"; subAt = done.map(a => a.at).sort().pop(); const m = Math.max(...done.map(a => a.mins).filter(v => v > 0 && v < 600)); if (isFinite(m) && m > 0) quizTime[aid] = Math.round(m); }%0A        }%0A        if (score != null) sub = subAt ? \"graded\" : \"graded\";%0A        quizMap[cid + \"/\" + q.QuizId] = aid;%0A        items[aid] = {%0A          t: q.Name, c: tag, cid, due, lock: iso(q.EndDate),%0A          pts: g ? num(g.PointsDenominator) : null, gt: q.GradeItemId != null ? \"points\" : \"not_graded\", st: \"online_quiz\",%0A          grp: q.GradeItemId != null && catOf[String(q.GradeItemId)] ? catOf[String(q.GradeItemId)] : \"\",%0A          k: \"quiz\",%0A          sub, subAt, score, late: false, missing: false, excused: false,%0A          url: `${BASE}/d2l/lms/quizzing/user/quiz_summary.d2l?ou=${cid}&qi=${q.QuizId}`,%0A          desc: (rich(q.Description) + \" \" + rich(q.Instructions)).trim().slice(0, 1200),%0A          rub: \"\", fb: \"\", qid: String(q.QuizId),%0A        };%0A      }%0A    }%0A    return {lmk: \"canvas\", lms: \"d2l\", v: 3, at: Date.now(), host: HOST, courses: out, groups, items, quizTime, quizMap, diag: DIAG.slice(0, 200)};%0A  };%0A})();%0A%0A(async()=>{try{const p=await window.lmkCollectD2L();delete p.diag;const s=JSON.stringify(p);const n=Object.keys(p.items).length;%0Alet ok=false;try{await navigator.clipboard.writeText(s);ok=true}catch(e){}%0Aif(!ok){const ta=document.createElement(\"textarea\");ta.value=s;ta.style.cssText=\"position:fixed;top:8px;left:8px;width:90vw;height:40vh;z-index:99999;font-size:12px\";document.body.appendChild(ta);ta.focus();ta.select();try{ok=document.execCommand(\"copy\")}catch(e){}if(ok)ta.remove();else alert(\"Select all + copy the box, then paste it into LMK (gear %E2%86%92 Paste from Canvas).\")}%0Aif(ok)alert(\"LMK: copied \"+n+\" assignments from Brightspace. Open LMK %E2%86%92 gear %E2%86%92 Paste from Canvas %E2%86%92 paste.\")}catch(e){alert(\"LMK: could not read Brightspace %E2%80%94 are you signed in on this tab? \"+e)}})();";   // embedded by ~/lmk-backend/tools/build-d2l.py from collect-d2l.js
 let lastErr = null;
 function reportErr(e, where){
   try {
@@ -4280,7 +4285,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
     const ev = EVENTS.find(x => x.id === id);
     if (ev && ev.url) window.open(ev.url, "_blank", "noopener");
     burstAt(act);
-    toggleDone(id, null, ev && ev.url ? "Done — Canvas is open, go turn it in." : undefined);
+    toggleDone(id, null, ev && ev.url ? "Done — " + lmsName() + " is open, go turn it in." : undefined);
   }
   else if (a==="done" && id) toggleDone(id, row);
   else if (a==="star" && id) toggleStar(id);
@@ -4494,9 +4499,9 @@ function syncState(){
     return m < 60 ? m + " min" : m < 1440 ? Math.round(m / 60) + " h" : Math.round(m / 1440) + " d"; };
   if ((EXT.drive || {}).state === "needs-signin") return {state: "stale", why: "Google sign-in has lapsed"};
   const extAt = ((store.ext || {}).at) || 0;
-  if (extAt && now - extAt > 12 * 36e5) return {state: "stale", why: "Canvas hasn't been read in " + since(extAt)};
+  if (extAt && now - extAt > 12 * 36e5) return {state: "stale", why: lmsName() + " hasn't been read in " + since(extAt)};
   if (cloudOn() && CLOUD.lastPull && now - CLOUD.lastPull > 30 * 60e3) return {state: "stale", why: "the cloud copy is " + since(CLOUD.lastPull) + " old"};
-  if (EXT.resync && !EXT.resync.ok) return {state: "stale", why: "the last background sync couldn't read Canvas"};
+  if (EXT.resync && !EXT.resync.ok) return {state: "stale", why: "the last background sync couldn't read " + lmsName()};
   if (!extAt && !cloudOn() && !drive.ready) return {state: "", why: ""};   // nothing connected: nothing to refresh
   return {state: "ok", why: "everything is current"};
 }
@@ -4507,7 +4512,7 @@ function syncPaint(){
   btn.classList.toggle("stale", s.state === "stale");
   btn.title = s.why ? (s.state === "stale" ? s.why + " — click to reconnect and pull everything again"
                                            : "Everything is current. Click to check again anyway.")
-                    : "Reconnect and pull the latest from Canvas, Drive and your plan";
+                    : "Reconnect and pull the latest from your classes, Drive and your plan";
   btn.setAttribute("aria-label", s.state === "stale" ? "Refresh everything — " + s.why : "Refresh everything");
 }
 
@@ -4627,7 +4632,7 @@ document.getElementById("pushBtn").addEventListener("click", async e => {
 });
 document.getElementById("clearProgress").addEventListener("click", ()=>{
   const n = Object.keys(store.done || {}).length;
-  if (n && !confirm(`Clear ${n} checkmark${n === 1 ? "" : "s"}? This clears them on every device you sync with, and LMK will not re-add them from Canvas.`)) return;
+  if (n && !confirm(`Clear ${n} checkmark${n === 1 ? "" : "s"}? This clears them on every device you sync with, and LMK will not re-add them from ${lmsName()}.`)) return;
   for (const kind of ["done", "dropped", "starred", "triaged"]) {
     for (const id in (store[kind] || {})) tomb(kind, id);
     store[kind] = {};
@@ -4665,7 +4670,7 @@ function openGradeDetail(course){
     <h3 id="ddTitle" style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
       <span class="cdot" style="background:${COLOR[course]}"></span>${esc(course)}
       <span class="gbig ${gradeTone(g.pct)}" style="margin-left:auto">${g.pct}% <b>${g.letter}</b></span></h3>
-    <p class="sub2" style="margin:2px 0 10px">${g.src === "canvas" ? "<b>Canvas's own number</b>, with your course's weights, drop rules and late policy already applied." : "<b>LMK's estimate</b> — Canvas isn't showing a total for this course, so this is from what LMK can see."} From <b>${g.n}</b> graded item${g.n > 1 ? "s" : ""}${g.weighted ? ", weighted by category" : " (no category weights, so straight points)"}${working.length ? ` · <b>${working.length} still working</b>, not counted yet` : ""}${ungraded ? ` · ${ungraded} not graded yet` : ""}.</p>
+    <p class="sub2" style="margin:2px 0 10px">${g.src === "canvas" ? "<b>" + lmsName() + "'s own number</b>, with your course's weights, drop rules and late policy already applied." : "<b>LMK's estimate</b> — Canvas isn't showing a total for this course, so this is from what LMK can see."} From <b>${g.n}</b> graded item${g.n > 1 ? "s" : ""}${g.weighted ? ", weighted by category" : " (no category weights, so straight points)"}${working.length ? ` · <b>${working.length} still working</b>, not counted yet` : ""}${ungraded ? ` · ${ungraded} not graded yet` : ""}.</p>
     ${(gap !== null || everything !== null) ? `<div class="card" style="padding:12px 14px;margin-bottom:14px;font-size:13px;line-height:1.6">
       <b style="font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">Other ways to count it</b>
       ${everything !== null ? `<div style="display:flex;gap:10px;margin-top:8px"><span style="flex:1">If everything unfinished counted as a zero${g.src === "canvas" ? " (Canvas's “Total” column)" : ""}</span><b class="${gradeTone(everything)}" style="font-variant-numeric:tabular-nums">${everything}%</b></div>` : ""}
@@ -4695,7 +4700,7 @@ function openGradeDetail(course){
           <b style="width:44px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums">${pc}%</b></div>`; }).join("")}
       <div style="padding:8px 14px 4px;font-size:12px;color:var(--muted)">These count once they're due or finished — so a partly-done set can't drag your grade down while you still have time.</div>
     </div>` : ""}
-    <p class="privacy">${g.src === "canvas" ? "The number up top is read straight from Canvas, so it matches your gradebook. The categories and the list below are LMK's own reading of your scored work, which is why they can add up a little differently." : "Canvas isn't publishing a total for this course, so LMK adds up what it can see: finished work only. It ignores zeros sitting on assignments that aren't due yet, and it can't see dropped scores,"} curves or extra credit — so your professor's gradebook is still the official one.</p>
+    <p class="privacy">${g.src === "canvas" ? "The number up top is read straight from " + lmsName() + ", so it matches your gradebook. The categories and the list below are LMK's own reading of your scored work, which is why they can add up a little differently." : "Canvas isn't publishing a total for this course, so LMK adds up what it can see: finished work only. It ignores zeros sitting on assignments that aren't due yet, and it can't see dropped scores,"} curves or extra credit — so your professor's gradebook is still the official one.</p>
     <div class="row" style="margin-top:14px"><button class="btn ghost" id="ddClose">Close</button></div>`;
   detailOverlay.classList.add("open");
 }
@@ -4740,7 +4745,7 @@ function openDetail(id){
     </label>
     <div class="row" style="margin-top:14px">
       <button class="btn grad" id="ddStudy" data-act="ai" data-id="${e.id}">✦ Ask the tutor</button>
-      ${e.url?`<a class="btn ghost" href="${esc(e.url)}" target="_blank" rel="noopener">Open in Canvas ↗</a>`:""}
+      ${e.url?`<a class="btn ghost" href="${esc(e.url)}" target="_blank" rel="noopener">Open in ${lmsName()} ↗</a>`:""}
       <button class="btn ghost" id="ddClose">Close</button>
     </div>
     <p class="privacy" style="margin-top:12px">Notes save automatically and ride along in every ✦ Study with AI prompt for this assignment.</p>`;
@@ -4840,7 +4845,7 @@ function openExamPlan(id){
       </div></div>`).join("") + `</div></div>
     ${related.length ? `<h2 class="sec" style="margin:16px 0 8px">Warm up by redoing these</h2><div class="card"><div class="list">` + related.map(r => `
       <div class="item"><div class="body" style="padding-left:4px"><div class="t" style="font-weight:500">${esc(r.title)}</div></div>
-      ${r.url?`<a class="iconbtn" href="${esc(r.url)}" target="_blank" rel="noopener" aria-label="Open in Canvas">${ICON_LINK}</a>`:""}</div>`).join("") + `</div></div>` : ""}
+      ${r.url?`<a class="iconbtn" href="${esc(r.url)}" target="_blank" rel="noopener" aria-label="Open in ${lmsName()}">${ICON_LINK}</a>`:""}</div>`).join("") + `</div></div>` : ""}
     <div class="row" style="margin-top:16px">
       <button class="btn primary" id="ppAdd">Add ${blocks.length} study block${blocks.length>1?"s":""} to my plan</button>
       <button class="btn ghost" id="ppClose">Not now</button>
@@ -4955,11 +4960,11 @@ document.getElementById("impBtn").addEventListener("click", ()=>{
   const text = document.getElementById("impPaste").value;
   if (/^\s*\{/.test(text)) {
     let p = null; try { p = JSON.parse(text); } catch(e){}
-    if (!p || p.lmk !== "canvas") { msg.className="parse-msg err"; msg.textContent="That looks like JSON but not an LMK sync — run the LMK sync bookmark on Canvas and paste what it copies."; return; }
+    if (!p || p.lmk !== "canvas") { msg.className="parse-msg err"; msg.textContent="That looks like JSON but not an LMK sync — run the LMK sync bookmark on Canvas or Brightspace and paste what it copies."; return; }
     const r = applyCanvasPayload(p, {quiet:true, force:true});
-    if (!r || !r.n) { msg.className="parse-msg err"; msg.textContent="The sync was empty — were you logged in to Canvas when you ran it?"; return; }
+    if (!r || !r.n) { msg.className="parse-msg err"; msg.textContent="The sync was empty — were you logged in to Canvas or Brightspace when you ran it?"; return; }
     msg.className="parse-msg ok";
-    msg.textContent = `Canvas synced: ${r.n} assignments · ${r.newDone} marked done · ${r.newGrades} grades · ${r.shelfAdd} undated added.`;
+    msg.textContent = `${p.lms === "d2l" ? "Brightspace" : "Canvas"} synced: ${r.n} assignments · ${r.newDone} marked done · ${r.newGrades} grades · ${r.shelfAdd} undated added.`;
     document.getElementById("impPaste").value = "";
     return;
   }
@@ -5235,7 +5240,7 @@ async function gdriveCanvasPull(){
     const d = await gdFetch("https://www.googleapis.com/drive/v3/files/" + f.id + "?alt=media");
     if (!d.ok) return;
     let p = null; try { p = await d.json(); } catch(_){}
-    if (applyDriveCanvas(p)) syncBadge("☁ Canvas sync picked up from your Drive · " + new Date().toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}));
+    if (applyDriveCanvas(p)) syncBadge("☁ " + lmsName() + " sync picked up from your Drive · " + new Date().toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}));
   } catch(_){}
 }
 async function gdrivePull(){
@@ -5545,14 +5550,14 @@ function welcomeSync(){
   show("wInstall", false);   // the only install button lives in the card behind, which is reached after the name is saved
   if (store.ext) {
     set("wHead2", "Your classes are in \u2713");
-    set("wBody2", `${EVENTS.length} assignment${EVENTS.length === 1 ? "" : "s"} across ${COURSES.length} class${COURSES.length === 1 ? "" : "es"}, read straight from Canvas. Nothing else to set up.`);
+    set("wBody2", `${EVENTS.length} assignment${EVENTS.length === 1 ? "" : "s"} across ${COURSES.length} class${COURSES.length === 1 ? "" : "es"}, read straight from ${lmsName()}. Nothing else to set up.`);
     if (chips) { chips.innerHTML = COURSES.map(c => `<span class="chip"><span class="dot" style="background:${COLOR[c]}"></span>${esc(c)}</span>`).join(""); chips.hidden = !COURSES.length; }
     return;
   }
   if (chips) chips.hidden = true;
   if (store.custom) { set("wHead2", "Your calendar is loaded."); set("wBody2", "The Chrome extension adds what's submitted and graded. It's under the gear whenever you want it."); }
-  else if (EXT.present) { set("wHead2", "Extension added \u2713"); set("wBody2", "Canvas is loading in another tab; if it asks you to sign in, do that and the rest happens by itself. The card behind this window shows where it's at."); }
-  else { set("wHead2", "Get your classes in."); set("wBody2", "That's the card right behind this window: one click adds the LMK for Canvas extension, and it brings your classes here by itself. About a minute, once."); }
+  else if (EXT.present) { set("wHead2", "Extension added \u2713"); set("wBody2", "Canvas or Brightspace is loading in another tab; if it asks you to sign in, do that and the rest happens by itself. The card behind this window shows where it's at."); }
+  else { set("wHead2", "Get your classes in."); set("wBody2", "That's the card right behind this window: one click adds the LMK Today extension, and it brings your classes here by itself. About a minute, once."); }
 }
 function openWelcome(){
   { const cr = document.getElementById("wCloudRow"); if (cr) cr.hidden = true; }   // shown by the one branch where it applies
@@ -5560,16 +5565,16 @@ function openWelcome(){
   const show = (id, on) => { const el = document.getElementById(id); if (el) el.hidden = !on; };
   if (MODE === "artifact") {
     set("wBody2", store.custom ? "You're looking at your uploaded calendar. The Chrome extension adds what's submitted and graded."
-      : SEED_EMPTY ? "Nothing's connected yet. Add the Chrome extension and open Canvas once, or drop your Canvas calendar feed in under the gear icon."
+      : SEED_EMPTY ? "Nothing's connected yet. Add the Chrome extension and open Canvas or Brightspace once, or drop your Canvas calendar feed in under the gear icon (Canvas only)."
       : "You're looking at " + SEED_LABEL + ", re-synced from Canvas every morning. The Chrome extension adds what's submitted and graded.");
     show("wInstall", true); show("wSignin", false);
     set("wBody3", "You're in through your claude.ai account, and everything saves privately to your own Google Drive. LMK shares only anonymous minutes per assignment with other students in your courses — no names, no grades — so everyone's estimates get better.");
   } else if (IS_MOBILE) {
     // on a phone the computer comes first: signing in before anything has read Canvas shows an empty plan
     set("wHead2", "Start on a computer, not here.");
-    set("wBody2", "LMK reads Canvas through a Chrome extension, and a phone can't install one. On a laptop or desktop, add the LMK for Canvas extension to Chrome and open Canvas once. That takes a minute and only happens once.");
+    set("wBody2", "LMK reads Canvas or Brightspace through a Chrome extension, and a phone can't install one. On a laptop or desktop, add the LMK Today extension to Chrome and open your school's site once. That takes a minute and only happens once.");
     set("wHead3", "Then sign in here.");
-    set("wBody3", "Once the computer has read Canvas, sign in with Google on this phone and your plan arrives through your own Drive. No account, no password, so no name or email is on file anywhere.");
+    set("wBody3", "Once the computer has read your classes, sign in with Google on this phone and your plan arrives through your own Drive. No account, no password, so no name or email is on file anywhere.");
     show("wInstall", false); show("wSignin", false); show("wAct3", gdReady());
   } else {
     welcomeSync(); show("wSignin", false); show("wAct3", gdReady());
@@ -6029,7 +6034,7 @@ function renderAdmin(root){
     html += `<div class="tiles">
       ${tile("Active today", openToday, `${avg7} a day, last 7 full days`, delta(full7("open"), prevFull7("open"), "opens"))}
       ${tile("Students", n(students), `${n(installs)} device${installs === 1 ? "" : "s"} ever · <b>${n(AT.extension || 0)} with the extension</b> — that is the number to read against the store's · ${full7("install")} new device${full7("install") === 1 ? "" : "s"} this week`, students ? `<span class="d">one per sync id — a laptop and a phone are one student; the store counts weekly-active installs, its own way</span>` : `<span class="d">counted on first contact with the server</span>`)}
-      ${tile("Connected to Canvas", `${n(syncs)}<span class="of"> of ${n(installs)}</span>`, `${conv === null ? "no devices yet" : conv + "% of every device"} · ${connToday} active today`,
+      ${tile("Connected to an LMS", `${n(syncs)}<span class="of"> of ${n(installs)}</span>`, `${conv === null ? "no devices yet" : conv + "% of every device"} · ${connToday} active today`,
         act7 === null ? "" : `<span class="d">${act7}% activated this week${actPrev === null ? "" : ` (was ${actPrev}%)`}</span>`)}
       ${tile("Plus members", n((PL.paying || 0) + (PL.granted || 0)), `${PL.paying || 0} paying · ${PL.granted || 0} granted`)}
       ${tile("Tutor today", n(T.tutor_msg), `${money(spendToday)} in tokens · ${n(full7("tutor_msg"))} in 7 full days`)}
@@ -6071,6 +6076,12 @@ function renderAdmin(root){
     html += `<div class="card adm-card"><h3>Find a student</h3><p class="sub2">Every student is a random support code, shown to them in the Plus sheet and under the gear. Nothing here has a name.</p>
       <div class="adm-row"><input id="admLookup" type="text" placeholder="support code" maxlength="64" class="adm-in" style="flex:1 1 160px"><button class="minibtn" data-act="adm-lookup">Look up</button></div>
       <p id="admLookupOut" class="sub2" style="margin:10px 0 0"></p></div>`;
+    /* Each Brightspace school the extension has met, once per host: which API routes a student may read there.
+       A 403 on submissions or attempts means that school's students get due dates and grades but tick work off
+       by hand until the collector learns another way; fix collect-d2l.js from this, never guess. */
+    const LH = d.lmsHosts || [];
+    html += `<div class="card adm-card"><h3>Schools on Brightspace</h3><p class="sub2">${LH.length ? "Reported by the extension the first time it read each school — statuses and field names only, nothing about a student. Routes that answered with anything but 200 are listed." : "None yet. The first Brightspace student's extension reports their school here on its first sync."}</p>
+      ${LH.length ? table(["School", "num:Reports", "Last", "num:Courses", "num:Items", "num:Handed in", "num:Graded", "Routes not answering"], LH.map(x => { const bad = (x.diag || []).filter(e => e.s !== 200); return `<tr><td class="mono">${esc(x.host)}</td><td>${x.n}</td><td>${ago(x.last)}</td><td>${(x.counts || {}).courses || 0}</td><td>${(x.counts || {}).items || 0}</td><td>${(x.counts || {}).sub || 0}</td><td>${(x.counts || {}).graded || 0}</td><td class="mono" style="font-size:11px">${bad.length ? bad.map(e => esc(e.p.replace(/^\/d2l\/api\//, "")) + " → " + e.s).join("<br>") : "all answered"}</td></tr>`; })) : ""}</div>`;
     html += `<div class="card adm-card"><h3>Stuck or stale</h3><p class="sub2">${(CL.byErr || []).length ? "Errors: " + CL.byErr.map(x => `${esc(x.err)} (${x.n})`).join(" · ") + "." : "No sync errors right now."} Pause a code that hammers Canvas, forget one on request, retry one after a fix.</p>
       ${table(["Code", "School", "num:Courses", "Last read", "Status", ""], probs.map(p => `<tr><td class="mono">${esc(p.sid.slice(0, 8))}</td><td>${esc(p.host)}</td><td>${p.courses}</td><td>${ago(p.synced_at)}</td><td>${!p.active ? "paused" : p.err ? `<span class="bad">${esc(p.err)}</span>` : "stale"}</td>
         <td class="acts">${p.active ? `<button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="retry">Retry</button><button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="pause">Pause</button>` : `<button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="resume">Resume</button>`}<button class="minibtn drop" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="forget">Forget</button></td></tr>`)) || `<p class="sub2" style="margin:0">Everyone is syncing.</p>`}
@@ -6297,6 +6308,7 @@ async function loadRemoteConfig(){
   try {
     const bl = document.getElementById("bmkLink");
     if (bl) { bl.href = LMK_SYNC_BOOKMARKLET; bl.title = "Drag me to your bookmarks bar, then click me on any Canvas page"; }
+  const bd = document.getElementById("bmkLinkD2L"); if (bd) { if (LMK_SYNC_BOOKMARKLET_D2L) { bd.href = LMK_SYNC_BOOKMARKLET_D2L; bd.title = "Drag me to your bookmarks bar, then click me on any Brightspace page"; } else bd.hidden = true; }
     const bc = document.getElementById("bmkCopy"), bm = document.getElementById("bmkMsg");
     if (bc) bc.addEventListener("click", async () => {
       try { await navigator.clipboard.writeText(LMK_SYNC_BOOKMARKLET);

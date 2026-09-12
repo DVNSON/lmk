@@ -43,8 +43,8 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
 
   // T2 hello arrives (posted FROM the page, satisfying ev.source === window)
   await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.4.2'}, '*')`); await sleep(600); r=JSON.parse(await ev(ws,Q));
-  check('T2 hello: row 1 done, row 2 current, hero waiting', /^done:Extension added/.test(r.rows[0]) && /^now:Canvas read once/.test(r.rows[1]) && r.waiting, r.rows);
-  check('T2 hello: headline says waiting', r.h1==='Extension added. Waiting for Canvas…', r.h1);
+  check('T2 hello: row 1 done, row 2 current, hero waiting', /^done:Extension added/.test(r.rows[0]) && /^now:Canvas or Brightspace read once/.test(r.rows[1]) && r.waiting, r.rows);
+  check('T2 hello: headline says waiting', r.h1==='Extension added. Waiting for Canvas or Brightspace…', r.h1);
   check('T2 hello: overlay step 2 now says added', r.wHead2==='Extension added ✓' && r.wInstallHidden, r.wHead2);
   const stable = await ev(ws,`(function(){ const a=document.querySelector('section.view').innerHTML; render(); render(); return a===document.querySelector('section.view').innerHTML; })()`);
   check('T2 hello: hero string is byte-stable across renders (pulse never restarts)', stable===true);
@@ -57,7 +57,7 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
     Object.defineProperty(document,'hidden',{configurable:true,get:()=>false}); for(let i=0;i<20;i++) cb(); const visibleStuck=extStuck;
     return JSON.stringify({hiddenStuck, visibleStuck}); })()`);
   const c=JSON.parse(clock); check('T3 stuck escalation ignores hidden time and fires when visible', c.hiddenStuck===false && c.visibleStuck===true, c);
-  r=JSON.parse(await ev(ws,Q)); check('T3 stuck headline', r.h1==='Nothing has come back from Canvas yet.' && /^now:Canvas read once/.test(r.rows[1]), r.h1);
+  r=JSON.parse(await ev(ws,Q)); check('T3 stuck headline', r.h1==='Nothing has come back from Canvas or Brightspace yet.' && /^now:Canvas or Brightspace read once/.test(r.rows[1]), r.h1);
 
   // T4 empty answer
   await fresh(ws); await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.4.2'}, '*')`); await sleep(300);
