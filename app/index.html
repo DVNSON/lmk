@@ -252,6 +252,14 @@
   .minibtn.drop{color:var(--muted);border:1px solid var(--line);padding:6px 11px;margin:0;font-size:12.5px;text-align:center;cursor:pointer}   /* wins over the .drop file-zone style */
   .minibtn.muted{color:var(--muted)}
   .item .sub .sugg{font:500 12px/1.4 "Spline Sans Mono",monospace;color:var(--ink-2)}
+  /* worth-your-hour: the rank, the rate, and the one paid line */
+  .wrank{flex:none;width:22px;text-align:center;font:700 13px/1 "Bricolage Grotesque",sans-serif;color:var(--muted)}
+  .vrate{font:600 12px/1 "Spline Sans Mono",monospace;border:1px solid var(--line);border-radius:7px;padding:5px 8px;background:var(--surface-2);color:var(--ink);white-space:nowrap}
+  .vrate.hi{color:var(--good-text);border-color:color-mix(in srgb,var(--good) 45%,var(--line));background:color-mix(in srgb,var(--good) 8%,var(--surface))}
+  .vrate.zero{color:var(--muted)}
+  .lockrow{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:14px 16px;border-top:1px solid var(--line);font-size:13.5px;color:var(--ink-2)}
+  .lockrow > div{flex:1 1 220px} .lockrow b{color:var(--ink)}
+  .goalchips{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto}
   .hero.ahead .kicker::before{background:var(--c3);box-shadow:0 0 0 3px color-mix(in srgb,var(--c3) 22%,transparent)}
 
   /* ---------- semester: radar ---------- */
@@ -557,33 +565,6 @@
   .mode.make{border-color:color-mix(in srgb,var(--c5) 45%,var(--line))}
   .sp-scope{display:block;margin-top:2px}
   .sp-scope select{max-width:100%;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink-2);padding:3px 8px;font:500 12px/1.4 "Public Sans",system-ui,sans-serif}
-  /* quiz + deck widgets inside the chat */
-  .qz,.deck{align-self:stretch;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:12px 14px;display:flex;flex-direction:column;gap:10px}
-  .qz-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13px;color:var(--muted)}
-  .qz-head b{color:var(--ink);font:700 15px/1.2 "Bricolage Grotesque",sans-serif}
-  .qq{border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:8px}
-  .qq-q{font-size:14px;font-weight:600;display:flex;gap:8px;align-items:flex-start}
-  .qn{flex:none;width:22px;height:22px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);font:600 11px/22px "Spline Sans Mono",monospace;text-align:center;color:var(--muted)}
-  .qq.right .qn{background:var(--good);border-color:var(--good);color:#fff} .qq.wrong .qn{background:var(--critical);border-color:var(--critical);color:#fff}
-  .qq-c{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:6px}
-  .qc{text-align:left;border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:13.5px;background:var(--surface-2)}
-  .qc:hover:not(:disabled){border-color:var(--ink)}
-  .qc.is-right{border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,var(--surface))}
-  .qc.is-wrong{border-color:var(--critical);background:color-mix(in srgb,var(--critical) 10%,var(--surface))}
-  .qc.dim{opacity:.55}
-  .qq-why{font-size:13px;color:var(--ink-2);padding-left:30px}
-  .qz-foot{display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px;font-size:14px}
-  .fc{position:relative;min-height:150px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2);text-align:center;padding:18px;font-size:16px;line-height:1.4;display:grid;place-items:center;cursor:pointer}
-  .fc .fc-side{display:block;max-width:100%} .fc .back{display:none;color:var(--ink)} .fc.flipped .front{display:none} .fc.flipped .back{display:block}
-  .fc .front{font-weight:700;font-family:"Bricolage Grotesque",sans-serif;font-size:18px}
-  .fc.flipped{background:color-mix(in srgb,var(--c1) 8%,var(--surface))}
-  .deck-acts{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
-  @media (prefers-reduced-motion: no-preference){ .fc{transition:background .2s} .qq.right,.qq.wrong{animation:none} }
-  .mode{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
-  .mode:hover{border-color:var(--line-strong);color:var(--ink)}
-  .mode[aria-pressed="true"]{background:var(--btn-bg);color:var(--btn-ink);border-color:var(--btn-bg)}
-  .sp-chat .planbar{margin-top:0}
-  .sp-chat details.ownai{margin-top:4px}
   @media (min-width:801px){ .studypage{overflow:hidden} }
   @media (max-width:800px){
     .studypage{padding-bottom:env(safe-area-inset-bottom)}
@@ -600,13 +581,11 @@
     .sp-head{padding:10px 14px}
     .sp-title b{font-size:15px}
   }
-  .chatextras{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-  .chatextras .minibtn{cursor:pointer}
-  .chatextras .minibtn[aria-pressed="true"]{background:var(--btn-bg);color:var(--btn-ink);border-color:var(--btn-bg)}
-  .matlist{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
-  .mat{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
-  .mat span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .mat small{color:var(--muted);font-size:11px}
+  /* the assignment page's headline: what this one thing decides about the grade */
+  .sp-worth{padding:16px 18px;display:flex;flex-direction:column;gap:6px;background:radial-gradient(520px 260px at 90% -40%,color-mix(in srgb,var(--c3) 16%,transparent),transparent 60%),var(--surface)}
+  .sp-worth-n{font:800 clamp(28px,5vw,40px)/1 "Bricolage Grotesque",sans-serif;letter-spacing:-.02em;color:var(--ink)}
+  .sp-worth-n small{font:600 13px/1.3 "Public Sans",sans-serif;color:var(--muted);letter-spacing:0;margin-left:4px}
+  .sp-worth-t{font-size:13.5px;line-height:1.55;color:var(--ink-2)} .sp-worth-t b{color:var(--ink)}
   .rv-body{display:flex;flex-direction:column;gap:16px;justify-content:center;width:100%;max-width:620px;margin:0 auto;padding:20px;flex:1}
   .wr-body{display:flex;flex-direction:column;gap:14px;width:100%;max-width:640px;margin:0 auto;padding:18px 20px 48px}
   .wr{padding:18px 20px;display:flex;flex-direction:column;gap:6px}
@@ -620,18 +599,7 @@
   .wr-modes{display:flex;gap:6px;margin-left:auto}
   .wr-share{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
   .wr-card{width:100%;max-width:300px;border-radius:14px;border:1px solid var(--line);box-shadow:var(--shadow);display:block}
-  .rv-card{min-height:230px;font-size:20px}
-  .rv-card .front{font-size:22px}
-  .rv-acts{display:flex;gap:10px;justify-content:center}
-  .rv-acts .btn{flex:1;max-width:220px;justify-content:center;padding:13px 18px;font-size:15px}
-  .rv-done{padding:20px;text-align:center}
   .rv-done b{font:800 22px/1.2 "Bricolage Grotesque",sans-serif}
-  .planbar{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);font-size:12.5px;color:var(--ink-2)}
-  .planbar b{color:var(--ink)}
-  .planbar .btn{padding:7px 12px;font-size:13px}
-  .planchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:12px;font-weight:700;background:var(--surface);cursor:pointer;white-space:nowrap}
-  .planchip.plus{border-color:transparent;background:var(--splash);color:#fff}
-  .aihead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
   .aihead h3{margin:0 0 4px}
   details.ownai{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
   details.ownai summary{cursor:pointer;list-style:none;font-size:13px;color:var(--ink-2);display:flex;align-items:center;gap:8px}
@@ -662,21 +630,9 @@
   .recapline .txt b{font-size:15px}
   .intro .acts{display:flex;gap:8px;flex-wrap:wrap}
   .intro .x{flex:none;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
-  .locked{display:flex;gap:12px;align-items:center;padding:12px 14px;border:1px dashed var(--line-strong);border-radius:12px;font-size:13.5px;color:var(--ink-2);margin:10px 0 6px}
   .locked b{color:var(--ink)}
   .locked .minibtn,.locked a.minibtn{white-space:nowrap;flex:none;text-decoration:none}
   .locked > div{flex:1}
-  /* ---------- tutor chat ---------- */
-  .chat{display:flex;flex-direction:column;gap:8px;max-height:44vh;overflow-y:auto;padding:4px 2px;margin:10px 0 8px}
-  .msg{max-width:88%;padding:9px 12px;border-radius:14px;font-size:14px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
-  .msg.me{align-self:flex-end;background:var(--btn-bg);color:var(--btn-ink);border-bottom-right-radius:4px}
-  .msg.ai{align-self:flex-start;background:var(--surface-2);border:1px solid var(--line);border-bottom-left-radius:4px}
-  .msg.ai.thinking::after{content:"…";animation:dots 1.2s steps(3,end) infinite}
-  @keyframes dots{0%{content:"."}33%{content:".."}66%{content:"..."}}
-  .chatbar{display:flex;gap:8px;align-items:flex-end}
-  .chatbar textarea{flex:1;min-height:44px;max-height:120px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);padding:10px 12px;font:inherit;font-size:14px;resize:none}
-  .chatbar .btn{flex:none}
-  .chatnote{font-size:11.5px;color:var(--muted);margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
   /* ---------- announcement (set by the admin, seen by everyone) ---------- */
   .announce{display:flex;align-items:center;gap:12px;margin:14px 0 -4px;padding:11px 14px;border-radius:12px;font-size:13.5px;
     border:1px solid color-mix(in srgb,var(--c1) 40%,var(--line));background:color-mix(in srgb,var(--c1) 8%,var(--surface))}
@@ -945,7 +901,6 @@
 <div class="overlay" id="detailOverlay" role="dialog" aria-modal="true" aria-labelledby="ddTitle"><div class="modal" id="detailModal"></div></div>
 <div class="overlay" id="planOverlay" role="dialog" aria-modal="true" aria-labelledby="ppTitle"><div class="modal" id="planModal"></div></div>
 <div class="studypage" id="studyPage" role="region" aria-labelledby="aiTitle" hidden></div>
-<div class="studypage" id="reviewPage" role="region" aria-label="Review" hidden></div>
 <div class="studypage" id="recapPage" role="region" aria-label="Your recap" hidden></div>
 <div class="overlay" id="plusOverlay" role="dialog" aria-modal="true" aria-labelledby="plusTitle"><div class="modal" id="plusModal" style="max-width:540px"></div></div>
 <div class="overlay" id="roomOverlay" role="dialog" aria-modal="true" aria-labelledby="roomTitle"><div class="modal" id="roomModal" style="max-width:520px"></div></div>
@@ -1025,32 +980,7 @@ const fmtMins = m => m >= 60 ? (Math.round(m / 30) / 2) + "h" : m + "m";
 const LS_KEY = "duenorth_v1";
 /* Cards the tutor wrote, kept per course and scheduled so they come back.
    Intervals in days after each "got it"; a miss sends a card back to tomorrow. Nothing here costs a token. */
-const REVIEW_STEPS = [1, 3, 7, 16, 35];
-function reviewDue(c, at){ return (c.due || 0) <= (at || Date.now()); }
-function decks(){ return store.decks || (store.decks = {}); }
-function saveDeck(course, title, cards){
-  const id = "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  const now = Date.now();
-  decks()[id] = {id, course, title: String(title || "Cards").slice(0, 80), at: now,
-    cards: cards.slice(0, 40).map(c => ({front: c.front, back: c.back, step: -1, due: now, seen: 0}))};
-  save();
-  return id;
-}
-function dueCards(course){
-  const at = Date.now(), out = [];
-  for (const id in decks()) { const d = decks()[id]; if (course && d.course !== course) continue;
-    (d.cards || []).forEach((c, i) => { if (reviewDue(c, at)) out.push({deck: id, i, card: c, course: d.course, title: d.title}); }); }
-  return out;
-}
-function gradeCard(deckId, i, ok){
-  const d = decks()[deckId]; if (!d || !d.cards[i]) return;
-  const c = d.cards[i];
-  c.step = ok ? Math.min(REVIEW_STEPS.length - 1, (c.step < 0 ? 0 : c.step + 1)) : 0;
-  c.due = Date.now() + REVIEW_STEPS[c.step] * 864e5 * (ok ? 1 : 0.35);
-  c.seen = (c.seen || 0) + 1; c.last = ok;
-  save();
-}
-let store = {decks:{}, done:{}, dropped:{}, starred:{}, triaged:{}, streakDays:[], custom:null, customRows:[], undated:[], itemNotes:{}, courseNotes:{}, grades:{}, deleted:{}, celebrated:{}, effortOv:{}, leadOv:{}, seriesRules:{}, kindOv:{}, extGraded:{}, ext:null, capacity:null, capOv:{}, dur:{}, spent:{}, tab:{}, anon:"", tutorCtx:{}, tutorLog:[]};
+let store = {done:{}, dropped:{}, starred:{}, triaged:{}, streakDays:[], custom:null, customRows:[], undated:[], itemNotes:{}, courseNotes:{}, grades:{}, deleted:{}, celebrated:{}, effortOv:{}, leadOv:{}, seriesRules:{}, kindOv:{}, extGraded:{}, ext:null, capacity:null, capOv:{}, dur:{}, spent:{}, tab:{}, anon:"", tutorCtx:{}, tutorLog:[]};
 try { const raw = localStorage.getItem(LS_KEY); if (raw) store = Object.assign(store, JSON.parse(raw)); } catch(e){}
 function migrateIds(s){
   for (const mk of ["done","dropped","starred","triaged","itemNotes"]) {
@@ -1819,6 +1749,174 @@ function buildGrades(){
   });
 }
 function gradeFor(c){ if (!GRADES) buildGrades(); return GRADES[c]; }
+/* ================= what an hour is worth =================
+   The two halves nothing else holds together: how much of the final grade an item controls (Canvas group
+   weights and points possible, already synced) and how long it takes THIS student (learned durations).
+   The ratio — percent of the final grade per hour — is the feature. No model, no network, on device.
+   `share` is in percentage points of the final course grade. An item worth zero points has a share of
+   zero, and saying that plainly is half the value: it is the work to do last, not first. */
+let WORTH = null;
+function buildWorth(){
+  WORTH = {courses: {}, items: {}};
+  const ext = store.ext || {}, items = ext.items || {}, groupsByCourse = ext.groups || {}, metas = ext.courses || [];
+  COURSES.forEach(c => {
+    const mine = EVENTS.filter(e => e.course === c && !store.dropped[e.id] && e.kind !== "fyi");
+    /* the course id comes from ANY row that carries one, never from the earliest — see buildGrades,
+       where taking it from the first sorted row silently dropped a whole course's weights */
+    let cid = "";
+    for (const e of mine) { const x = items[e.id.slice(1)]; if (x && x.cid) { cid = String(x.cid); break; } }
+    const meta = metas.find(x => String(x.id) === String(cid)) || metas.find(x => x.tag === c);
+    const useWeights = !meta || meta.wt === undefined || meta.wt === true;    // Canvas's own apply_assignment_group_weights
+    const weights = {};
+    if (useWeights) (groupsByCourse[cid] || []).forEach(g => { if (+g.w > 0) weights[String(g.id)] = +g.w; });
+    const wsum = Object.keys(weights).reduce((t, k) => t + weights[k], 0);
+    const tot = {}, all = [];
+    mine.forEach(e => {
+      const x = items[e.id.slice(1)] || {}, pts = isFinite(+x.pts) ? Math.max(0, +x.pts) : 0;
+      const gid = x.grp == null ? "" : String(x.grp);
+      tot[gid] = (tot[gid] || 0) + pts; all.push({e, pts, gid});
+    });
+    const courseTotal = all.reduce((t, x) => t + x.pts, 0);
+    if (!courseTotal) return;
+    const weighted = wsum > 0 && Object.keys(tot).some(g => weights[g] && tot[g] > 0);
+    WORTH.courses[c] = {weighted, courseTotal, groups: tot, weights, wsum, cid};
+    all.forEach(x => {
+      const share = !x.pts ? 0
+        : weighted ? (weights[x.gid] && tot[x.gid] ? (x.pts / tot[x.gid]) * (weights[x.gid] / wsum) * 100 : 0)
+        : x.pts / courseTotal * 100;
+      WORTH.items[x.e.id] = {share, pts: x.pts, gid: x.gid};
+    });
+  });
+}
+function worthOf(e){ if (!WORTH) buildWorth(); return WORTH.items[e.id] || null; }
+/* A share is a share of what the school has PUBLISHED. Early in a term a course with two graded things makes
+   each look enormous, and it is not wrong — Canvas's own final-grade projection makes the same assumption —
+   but it will shrink as a professor adds work, and the student deserves to be told which case they are in. */
+function worthThin(course){
+  if (!WORTH) buildWorth();
+  const items = ((store.ext || {}).items) || {};
+  const n = EVENTS.filter(e => e.course === course && !store.dropped[e.id] && e.kind !== "fyi")
+    .filter(e => { const x = items[e.id.slice(1)] || {}; return isFinite(+x.pts) && +x.pts > 0; }).length;
+  return n && n < 4 ? n : 0;
+}
+/* Every open, dated, gradeable thing left, richest hour first. Zero-point work sorts last on purpose. */
+function worthRank(){
+  if (!WORTH) buildWorth();
+  const n = now();
+  return EVENTS.filter(open).filter(e => e.kind !== "inclass" && e.kind !== "fyi" && e.due > n)
+    .map(e => { const w = worthOf(e); if (!w) return null;
+      const mins = Math.max(5, remainingMins(e));
+      return {e, share: w.share, pts: w.pts, mins, rate: w.share / (mins / 60)}; })
+    .filter(Boolean).sort((a, b) => b.rate - a.rate || a.e.due - b.e.due);
+}
+/* "What do I need on what's left?" Scoring the same fraction f on every remaining point makes the final
+   grade linear — final(f) = A + B·f — so one solve answers every target letter. Only dated items count
+   toward a group's total, which is what the app knows; undated work on the shelf is not in the maths. */
+function targetMath(c){
+  if (!WORTH) buildWorth();
+  const w = WORTH.courses[c]; if (!w) return null;
+  const items = (store.ext || {}).items || {}, g = store.grades || {};
+  const rows = EVENTS.filter(e => e.course === c && !store.dropped[e.id] && e.kind !== "fyi");
+  let A = 0, B = 0, left = 0;
+  if (w.weighted) {
+    for (const gid in w.groups) {
+      const wt = w.weights[gid]; if (!wt || !w.groups[gid]) continue;
+      let got = 0, graded = 0;
+      rows.forEach(e => {
+        const x = items[e.id.slice(1)] || {};
+        if (String(x.grp == null ? "" : x.grp) !== gid) return;
+        const sc = g[e.id]; if (sc && +sc.max > 0) { got += +sc.got; graded += +sc.max; }
+      });
+      const rem = Math.max(0, w.groups[gid] - graded), denom = graded + rem;
+      if (!denom) continue;
+      A += (got / denom) * (wt / w.wsum); B += (rem / denom) * (wt / w.wsum); left += rem;
+    }
+  } else {
+    let got = 0, graded = 0;
+    rows.forEach(e => { const sc = g[e.id]; if (sc && +sc.max > 0) { got += +sc.got; graded += +sc.max; } });
+    const rem = Math.max(0, w.courseTotal - graded), denom = graded + rem;
+    if (!denom) return null;
+    A = got / denom; B = rem / denom; left = rem;
+  }
+  if (!(B > 0)) return null;                       // nothing left to earn: the grade is already decided
+  return {A: A * 100, B: B * 100, left, ceiling: (A + B) * 100, floor: A * 100};
+}
+/* the fraction of the remaining points needed to land on `target` percent, >1 when it is out of reach */
+function needFor(c, target){
+  const m = targetMath(c); if (!m) return null;
+  return Object.assign({}, m, {need: (target - m.A) / m.B});
+}
+function paidNow(){ return myLevel() !== "free"; }
+/* The goal is the student's own, not a guess we keep re-making: default to the next letter up from where
+   they stand, then remember whatever they tap (store.goal, merged per course). */
+function defaultGoal(c){
+  const g = gradeFor(c), cur = g && isFinite(+g.pct) ? +g.pct : null;
+  if (cur === null) return 90;
+  for (const [min] of [...LETTERS].reverse()) if (min > cur + 0.05) return min;
+  return 97;
+}
+function goalFor(c){ const v = +((store.goal || {})[c]); return isFinite(v) && v > 0 && v <= 100 ? v : defaultGoal(c); }
+const GOAL_CHIPS = [93, 90, 87, 83, 73];
+function worthRowHtml(x, i){
+  const e = x.e, d = dueLabel(e);
+  const zero = !x.pts;
+  return `<div class="item" data-id="${e.id}" style="box-shadow:inset 3px 0 0 ${COLOR[e.course]}">
+    <span class="wrank">${i + 1}</span>
+    <div class="body">
+      <div class="t ${(e.desc || (store.itemNotes||{})[e.id]) ? "hasinfo" : ""}" data-act="detail" role="button" tabindex="0" title="Details & notes">${esc(e.title)}</div>
+      <div class="sub">
+        <span class="cdot" style="background:${COLOR[e.course]}"></span><span class="ccode">${esc(e.course)}</span>
+        <span class="etag" style="text-transform:none">${zero ? "0 pts" : x.share.toFixed(1) + "% of your grade"}</span>
+        <span class="etag" style="text-transform:none">~${fmtMins(x.mins)}</span>
+        <span class="duelbl ${d.hot ? "hot" : ""}">${d.txt}</span>
+      </div>
+    </div>
+    <div class="side">
+      <span class="vrate ${zero ? "zero" : i < 3 ? "hi" : ""}" title="Percent of your final grade per hour of work">${zero ? "no points" : x.rate.toFixed(1) + "%/h"}</span>
+      ${e.url ? `<a class="iconbtn" href="${esc(e.url)}" target="_blank" rel="noopener" title="Open link" aria-label="Open link">${ICON_LINK}</a>` : ""}
+    </div>
+  </div>`;
+}
+/* Free sees the top three, which is enough to prove the ranking is real; the rest is the paid line. */
+function worthCardHtml(){
+  const rank = worthRank();
+  if (rank.length < 2) return "";
+  const paid = paidNow(), show = paid ? rank.slice(0, 25) : rank.slice(0, 3), hidden = rank.length - show.length;
+  const best = rank[0];
+  return `<h2 class="sec" style="margin-top:4px">Worth your hour <span class="count">${rank.length} left</span></h2>
+    <div class="card"><div class="list">${show.map(worthRowHtml).join("")}</div>
+    ${hidden > 0 ? `<div class="lockrow">${paid
+      ? `+${hidden} more, all ranked the same way.`
+      : `<div><b>${hidden} more are ranked below this.</b> LMK Plus shows every one, plus what you need on what's left in each class.</div><button class="btn grad" data-act="plus-open">See LMK Plus</button>`}</div>` : ""}</div>
+    <p class="privacy" style="margin:8px 2px 0">Percent of your final grade per hour, from ${lmsName()}'s own points and weights and the time these actually take you. <b>${esc(best.e.title.slice(0, 40))}</b> is the richest hour on your list right now.${(() => { const thin = [...new Set(rank.map(x => x.e.course))].filter(worthThin); return thin.length ? ` ${thin.map(esc).join(" and ")} ${thin.length === 1 ? "has" : "have"} only a few graded things published so far, so those shares will shrink as more appear.` : ""; })()}</p>`;
+}
+function targetLine(c){
+  const goal = goalFor(c), m = needFor(c, goal), g = gradeFor(c);
+  if (!m) return null;
+  const letter = letterFor(goal), pts = Math.round(m.left);
+  const txt = m.need <= 0
+    ? `<b>Already yours.</b> Even a zero on everything left leaves you at ${m.floor.toFixed(1)}%.`
+    : m.need > 1
+      ? `<b>Out of reach.</b> Full marks on the ${pts} points left tops out at ${m.ceiling.toFixed(1)}%. Worth an email to the professor.`
+      : `You need <b>${Math.round(m.need * 100)}%</b> on the ${pts} points still to come.`;
+  return {goal, letter, txt, m, g};
+}
+function targetsHtml(){
+  const paid = paidNow();
+  const rows = COURSES.map(c => ({c, t: targetLine(c)})).filter(x => x.t);
+  if (!rows.length) return "";
+  const show = paid ? rows : rows.slice(0, 1);
+  return `<h2 class="sec">Finish with <span class="count">${paid ? rows.length + " classes" : "one class free"}</span></h2>
+    <div class="health">${show.map(({c, t}) => `<div class="card hcard">
+      <div class="hd"><span class="cdot" style="background:${COLOR[c]}"></span>${esc(c)}
+        <span class="pill ${t.m.need <= 0 ? "ok" : t.m.need > 1 ? "risk" : "watch"}">${t.g && isFinite(+t.g.pct) ? (+t.g.pct).toFixed(1) + "% now" : "no grade yet"}</span></div>
+      <div style="font-size:13.5px;color:var(--ink-2);line-height:1.5">To finish with <b>${t.letter}</b> (${t.goal}%): ${t.txt}</div>
+      <div class="goalchips">${GOAL_CHIPS.map(v => `<button class="minibtn ${v === t.goal ? "keep" : ""}" data-act="goal" data-course="${esc(c)}" data-v="${v}">${letterFor(v)}</button>`).join("")}</div>
+    </div>`).join("")}</div>
+    ${!paid && rows.length > 1 ? `<div class="lockrow" style="border-radius:14px;border:1px solid var(--line);margin-top:10px"><div><b>Your other ${rows.length - 1} class${rows.length === 2 ? "" : "es"} are worked out too.</b> LMK Plus shows them all.</div><button class="btn grad" data-act="plus-open">See LMK Plus</button></div>` : ""}
+    <p class="privacy" style="margin:8px 2px 0">Straight from your own ${lmsName()} points and category weights. It can't know about curves, dropped scores or extra credit, and it counts only work with a date.</p>`;
+}
+
 function gradesStrip(){
   const withGrades = COURSES.filter(c => gradeFor(c));
   if (!withGrades.length) return "";
@@ -2012,15 +2110,8 @@ const AI_TARGETS = [
   {id:"gemini",  name:"Gemini",  url: () => "https://gemini.google.com/app", copyFirst: true},
 ];
 const studyPage = document.getElementById("studyPage");
-const reviewPage = document.getElementById("reviewPage");
 const STUDY = {id: null, mode: "", pushed: false, mat: "", think: false, image: null};   // pushed: this page added its own history entry, so closing pops it
-const STUDY_MODES = [
-  {id:"explain", label:"Explain it",      starter:"Explain the core idea behind this to me, one step at a time."},
-  {id:"outline", label:"Outline with me", starter:"Help me outline this. Ask me what I'm thinking first."},
-  {id:"quiz",    label:"Quiz",            make:"quiz",  title:"A whole quiz for one message"},
-  {id:"cards",   label:"Flashcards",      make:"cards", title:"A whole deck for one message"},
-  {id:"check",   label:"Check my work",   starter:""},
-];
+
 const KIND_WORD = e => e.isCourse ? "course" : e.kind === "quiz" ? "quiz" : e.kind === "discussion" ? "discussion post" : e.exam ? "exam" : "assignment";
 /* What the Study screen is about: one assignment, or a whole course (exam prep, the syllabus, what's coming). */
 function studyTarget(id){
@@ -2037,15 +2128,16 @@ const PLUS = {offer:null, me:null, at:0};
 /* The plans come from the worker so a price change needs no deploy. These shapes are only the fallback
    for a first paint before /config answers. A unit is one chat message; a quiz or a deck costs five. */
 const TIER_FALLBACK = {
-  free: {units: 20, trial: true, quiz: 6,  cards: 10, files: false, vision: false, think: false, sell: false, price: "", link: ""},
-  plus: {units: 12, quiz: 10, cards: 16, files: false, vision: false, think: false, sell: true,  price: "$4/month", link: ""},
-  pro:  {units: 30, quiz: 15, cards: 24, files: true,  vision: true,  think: true,  sell: false, price: "$10/month", link: ""},
+  free: {worth: 3, targets: 1, sync: false, push: false, summary: false, sell: false, price: "", link: ""},
+  plus: {worth: 0, targets: 0, sync: true,  push: true,  summary: true,  sell: true,  price: "$4/month", link: ""},
 };
-const TIER_NAMES = {free: "Free", plus: "Plus", pro: "Pro"};
+/* `pro` is the level one subscriber bought before v67.0, when a plan was an AI allowance. It is no longer
+   sold and no longer differs: it maps to Plus so that account keeps everything, under the name that exists. */
+const TIER_NAMES = {free: "Free", plus: "Plus", pro: "Plus"};
 const LEVEL_ORDER = ["free", "plus", "pro"];
 function tierTable(){ const t = (PLUS.offer && PLUS.offer.tiers) || (PLUS.me && PLUS.me.tiers) || TIER_FALLBACK; return t; }
-function myLevel(){ return (PLUS.me && PLUS.me.level) || (TUTOR.level) || "free"; }
-function tierOf(level){ const t = tierTable(); return t[level] || t.free || TIER_FALLBACK.free; }
+function myLevel(){ return (PLUS.me && PLUS.me.level) || "free"; }
+function tierOf(level){ const t = tierTable(); return t[level] || (level === "pro" ? (t.plus || TIER_FALLBACK.plus) : null) || t.free || TIER_FALLBACK.free; }
 /* A tier's Stripe link carries the student's id so the webhook knows who paid. */
 function tierLink(level){
   const t = tierOf(level), l = t.link || (level === "plus" ? ((PLUS.offer || {}).link || "") : "");
@@ -2065,11 +2157,11 @@ function packLink(p){
    A parent buys a term and types the student's support code into Stripe's own checkout, so the money lands
    on this account the moment it clears. Nothing to redeem, nothing to forward, no code to keep secret.
    Priced for the buyer, not the student: a parent's anchors are Chegg, a tutor's hourly rate and what a
-   present costs, none of which are $4. The rungs grant Pro, which is why they can cost what they cost. */
+   present costs, none of which are $4. A rung is a length of Plus, bought once, that never renews. */
 const GIFT_FALLBACK = [
-  {days: 30,  cents: 1500, price: "$15", level: "pro", name: "A month",       link: ""},
-  {days: 150, cents: 4900, price: "$49", level: "pro", name: "A term",        link: ""},
-  {days: 300, cents: 8900, price: "$89", level: "pro", name: "A school year", link: ""},
+  {days: 30,  cents: 1500, price: "$15", level: "plus", name: "A month",       link: ""},
+  {days: 150, cents: 4900, price: "$49", level: "plus", name: "A term",        link: ""},
+  {days: 300, cents: 8900, price: "$89", level: "plus", name: "A school year", link: ""},
 ];
 function giftList(){
   const g = (PLUS.offer && PLUS.offer.gifts) || (PLUS.me && PLUS.me.gifts);
@@ -2087,48 +2179,42 @@ function giftHtml(){
     <b style="font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">${mine ? "Ask for another term" : "Ask someone to cover it"}</b>
     <p class="privacy" style="margin:4px 0 8px">Send this to a parent and they can buy a whole term in one go — no account for them to make, nothing for you to redeem. They type your code at checkout and it lands here. Your code is <b style="font-family:'Spline Sans Mono',monospace">${esc(code)}</b>.</p>
     <div class="row" style="margin:0 0 8px"><button class="btn grad" id="giftCopy">Copy a message to send</button><a class="minibtn" href="${esc(LMK_CONFIG.giftUrl)}" target="_blank" rel="noopener">See what they'd see</a></div>
-    <p class="privacy" style="margin:0">${list.map(g => esc(g.name || (g.days + " days")) + " · " + esc(g.price || "")).join(" &nbsp;·&nbsp; ")}. They never see your grades or your work.</p></div>`;
+    <p class="privacy" style="margin:0">${list.map(g => esc(g.name || (g.days + " days")) + " · " + esc(g.price || "")).join(" &nbsp;·&nbsp; ")}. They never see your grades or your work \u2014 only what you choose to send.</p></div>`;
 }
 /* One tap that produces something a student will actually send, code included. */
 function giftMessage(){
   /* One link, not a raw Stripe URL: the page explains what it is, shows every length, and asks for the code.
      A bare checkout link texted to a parent is a payment demand with no context. */
   return "I'm using LMK for school \u2014 it reads my " + lmsName() + " assignments, plans my week around the time I "
-    + "actually have, and the tutor already knows what each assignment is asking for.\n\n"
+    + "actually have, and works out which assignments are actually worth my time and what I need to finish each class.\n\n"
     + "If you wanted to cover it: " + LMK_CONFIG.giftUrl
     + "\nMy code is " + myCode() + " \u2014 it asks for that at checkout.\n\n"
     + "It lands straight on my account. Nothing for either of us to set up, and it doesn't renew.";
-}
-function packsHtml(){
-  const list = packList().filter(p => packLink(p));
-  if (!list.length) return "";
-  return `<div class="card adm-card" style="padding:13px 14px;margin:0 0 6px">
-    <b style="font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">Need more today?</b>
-    <p class="privacy" style="margin:4px 0 8px">Units you buy never expire and are spent only after the day's allowance. No subscription needed.</p>
-    <div class="row" style="margin:0">${list.map(p => `<a class="btn ghost" href="${esc(packLink(p))}" target="_blank" rel="noopener">${p.units} units · ${esc(p.price || "")}</a>`).join("")}</div></div>`;
 }
 /* Free is a one-off trial, the paid tiers are a daily allowance. Every sentence that quotes a number has to
    say which, or a student reads "20 units" and expects them back tomorrow. */
 /* The complete price list, from the worker's own table. Every surface that quotes a unit price reads this,
    so Pro's "30 a day" is never sold as thirty deep-thinking questions when it is five. */
-function unitTable(){ return Object.assign({chat: 1, quiz: 5, cards: 5, think: 12, file: 3, photo: 2}, (PLUS.offer || {}).units || (PLUS.me || {}).units || {}); }   // the fallback mirrors UNITS in plus.js; the offer is the truth
-function unitList(){
-  const u = unitTable();
-  return `A <b>unit</b> is one message to the tutor. A quiz or a deck of flashcards costs ${u.quiz}, because it writes far more; deep thinking costs ${u.think}, because it runs on the bigger model; a question about a photo costs ${u.photo} and one about an uploaded file ${u.file}.`;
-}
-function unitPhrase(level, cap){
-  const t = tierOf(level);
-  const p = t.trial ? `${t.units} tutor units to try it, once` : `${t.units} tutor units a day`;
-  return cap ? p.charAt(0).toUpperCase() + p.slice(1) : p;
-}
+/* Free is the whole planner. Plus is depth on the two questions a planner alone cannot answer:
+   where the next hour is worth the most, and what you need on what is left. */
 function tierLines(level){
-  const t = tierOf(level), out = [unitPhrase(level, true), `Quizzes of ${t.quiz} · decks of ${t.cards}`];
-  if (level !== "free") out.push("Everything in " + TIER_NAMES[level === "pro" ? "plus" : "free"]);
-  if (t.files) out.push("Ask about your lecture slides and readings");
-  if (t.vision) out.push("Photograph a problem and work it through");
-  if (t.think) out.push("Deep thinking on hard problems");
-  if (level === "free") out.push("Review is always free and unlimited");
-  return out;
+  const t = tierOf(level);
+  if (level === "free") return [
+    "Your daily plan, sized to your hours",
+    "Every deadline, all your classes",
+    "Classmates and study sessions",
+    "Your semester recap",
+    `Worth your hour: top ${t.worth || 3}`,
+    "What you need to finish: one class",
+  ];
+  return [
+    "Everything free, plus:",
+    "Worth your hour: the whole semester",
+    "What you need to finish: every class",
+    "Your plan on your phone, always current",
+    "The morning message on your laptop",
+    "A weekly summary you can send home",
+  ];
 }
 function plusPossible(){ return MODE === "web" && !!LMK_CONFIG.statsUrl && cloudPossible() && !!(store.cloud && store.cloud.sid && store.cloud.secret); }
 function plusLink(){ const l = PLUS.offer && PLUS.offer.link; return l && /^https:\/\/buy\.stripe\.com\//.test(l) ? l + (l.includes("?") ? "&" : "?") + "client_reference_id=" + encodeURIComponent(store.cloud.sid) : ""; }
@@ -2162,10 +2248,10 @@ var renderPlus = function(){
     const when = paidSub && me.until ? " Renews " + FMT_DAY.format(new Date(me.until - 3 * 864e5)) + "."
       : me && me.granted && me.until ? " Until " + FMT_DAY.format(new Date(me.until)) + "."
       : gift ? " Yours until " + FMT_DAY.format(new Date(gift.until)) + ", then back to free with everything you've made." : "";
-    html = `<span>✓ <b>You're on ${TIER_NAMES[lvl]}${how}.</b> ${unitPhrase(lvl)}${me && me.credits ? ", plus " + me.credits + " credits" : ""}.${when}</span>${offer.portal && paidSub ? `<a class="minibtn" href="${esc(offer.portal)}" target="_blank" rel="noopener">Manage or change plan</a>` : ""}<button class="minibtn" data-act="plus-open">See plans</button>`;
+    html = `<span>✓ <b>You're on ${TIER_NAMES[lvl]}${how}.</b>${when}</span>${offer.portal && paidSub ? `<a class="minibtn" href="${esc(offer.portal)}" target="_blank" rel="noopener">Manage or change plan</a>` : ""}<button class="minibtn" data-act="plus-open">See plans</button>`;
   }
   else if (me && /^(canceled|revoked)$/.test(me.status || "")) html = `<span>Your plan ended. The free version keeps everything else.</span><button class="btn grad" data-act="plus-open">See plans</button>`;
-  else html = `<span><b>LMK plans</b> · ${unitPhrase("free")}, then ${nextT.units} a day on ${TIER_NAMES[lvl === "free" ? "plus" : "pro"]} for ${esc(nextT.price)}.</span><button class="btn grad" data-act="plus-open">See plans</button>`;
+  else html = `<span><b>LMK plans</b> · the planner is free; Plus adds the whole semester for ${esc(tierOf("plus").price || "")}.</span><button class="btn grad" data-act="plus-open">See plans</button>`;
   el.innerHTML = html; way.hidden = false;
 };
 /* keep the footer pill in step with whatever renderPlus learned */
@@ -2179,12 +2265,12 @@ renderPlus = function(){ _renderPlus(); renderPlusPill(); if (plusOverlay.classL
    the footer pill, the Study sheet, the setup card and the tutor's "out of messages" line. In the artifact
    (which can't reach the worker) it is a door to lmktoday.app. */
 const plusOverlay = document.getElementById("plusOverlay");
-function plusTutorOn(){ return !!(PLUS.offer && PLUS.offer.tutorOn); }
 function openPlus(){
   const me = PLUS.me, lvl = myLevel(), T = tierTable();
   const canceled = !!(me && /^(canceled|revoked)$/.test(me.status || "") && !me.plus);
   const granted = !!(me && me.granted);
-  const levels = ["free", "plus", "pro"].filter(x => x === lvl || x === "free" || (T[x] && (T[x].sell || x === "plus")));
+  // one paid tier now; a legacy `pro` account is shown its own card only because that is the level it holds
+  const levels = ["free", "plus"].concat(lvl === "pro" ? ["pro"] : []).filter((x, i, a) => a.indexOf(x) === i && (x === "free" || x === lvl || (T[x] && T[x].sell) || x === "plus"));
   const state = lvl !== "free"
     ? `<div class="plus-state">✓ <span><b>You're on ${TIER_NAMES[lvl]}${granted ? ", on the house" : ""}.</b>${me && me.until ? (granted ? " Until " + FMT_DAY.format(new Date(me.until)) : " Renews " + FMT_DAY.format(new Date(me.until - 3 * 864e5))) + "." : ""}${me && me.credits ? " " + me.credits + " extra credits." : ""}</span></div>`
     : canceled ? `<div class="plus-state" style="background:var(--surface-2);border-color:var(--line)"><span>Your plan ended. Everything free is still yours.</span></div>` : "";
@@ -2208,15 +2294,14 @@ function openPlus(){
     </div>`;
   };
   const doorway = MODE !== "web"
-    ? `<div class="plus-cta"><a class="btn grad" href="${esc(LMK_CONFIG.appUrl)}" target="_blank" rel="noopener">Open LMK on the web →</a><span class="privacy" style="margin:0">Plans and the tutor live on lmktoday.app; this copy runs inside claude.ai.</span></div>` : "";
+    ? `<div class="plus-cta"><a class="btn grad" href="${esc(LMK_CONFIG.appUrl)}" target="_blank" rel="noopener">Open LMK on the web →</a><span class="privacy" style="margin:0">Plans live on lmktoday.app; this copy runs inside claude.ai.</span></div>` : "";
   document.getElementById("plusModal").innerHTML = `
-    <div class="plus-hero"><div class="eyebrow">LMK plans</div><h3 id="plusTitle">A tutor that knows your assignments.</h3><div class="price">Free to start. Upgrade when it earns it.</div></div>
+    <div class="plus-hero"><div class="eyebrow">LMK plans</div><h3 id="plusTitle">Know which hour is worth the most.</h3><div class="price">The planner is free. Plus answers the grade questions.</div></div>
     ${state}
     ${doorway}
     <div class="tiers">${levels.map(card).join("")}</div>
-    ${packsHtml()}
     ${giftHtml()}
-    <p class="plus-note">${unitList()} Reviewing cards you already made is free and unlimited on every plan. Changing plans is handled by Stripe, which credits whatever is left of the month you already paid for. Nothing about you is stored but a random id; Stripe keeps your card and email.${store.cloud && store.cloud.sid ? ` Your support code is <b style="font-family:'Spline Sans Mono',monospace">${esc(store.cloud.sid.slice(0, 8))}</b>.` : ""}</p>
+    <p class="plus-note">Everything free stays free, including the whole daily plan. Changing or cancelling is handled by Stripe, which credits whatever is left of the month you already paid for. Nothing about you is stored but a random id; Stripe keeps your card and email.${store.cloud && store.cloud.sid ? ` Support code <b style="font-family:'Spline Sans Mono',monospace">${esc(store.cloud.sid.slice(0, 8))}</b>.` : ""}</p>
     <div class="foot"><span></span><button class="minibtn" id="plusClose">Close</button></div>`;
   plusOverlay.dataset.sheet = "plans";
   plusOverlay.classList.add("open");
@@ -2233,14 +2318,13 @@ function openPlus(){
    that: money changed hands and the app said nothing a student would notice. A payment that lands now
    opens the sheet — what you are on, what it just unlocked, and a way straight into the thing you paid for. */
 function unlockedLines(level){
-  const t = tierOf(level), f = tierOf("free"), out = [];
-  out.push(["\u25c6", t.units + " tutor units a day", (f.trial ? "The free trial was " + f.units + " units, once. This is every day." : "Up from " + f.units + ".") + " A message costs one; a quiz or a deck costs " + unitTable().quiz + "."]);
-  if (t.quiz > f.quiz || t.cards > f.cards) out.push(["\u25ce", "Longer quizzes, bigger decks", "Quizzes of " + t.quiz + " questions and decks of " + t.cards + " cards."]);
-  if (t.think && !f.think) out.push(["\u2726", "Deep thinking on hard problems", "The tutor takes its time on the ones that deserve it."]);
-  if (t.files && !f.files) out.push(["\u25a4", "Your slides and readings", "Attach a lecture file and it answers from what your professor actually said."]);
-  if (t.vision && !f.vision) out.push(["\u25d0", "Photograph a problem", "Point your phone at the page and work through it together."]);
-  out.push(["\u21bb", "Review stays free, forever", "Every card you make comes back on schedule, on every plan, unmetered."]);
-  return out;
+  return [
+    ["\u25c6", "Worth your hour, whole semester", "Everything left, ranked by how much of your final grade it decides per hour of work."],
+    ["\u25ce", "What you need, every class", "\u201cYou need 78% on the 240 points left for a B.\u201d Set the target; the maths follows your grades."],
+    ["\u25d0", "Your plan on your phone", "Kept current while your laptop is closed, through your own Drive."],
+    ["\u2726", "The morning message", "Today's short list on your laptop, at the hour you actually start. Silence when there's nothing."],
+    ["\u21bb", "A summary you can send home", "One weekly line for whoever asked how the semester is going. You choose when, and they never see grades."],
+  ];
 }
 /* Someone paid for this student. Show it once, on whichever device sees it first, and only after the
    sheet is really on screen — `giftSeen` is written by openUnlocked, never in advance, so a redraw that
@@ -2270,7 +2354,7 @@ function openUnlocked(opt){
     <div class="plus-hero">
       <div class="eyebrow">${gift ? "A gift" : credits ? "Top-up complete" : "Welcome to " + esc(TIER_NAMES[lvl] || "Plus")}</div>
       <h3 id="plusTitle">${gift ? "Someone covered this for you." : credits ? credits + " units added." : "You're on " + esc(TIER_NAMES[lvl] || "Plus") + "."}</h3>
-      <div class="price">${gift ? esc(TIER_NAMES[lvl] || "Plus") + " through " + FMT_DAY.format(new Date(gift.until)) : credits ? "Spent only after each day's allowance" : `<b>${t.units}</b> units a day`}</div>
+      <div class="price">${gift ? esc(TIER_NAMES[lvl] || "Plus") + " through " + FMT_DAY.format(new Date(gift.until)) : "The whole semester, worked out"}</div>
     </div>
     <p style="margin:0 0 16px;font-size:14.5px;color:var(--ink-2);line-height:1.55">${gift
       ? "It's already on. Nothing to set up, nothing to cancel, and it doesn't renew \u2014 so there's no card of theirs sitting on your account. Here's what it opens up."
@@ -2324,8 +2408,7 @@ var GIFT_RETURN = false;   // declared BEFORE the hash handler below sets it: a 
     const poll = async () => {
       tries++; await plusRefresh(true);
       const me = PLUS.me || {};
-      if (me.plus) { TUTOR.state = "unknown"; render(); openUnlocked({level: me.level}); return; }
-      if ((me.credits || 0) > wasCredits) { TUTOR.state = "unknown"; render(); openUnlocked({credits: me.credits - wasCredits}); return; }
+      if (me.plus) { render(); openUnlocked({level: me.level}); return; }
       if (tries < 6) setTimeout(poll, 3000); else toast("Payment received? It shows up here within a minute or two.");
     };
     setTimeout(poll, 1500);
@@ -2356,17 +2439,10 @@ function giftThanks(){
 /* ---- the tutor inside LMK ----
    The worker holds the key and the allowance; the page sends only this assignment's context and the
    conversation. Threads live on this device (localStorage), never in the synced store. */
-const TUTOR = {threads:{}, busy:false, left:null, daily:null, level:"free", state:"unknown", plus:false, credits:0};
-function tutorPossible(){ return MODE === "web" && !!LMK_CONFIG.statsUrl && cloudPossible() && !!(store.cloud && store.cloud.sid && store.cloud.secret); }
-function tutorThread(id){
-  if (!TUTOR.threads[id]) { try { TUTOR.threads[id] = JSON.parse(localStorage.getItem("lmk_tutor_" + id) || "[]"); } catch(_) { TUTOR.threads[id] = []; } }
-  return TUTOR.threads[id];
-}
-function tutorSave(id){ try { localStorage.setItem("lmk_tutor_" + id, JSON.stringify(tutorThread(id).slice(-12))); } catch(_){} }
 /* Everything LMK already knows about this piece of work, in the tutor's hands: what it is worth, the rubric,
    how long it usually takes, today's budget, what else is due this week, and the course standing. Nothing here
    names the student. */
-function tutorFacts(e){
+function studyFacts(e){
   const n = now(), days = Math.max(0, Math.floor((startOfDay(e.due) - startOfDay(n)) / 864e5));
   const x = e.ext || {};
   if (e.isCourse) {
@@ -2408,267 +2484,10 @@ function courseFeedback(course){
   EVENTS.filter(x => x.course === course).forEach(x => { const it = items[x.id.slice(1)]; if (it && it.fb && (!best || x.due > best.due)) best = {due: x.due, t: x.title, fb: it.fb}; });
   return best ? `on "${best.t}": ${best.fb}` : "";
 }
-function tutorCtx(e){
-  const f = tutorFacts(e);
-  const mat = STUDY.mat ? (matsFor(e.course).find(m => m.id === STUDY.mat) || null) : null;
-  return {title: e.title, course: e.course, kind: KIND_WORD(e), due: f.due, standing: f.standing,
-    worth: f.worth, est: f.est, plan: f.plan, grade: f.grade, rubric: f.rubric, mode: STUDY.mode || "",
-    feedback: (e.ext && e.ext.fb) || courseFeedback(e.course),
-    material: mat ? mat.text : "", matName: mat ? mat.name : "",
-    desc: e.desc || "", notes: (store.itemNotes || {})[e.id] || "", syllabus: (store.courseNotes || {})[e.course] || ""};
-}
-/* Course material: a PDF or a text file the student attaches, read here on the device with pdf.js and kept in
-   their own store. Only the file they pick travels, and only when they ask about it. */
-const MAT_MAX = 60000, MAT_KEY = "lmk_material";
-/* Deliberately not in `store`: a lecture deck is large and belongs to the device that read it, so it never
-   rides to Drive with the rest of the sync and never needs a merge rule. */
-function materials(){ try { return JSON.parse(localStorage.getItem(MAT_KEY) || "{}") || {}; } catch(_) { return {}; } }
-function saveMaterials(m){ try { localStorage.setItem(MAT_KEY, JSON.stringify(m)); return true; } catch(_) { return false; } }
-function matsFor(course){ return (materials()[course] || []).slice().sort((a, b) => b.at - a.at); }
-function addMaterial(course, name, text){
-  const m = materials(), list = m[course] || [];
-  list.unshift({id: "m" + Date.now().toString(36), name: String(name || "file").slice(0, 80), at: Date.now(), text: String(text || "").slice(0, MAT_MAX)});
-  m[course] = list.slice(0, 4);                       // four files a course; the oldest falls off
-  if (!saveMaterials(m)) {                            // out of room: keep only the newest one and try again
-    m[course] = list.slice(0, 1);
-    if (!saveMaterials(m)) throw new Error("this browser is out of room for files");
-  }
-}
-let pdfState = 0;
-function loadPdfJs(){
-  return new Promise((res, rej) => {
-    if (pdfState === 2) return res();
-    if (MODE !== "web") return rej(new Error("web only"));
-    const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.min.mjs"; s.type = "module";
-    s.onload = () => { pdfState = 2; res(); }; s.onerror = () => rej(new Error("pdf.js did not load"));
-    document.head.appendChild(s);
-  });
-}
-async function readFileText(file){
-  const name = file.name || "file";
-  if (/\.(txt|md|csv|json)$/i.test(name) || /^text\//.test(file.type || "")) return (await file.text()).slice(0, MAT_MAX);
-  if (/\.pdf$/i.test(name) || file.type === "application/pdf") {
-    await loadPdfJs();
-    const lib = window.pdfjsLib || (window.pdfjsDistBuildPdf || {});
-    if (!lib.getDocument) throw new Error("pdf reader unavailable");
-    lib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.worker.min.mjs";
-    const doc = await lib.getDocument({data: new Uint8Array(await file.arrayBuffer())}).promise;
-    let out = "";
-    for (let i = 1; i <= Math.min(doc.numPages, 60) && out.length < MAT_MAX; i++) {
-      const page = await doc.getPage(i), tc = await page.getTextContent();
-      out += "\n\n[page " + i + "] " + tc.items.map(x => x.str).join(" ");
-    }
-    return out.replace(/\s+/g, " ").trim().slice(0, MAT_MAX);
-  }
-  throw new Error("that file type isn't readable here");
-}
-/* Formulas the tutor writes in LaTeX become real mathematics. KaTeX loads once, only in web mode, only when a
-   message actually contains a formula, and only from the allowlisted CDN. */
-let katexState = 0;
-function needsMath(t){ return /(^|[^\\])\$[^$\n]{1,200}\$|\$\$/.test(t || ""); }
-function loadKatex(){
-  if (katexState || MODE !== "web") return;
-  katexState = 1;
-  const css = document.createElement("link"); css.rel = "stylesheet"; css.href = "https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css"; document.head.appendChild(css);
-  const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js";
-  s.onload = () => { const a = document.createElement("script"); a.src = "https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js";
-    a.onload = () => { katexState = 2; typesetMath(); }; a.onerror = () => { katexState = 3; }; document.head.appendChild(a); };
-  s.onerror = () => { katexState = 3; };
-  document.head.appendChild(s);
-}
-function typesetMath(root){
-  if (katexState !== 2 || !window.renderMathInElement) return;
-  const box = root || document.getElementById("aiChat"); if (!box) return;
-  try { window.renderMathInElement(box, {delimiters: [{left: "$$", right: "$$", display: true}, {left: "$", right: "$", display: false}], throwOnError: false}); } catch(_){}
-}
 /* The tutor should arrive with a plan, not a blank box. This is written from the brief, costs nothing,
    and gives the student two obvious next moves. */
-function openingProposal(e){
-  if (!e || !e.course) return `Hi. Ask me anything about this.`;
-  if (e.isCourse) return `Hi. I know your ${esc(e.course)}: your syllabus notes, what's coming up, and where you stand. Want a quiz for the exam, or shall we plan the week?`;
-  const f = (() => { try { return tutorFacts(e); } catch(_) { return {}; } })();
-  const kind = KIND_WORD(e), fb = courseFeedback(e.course);
-  const bits = [];
-  if (f.worth) bits.push(`It's worth ${f.worth.split(" · ")[0]}`);
-  if (f.days === 0) bits.push("it's due today");
-  else if (f.days === 1) bits.push("it's due tomorrow");
-  else if (f.days) bits.push(`you have ${f.days} days`);
-  if (f.today && f.today.cap) bits.push(`and about ${fmtMins(Math.max(0, f.today.cap - f.today.mins))} of study time left today`);
-  const opener = bits.length ? esc(bits.join(", ").replace(/^./, c => c.toUpperCase()) + ".") : `Let's look at this ${esc(kind)}.`;
-  const rub = (e.ext && e.ext.rub) ? String(e.ext.rub).split("; ")[0] : "";
-  const why = fb ? ` Last time your instructor said ${esc(fb.replace(/^on "[^"]*": /, ""))} — worth fixing here.`
-    : rub ? ` The rubric leads with ${esc(rub.replace(/\s*\(\d+ pts\)$/, ""))}, so that's where the marks are.` : "";
-  const move = e.exam ? "Want me to quiz you, or build a study plan for the days left?"
-    : f.days === 0 ? "Want the fastest path to finished, or a check of what you have?"
-    : e.effort === "big" ? "Want to outline it together, or talk through what you'd argue?"
-    : "Want me to explain the idea behind it, or quiz you first?";
-  return `${opener}${why} ${move}`;
-}
-function tutorRenderThread(id, opts = {}){
-  const box = document.getElementById("aiChat"); if (!box) return;
-  const t = tutorThread(id), e = studyTarget(id) || {title:"", course:"", due: now()};
-  const greet = openingProposal(e);
-  box.innerHTML = t.length ? t.map((m, i) => m.quiz ? quizHtml(m.quiz, i) : m.cards ? deckHtml(m.cards, i) : `<div class="msg ${m.role === "user" ? "me" : "ai"}">${esc(m.content)}</div>`).join("")
-    : `<div class="msg ai">${greet}</div>`;
-  /* A chat reply is a few lines and belongs at the bottom. A quiz or a deck is a whole screen, and scrolling
-     to the end of it drops the student at the last question with no idea where it began — so put the TOP of
-     the new block where they were reading instead. */
-  if (opts.top) { const last = box.lastElementChild; box.scrollTop = last ? Math.max(0, last.offsetTop - box.offsetTop - 8) : box.scrollHeight; }
-  else box.scrollTop = box.scrollHeight;
-  if (t.some(m => needsMath(m.content))) { loadKatex(); typesetMath(box); }
-}
 /* A quiz is one assistant turn the student works through in place. Picks are saved with the thread, and the
    turn's text is rewritten as a digest so the next chat message knows how the quiz went. */
-function quizHtml(q, i){
-  const picked = q.picked || [];
-  const answered = q.questions.filter((_, j) => picked[j] != null).length, right = q.questions.filter((x, j) => picked[j] === x.answer).length;
-  const done = answered === q.questions.length, missed = q.questions.map((x, j) => picked[j] != null && picked[j] !== x.answer ? j + 1 : 0).filter(Boolean);
-  return `<div class="qz" data-turn="${i}"><div class="qz-head"><b>${esc(q.title)}</b><span>${done ? `${right} of ${q.questions.length}` : `${answered} of ${q.questions.length} answered`}</span></div>
-    ${q.questions.map((x, j) => { const p = picked[j]; return `<div class="qq ${p == null ? "" : p === x.answer ? "right" : "wrong"}"><div class="qq-q"><span class="qn">${j + 1}</span>${esc(x.q)}</div>
-      <div class="qq-c">${x.choices.map((c, k) => `<button class="qc ${p == null ? "" : k === x.answer ? "is-right" : k === p ? "is-wrong" : "dim"}" data-q="${j}" data-c="${k}" ${p == null ? "" : "disabled"}>${esc(c)}</button>`).join("")}</div>
-      ${p != null ? `<div class="qq-why">${p === x.answer ? "✓ " : "✗ "}${esc(x.why)}</div>` : ""}</div>`; }).join("")}
-    ${done ? `<div class="qz-foot"><b>${right === q.questions.length ? "All of them. Nice." : `${right} of ${q.questions.length}.`}</b>${missed.length ? `<button class="minibtn" data-again="quiz" data-focus="${esc(missed.map(n => q.questions[n - 1].q).join("; ").slice(0, 300))}">Again on what I missed · 1 message</button><button class="minibtn" data-explain="${esc(q.questions[missed[0] - 1].q)}">Explain #${missed[0]}</button>` : `<button class="minibtn" data-again="quiz" data-focus="harder questions">Harder · 1 message</button>`}</div>` : ""}</div>`;
-}
-function deckHtml(d, i){
-  const at = Math.min(d.at || 0, d.cards.length - 1), known = d.known || [], c = d.cards[at], seen = known.filter(k => k != null).length;
-  const missedFronts = d.cards.filter((_, j) => known[j] === false).map(x => x.front);
-  const finished = seen === d.cards.length;
-  return `<div class="deck" data-turn="${i}"><div class="qz-head"><b>${esc(d.title)}</b><span>${at + 1} of ${d.cards.length}${seen ? ` · ${known.filter(Boolean).length} known` : ""}</span></div>
-    <button class="fc ${d.flip ? "flipped" : ""}" data-flip="1" aria-label="Flip the card"><span class="fc-side front">${esc(c.front)}</span><span class="fc-side back">${esc(c.back)}</span></button>
-    <div class="deck-acts"><button class="minibtn" data-nav="-1" ${at === 0 ? "disabled" : ""}>‹ Back</button>
-      ${d.flip ? `<button class="minibtn muted" data-know="0">Not yet</button><button class="minibtn keep" data-know="1">Got it</button>` : `<span class="privacy" style="margin:0">Tap the card to flip it</span>`}
-      <button class="minibtn" data-nav="1" ${at >= d.cards.length - 1 ? "disabled" : ""}>Next ›</button></div>
-    ${finished ? `<div class="qz-foot"><b>${missedFronts.length ? `${missedFronts.length} to revisit.` : "You know the deck."}</b><span style="color:var(--muted);font-size:12.5px">Saved · it comes back in your plan.</span>${missedFronts.length ? `<button class="minibtn" data-again="cards" data-focus="${esc(missedFronts.join("; ").slice(0, 300))}">New cards on those · 1 message</button>` : `<button class="minibtn" data-again="cards" data-focus="deeper material not covered yet">Go deeper · 1 message</button>`}</div>` : ""}</div>`;
-}
-function quizDigest(q){
-  const picked = q.picked || [], missed = q.questions.map((x, j) => picked[j] != null && picked[j] !== x.answer ? `#${j + 1} ${x.q} (they chose "${x.choices[picked[j]]}", correct: "${x.choices[x.answer]}")` : "").filter(Boolean);
-  const answered = q.questions.filter((_, j) => picked[j] != null).length, right = q.questions.filter((x, j) => picked[j] === x.answer).length;
-  return `[Quiz "${q.title}": ${q.questions.map((x, j) => `${j + 1}. ${x.q} → ${x.choices[x.answer]}`).join(" | ")}]` + (answered ? ` The student answered ${answered} and got ${right} right.${missed.length ? " Missed: " + missed.join("; ") : ""}` : " Not answered yet.");
-}
-function deckDigest(d){
-  const known = d.known || [], miss = d.cards.filter((_, j) => known[j] === false).map(x => x.front);
-  return `[Flashcards "${d.title}": ${d.cards.map(c => c.front + " = " + c.back).join(" | ")}]` + (miss.length ? ` The student marked these as not known yet: ${miss.join("; ")}.` : "");
-}
-/* one message buys a whole quiz or deck */
-async function tutorMake(id, kind, focus){
-  const e = studyTarget(id); if (!e || TUTOR.busy) return;
-  const t = tutorThread(id), box = document.getElementById("aiChat");
-  const label = kind === "quiz" ? "quiz" : "deck of flashcards";
-  t.push({role: "user", content: `Make me a ${label} on this${focus ? ", focused on: " + focus : ""}.`}); tutorSave(id); tutorRenderThread(id);
-  const bubble = document.createElement("div"); bubble.className = "msg ai thinking"; bubble.textContent = kind === "quiz" ? "Writing your quiz" : "Writing your cards"; box.appendChild(bubble); box.scrollTop = box.scrollHeight;
-  TUTOR.busy = true; const sb = document.getElementById("aiSend"); if (sb) sb.disabled = true;
-  tutorUseBump(kind);
-  try {
-    const r = await fetch(apiUrl("/tutor"), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"},
-      body: JSON.stringify({sid: store.cloud.sid, secret: store.cloud.secret, ctx: tutorCtx(e), make: kind, focus: focus || ""})});
-    let j = {}; try { j = await r.json(); } catch(_){}
-    if (j.left != null) { TUTOR.left = +j.left; TUTOR.daily = +j.daily; TUTOR.level = j.level || TUTOR.level; TUTOR.plus = !!j.plus; TUTOR.credits = +(j.credits || 0); }
-    if (!r.ok || !j.ok) {
-      t.pop();
-      TUTOR.state = j.error === "allowance" ? "allowance" : (r.status === 503 ? "off" : TUTOR.state); if (j.error === "allowance") TUTOR.left = 0;
-      bubble.classList.remove("thinking");
-      bubble.textContent = j.error === "allowance" ? "That's today's units used up. They come back at midnight." : j.error === "make" ? "That one didn't come out right. Try again; it won't count twice against you if it fails." : j.error === "network" ? "A lot of people on this network are using the tutor right now. Your own units are untouched — try again later." : "The tutor couldn't do that just now. Try again in a moment.";
-      tutorSave(id); tutorNote(); return;
-    }
-    TUTOR.state = "ok";
-    if (kind === "quiz") { const q = Object.assign({picked: []}, j.quiz); t.push({role: "assistant", content: quizDigest(q), quiz: q}); }
-    else {
-      const d = Object.assign({at: 0, known: [], flip: false}, j.cards);
-      try { d.deck = saveDeck(e.course, d.title, d.cards); } catch(_){}   // it joins the review schedule from today
-      t.push({role: "assistant", content: deckDigest(d), cards: d});
-    }
-    tutorSave(id); tutorRenderThread(id, {top: true}); tutorNote();
-  } catch(_) {
-    t.pop(); bubble.classList.remove("thinking"); bubble.textContent = "Lost the connection. Try again.";
-  } finally { TUTOR.busy = false; const b = document.getElementById("aiSend"); if (b) b.disabled = false; }
-}
-function tutorNote(){
-  const el = document.getElementById("aiNote"), up = document.getElementById("aiUpsell"); if (!el) return;
-  const bind = () => { const pb = studyPage.querySelector('#aiUpsell [data-act="plus-open"]'); if (pb) pb.addEventListener("click", openPlus); };
-  const lvl = myLevel(), name = TIER_NAMES[lvl] || "Free";
-  const next = lvl === "free" ? "plus" : lvl === "plus" ? "pro" : "";
-  const nextT = next ? tierOf(next) : null, canSell = next && nextT && nextT.sell && tierLink(next);
-  if (TUTOR.state === "off") { el.textContent = "The tutor is resting right now. Your own AI below still works."; if (up) up.innerHTML = ""; return; }
-  const isTrial = !!(PLUS.me && PLUS.me.trial) || tierOf(lvl).trial;
-  if (TUTOR.state === "allowance") el.innerHTML = isTrial
-    ? `<b>Your free trial is used up.</b> ${TUTOR.credits ? `${TUTOR.credits} bought units left · ` : ""}A plan brings the tutor back every day; your own AI below is unlimited either way.`
-    : `<b>Today's ${TUTOR.daily || ""} units are used.</b> More tomorrow${TUTOR.credits ? ` · ${TUTOR.credits} bought units left` : ""}; your own AI below is unlimited.`;
-  else if (TUTOR.left != null) el.innerHTML = `<b>${TUTOR.left} of ${TUTOR.daily} ${name} units</b> left ${isTrial ? "in your free trial" : "today"}${TUTOR.credits ? ` · ${TUTOR.credits} credits after that` : ""}. <span title="A message costs 1, a quiz or a deck costs 3" style="border-bottom:1px dotted var(--line-strong);cursor:help">What's a unit?</span>`;
-  else el.innerHTML = isTrial ? `A free trial of the tutor.` : `A few tutor units a day.`;
-  const topUp = TUTOR.state === "allowance" && packList().some(p => packLink(p));
-  /* Out of units is the one moment a student is actually thinking about paying, so it is the one place the
-     other way to pay belongs. Only when they are out — never as a standing nag beside a working tutor. */
-  const askable = TUTOR.state === "allowance" && myCode() && giftList().some(giftLink);
-  if (up) { up.innerHTML = (topUp ? `<button class="btn grad" data-act="plus-open">Buy more units</button>` : canSell && !(PLUS.me && PLUS.me.plus) ? `<button class="btn grad" data-act="plus-open">${TIER_NAMES[next]} · ${nextT.units} a day · ${esc(nextT.price)}</button>` : canSell ? `<button class="minibtn" data-act="plus-open">Change plan</button>` : "")
-    + (askable ? `<button class="minibtn" id="aiAskGift">Ask someone to cover it</button>` : ""); bind();
-    const ag = document.getElementById("aiAskGift");
-    if (ag) ag.addEventListener("click", async () => {
-      try { await navigator.clipboard.writeText(giftMessage()); toast("Copied a message with your code. Send it to whoever offered."); }
-      catch(_) { openPlus(); }
-    }); }
-}
-async function tutorBalance(){
-  if (!tutorPossible()) return;
-  try {
-    const r = await fetch(apiUrl("/tutor"), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"}, body: JSON.stringify({sid: store.cloud.sid, secret: store.cloud.secret, balance: true})});
-    const j = await r.json();
-    if (j.ok) { TUTOR.left = j.left; TUTOR.daily = j.daily; TUTOR.level = j.level || "free"; TUTOR.plus = !!j.plus; TUTOR.credits = j.credits || 0; TUTOR.state = j.on ? ((j.left > 0 || TUTOR.credits > 0) ? "ok" : "allowance") : "off"; }
-  } catch(_){}
-  tutorNote();
-}
-async function tutorSend(id, preset){
-  const ta = document.getElementById("aiInput"); if (!ta || TUTOR.busy) return;
-  const text = (preset || ta.value).trim(); if (!text) return;
-  const e = studyTarget(id); if (!e) return;
-  const t = tutorThread(id); t.push({role:"user", content: text + (STUDY.image ? "  [photo attached]" : "")}); ta.value = ""; try { localStorage.removeItem("lmk_draft_" + id); } catch(_){} tutorSave(id); tutorRenderThread(id);
-  const box = document.getElementById("aiChat"); const bubble = document.createElement("div"); bubble.className = "msg ai thinking"; box.appendChild(bubble); box.scrollTop = box.scrollHeight;
-  TUTOR.busy = true; document.getElementById("aiSend").disabled = true;
-  tutorUseBump("chat");
-  try {
-    const r = await fetch(apiUrl("/tutor"), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"},
-      body: JSON.stringify(Object.assign({sid: store.cloud.sid, secret: store.cloud.secret, ctx: tutorCtx(e), messages: t.slice(-12)},
-        STUDY.think ? {think: true} : {}, STUDY.image ? {image: STUDY.image} : {}))});
-    if (!r.ok) {
-      let j = {}; try { j = await r.json(); } catch(_){}
-      t.pop(); ta.value = text;
-      TUTOR.state = j.error === "allowance" ? "allowance" : (r.status === 503 ? "off" : TUTOR.state); if (j.error === "allowance") TUTOR.left = 0;
-      bubble.classList.remove("thinking");
-      bubble.textContent = j.error === "tier" ? `That one needs a bigger plan: ${j.need === "vision" ? "photographs" : j.need === "files" ? "course material" : "deep thinking"} comes with Pro.` : j.error === "allowance" ? "Today's units are used up. More tomorrow; the buttons below open your own AI with the same brief, no limit." : j.error === "network" ? "A lot of people on this network are using the tutor right now. Your own units are untouched — try again later, or use your own AI below." : r.status === 503 ? "The tutor is resting right now: today's shared pot is spent, your own units are untouched. Your own AI below still works." : "The tutor couldn't answer just now. Try again in a moment.";
-      tutorNote(); return;
-    }
-    TUTOR.left = +r.headers.get("x-lmk-left"); TUTOR.daily = +r.headers.get("x-lmk-daily"); TUTOR.level = r.headers.get("x-lmk-level") || TUTOR.level; TUTOR.plus = r.headers.get("x-lmk-plus") === "1"; TUTOR.credits = +(r.headers.get("x-lmk-credits") || 0); TUTOR.state = "ok"; tutorNote();
-    bubble.classList.remove("thinking"); bubble.textContent = "";
-    const reader = r.body.getReader(), dec = new TextDecoder(); let out = "";
-    for (;;) { const {value, done} = await reader.read(); if (done) break; out += dec.decode(value, {stream:true}); bubble.textContent = out; box.scrollTop = box.scrollHeight; }
-    out = (out + dec.decode()).trim(); bubble.textContent = out;
-    if (needsMath(out)) { loadKatex(); typesetMath(box); }
-    t.push({role:"assistant", content: out}); tutorSave(id);
-  } catch(_) {
-    bubble.classList.remove("thinking"); bubble.textContent = "Lost the connection. Your message is still in the box; send it again.";
-    t.pop(); ta.value = text;
-  } finally { TUTOR.busy = false; STUDY.image = null; STUDY.think = false; const b = document.getElementById("aiSend"); if (b) b.disabled = false; const p = document.getElementById("aiPhotoTag"); if (p) p.hidden = true; const th = document.getElementById("aiThink"); if (th) th.setAttribute("aria-pressed", "false"); }
-}
-/* A phone photo is downscaled here so a 4 MB picture becomes a few hundred kilobytes before it travels. */
-function shrinkImage(file){
-  return new Promise((res, rej) => {
-    const img = new Image(), url = URL.createObjectURL(file);
-    img.onload = () => {
-      const max = 1280, sc = Math.min(1, max / Math.max(img.width, img.height));
-      const cv = document.createElement("canvas"); cv.width = Math.round(img.width * sc); cv.height = Math.round(img.height * sc);
-      cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
-      URL.revokeObjectURL(url);
-      const d = cv.toDataURL("image/jpeg", 0.82);
-      res({media_type: "image/jpeg", data: d.slice(d.indexOf(",") + 1)});
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("that image could not be read")); };
-    img.src = url;
-  });
-}
-function planChip(){
-  const lvl = myLevel();
-  if (lvl !== "free") return `<button class="planchip plus" data-act="plus-open" title="Your plan">✦ ${TIER_NAMES[lvl]}</button>`;
-  return `<button class="planchip" data-act="plus-open" title="See the plans">Free plan · <span style="color:var(--c1)">See plans</span></button>`;
-}
 /* The Study screen. One assignment, full page: the brief on the left (what it is, what it is worth, the rubric,
    the time you have, your notes) and the tutor on the right. The 60-second render never touches this page. */
 function scopeOptions(cur){
@@ -2677,23 +2496,22 @@ function scopeOptions(cur){
   if (cur && !cur.isCourse && !(byCourse[cur.course] || []).some(x => x.id === cur.id)) (byCourse[cur.course] = byCourse[cur.course] || []).unshift(cur);
   return COURSES.map(c => `<optgroup label="${esc(c)}"><option value="c:${esc(c)}" ${cur && cur.id === "c:" + c ? "selected" : ""}>${esc(c)} · the whole course</option>${(byCourse[c] || []).slice(0, 12).map(x => `<option value="${x.id}" ${cur && cur.id === x.id ? "selected" : ""}>${esc(x.title.slice(0, 48))}${x.due < n ? " · overdue" : " · " + FMT_DAY.format(x.due)}</option>`).join("")}</optgroup>`).join("");
 }
+/* The assignment page. One thing, full screen: what it is, what it decides about the grade, what it
+   usually takes you, your notes, and a sprint to start it. LMK sends nothing to a model; the last block
+   hands the student's own AI a brief that already knows the assignment. The 60-second render never
+   touches this page, and `#study=<id>` restores it — the extension deep-links here from Canvas. */
 function openStudy(id, opts = {}){
   const e = studyTarget(id); if (!e) return;
   try { detailOverlay.classList.remove("open"); } catch(_){}
   let pref = ""; try { pref = localStorage.getItem("lmk_ai_pref") || ""; } catch(_){}
-  try { STUDY.mode = localStorage.getItem("lmk_tutor_mode_" + id) || ""; } catch(_) { STUDY.mode = ""; }
   STUDY.id = id;
-  const prompt = e.isCourse ? `I'm a college student in ${e.course}. Be my tutor for this course as a whole. Here is what I know about it:${(store.courseNotes || {})[e.course] ? "\n\n" + (store.courseNotes || {})[e.course].slice(0, 3000) : " (nothing added yet)"}\n\nComing up: ${(tutorFacts(e).up || []).map(y => y.title + " (" + FMT_DAY.format(y.due) + ")").join("; ") || "nothing scheduled"}. Start by asking what I want to work on. Keep replies short; I'm often on my phone.` : studyPrompt(e);
+  const prompt = studyPrompt(e);
   const order = AI_TARGETS.slice().sort((a, b) => (b.id === pref) - (a.id === pref));
-  const inApp = tutorPossible();
-  const locked = inApp && (TUTOR.state === "off" || !plusTutorOn());
   const kind = KIND_WORD(e);
-  const f = tutorFacts(e);
+  const f = studyFacts(e);
   const g = (() => { try { return gradeFor(e.course); } catch(_) { return null; } })();
   const notes = e.isCourse ? ((store.courseNotes || {})[e.course] || "") : ((store.itemNotes || {})[e.id] || "");
-  const mats = matsFor(e.course);
-  if (STUDY.mat && !mats.some(m => m.id === STUDY.mat)) STUDY.mat = "";
-  const ownAI = `<details class="ownai"${inApp ? "" : " open"}><summary>${inApp ? "Prefer your own AI? Open Claude, ChatGPT or Gemini with the same brief" : "Open it in your own AI, with a prompt that already knows this " + kind}</summary>
+  const ownAI = `<details class="ownai" open><summary>Open it in your own AI, with a prompt that already knows this ${kind}</summary>
       <div class="row" style="margin-top:10px">
         ${order.map(t => `<a class="btn ${t.id === pref || (!pref && t.id === "claude") ? "primary" : "ghost"}" data-ai="${t.id}" href="${esc(t.url(prompt))}" target="_blank" rel="noopener">${t.name}${t.id === pref ? " · your usual" : ""}</a>`).join("")}
         <button class="btn ghost" data-ai="copy">Copy prompt</button>
@@ -2712,39 +2530,36 @@ function openStudy(id, opts = {}){
     g ? [esc(e.course), `${g.letter} · ${g.pct}%${g.working ? " · " + g.working + " in progress" : ""}`] : null,
   ].filter(Boolean);
   const rub = (e.ext && e.ext.rub) ? String(e.ext.rub).split("; ").filter(Boolean) : [];
+  /* The headline of the page: what this one thing decides about the grade, and what an hour on it buys. */
+  const w = e.isCourse ? null : worthOf(e);
+  const rank = e.isCourse ? [] : worthRank();
+  const at = w ? rank.findIndex(x => x.e.id === e.id) : -1;
+  const mins = e.isCourse ? 0 : Math.max(5, remainingMins(e));
+  const worthBlock = !w ? "" : `<div class="card sp-worth">
+      <div class="sp-worth-n">${w.share ? w.share.toFixed(1) + `<small>% of your ${esc(e.course)} grade</small>` : `0<small> points</small>`}</div>
+      <div class="sp-worth-t">${w.share
+        ? `About <b>${fmtMins(mins)}</b> of work, so roughly <b>${(w.share / (mins / 60)).toFixed(1)}% of the grade an hour</b>.${at >= 0 ? ` That makes it <b>${at === 0 ? "the best-value thing" : "number " + (at + 1)}</b> on your whole list right now.` : ""}`
+        : `This one carries no points, so it cannot move your grade on its own. Worth doing if it feeds something that does &mdash; otherwise it is the thing to do last.`}
+      ${(() => { const thin = w.share ? worthThin(e.course) : 0; return thin ? `<div class="privacy" style="margin:2px 0 0">${esc(e.course)} has only ${thin} graded thing${thin === 1 ? "" : "s"} on ${lmsName()} so far, so this share is of what has been published. It shrinks as your professor adds more.</div>` : ""; })()}</div>
+    </div>`;
   studyPage.innerHTML = `
     <div class="sp-head"><button class="sp-back" id="spBack" aria-label="Back to your plan">← Plan</button>
-      <div class="sp-title"><b id="aiTitle">${esc(e.title)}</b><label class="sp-scope"><span class="srconly">What to study</span><select id="spScope" aria-label="Choose what to study">${scopeOptions(e)}</select></label></div>${inApp ? planChip() : ""}</div>
+      <div class="sp-title"><b id="aiTitle">${esc(e.title)}</b><label class="sp-scope"><span class="srconly">Which assignment</span><select id="spScope" aria-label="Choose an assignment">${scopeOptions(e)}</select></label></div></div>
     <div class="sp-body">
       <details class="sp-more card" ${window.innerWidth > 800 ? "open" : ""} style="border:none;background:transparent;box-shadow:none"><summary>About this ${kind}</summary>
       <aside class="sp-brief">
         <div class="card sp-facts">${facts.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")}</div>
         ${e.isCourse ? `<div class="card sp-block"><h4>Coming up</h4>${f.up && f.up.length ? `<ul>${f.up.map(y => `<li>${esc(y.title.slice(0, 60))} · ${FMT_DAY.format(y.due)}</li>`).join("")}</ul>` : `<p class="privacy" style="margin:0">Nothing else is due in this course.</p>`}</div>`
-        : `<div class="card sp-block"><h4>Instructions from ${lmsName()}</h4>${e.desc ? `<div class="sp-scroll">${esc(e.desc)}</div>` : `<p class="privacy" style="margin:0">Nothing came through for this one yet. Open it in Canvas and paste what matters into your notes; the tutor reads them.</p>`}</div>`}
+        : `<div class="card sp-block"><h4>Instructions from ${lmsName()}</h4>${e.desc ? `<div class="sp-scroll">${esc(e.desc)}</div>` : `<p class="privacy" style="margin:0">Nothing came through for this one yet. Open it in ${lmsName()} and paste what matters into your notes.</p>`}</div>`}
         ${rub.length ? `<div class="card sp-block"><h4>Rubric</h4><ul>${rub.map(r => `<li>${esc(r)}</li>`).join("")}</ul></div>` : ""}
-        <div class="card sp-block"><h4>Course material</h4>
-          ${tierOf(myLevel()).files ? `${mats.length ? `<div class="matlist">${mats.map(m => `<label class="mat"><input type="radio" name="spMat" value="${esc(m.id)}" ${STUDY.mat === m.id ? "checked" : ""}><span>${esc(m.name)}</span><small>${FMT_DAY.format(new Date(m.at))} · ${Math.round((m.text || "").length / 1000)}k</small></label>`).join("")}<label class="mat"><input type="radio" name="spMat" value="" ${STUDY.mat ? "" : "checked"}><span>Don't use any</span></label></div>` : `<p class="privacy" style="margin:0 0 8px">Attach the lecture slides or a reading and the tutor answers from them, quoting the page.</p>`}
-          <label class="minibtn" style="display:inline-block">＋ Attach a PDF or text file<input type="file" id="spMatFile" accept=".pdf,.txt,.md,.csv,application/pdf,text/plain" class="srconly"></label>
-          <span id="spMatMsg" class="privacy" style="margin-left:8px"></span>`
-          : `<p class="privacy" style="margin:0">Ask about your lecture slides and readings with <button class="minibtn" data-act="plus-open" style="padding:3px 8px">Pro</button>.</p>`}
-        </div>
-        <div class="card sp-block"><h4>${e.isCourse ? "Syllabus and course notes" : "Your notes"}</h4><textarea id="spNotes" placeholder="${e.isCourse ? "Paste the syllabus, the exam format, the chapters covered, anything the tutor should know about this course…" : "What you've tried, what the professor said, anything the tutor should know…"}">${esc(notes)}</textarea><p class="privacy" style="margin:6px 0 0">Saved on this device and in your Drive. The tutor reads them.</p></div>
+        <div class="card sp-block"><h4>${e.isCourse ? "Syllabus and course notes" : "Your notes"}</h4><textarea id="spNotes" placeholder="${e.isCourse ? "Paste the syllabus, the exam format, the chapters covered…" : "What you've tried, what the professor said, where you got stuck…"}">${esc(notes)}</textarea></div>
         <div class="row" style="margin:0">${e.url ? `<a class="btn ghost" href="${esc(e.url)}" target="_blank" rel="noopener">Open in ${lmsName()} ↗</a>` : ""}${e.isCourse ? "" : `<button class="btn ghost" id="spDone">${store.done[e.id] ? "Not done after all" : "Done ✓"}</button>`}</div>
       </aside></details>
       <section class="sp-chat">
-        ${inApp && !locked ? `<div class="modes" role="group" aria-label="How do you want to work?">${STUDY_MODES.map(m => `<button class="mode ${m.make ? "make" : ""}" data-mode="${m.id}" aria-pressed="${STUDY.mode === m.id}" ${m.title ? `title="${m.title}"` : ""}>${m.make ? "✦ " : ""}${m.label}</button>`).join("")}</div>
-        <div class="chat card" id="aiChat" aria-live="polite" style="padding:10px"></div>
-        <div class="chatbar"><textarea id="aiInput" rows="1" placeholder="Ask anything about it…" aria-label="Your message to the tutor"></textarea><button class="btn primary" id="aiSend">Send</button></div>
-        <div class="chatextras">
-          <label class="minibtn" title="${tierOf(myLevel()).vision ? "Photograph a problem and work it through · 2 units" : "Photographs come with Pro"}" ${tierOf(myLevel()).vision ? "" : "data-act=\"plus-open\""}>📷 Photo${tierOf(myLevel()).vision ? `<input type="file" id="aiPhoto" accept="image/*" capture="environment" class="srconly">` : ""}</label>
-          <button class="minibtn" id="aiThink" aria-pressed="false" title="${tierOf(myLevel()).think ? "Let it think the hard way · " + unitTable().think + " units" : "Deep thinking comes with Pro"}" ${tierOf(myLevel()).think ? "" : `data-act="plus-open"`}>◈ Think it through</button>
-          <span id="aiPhotoTag" class="minibtn muted" hidden>Photo attached · <span data-act="ai-photo-clear" style="text-decoration:underline;cursor:pointer">remove</span></span>
-        </div>
-        <div class="planbar"><span id="aiNote"></span><span id="aiUpsell"></span></div>
-        <div class="chatnote"><span>Nothing here is graded or saved to your account. It coaches; it won't do the work for you.</span><button class="minibtn" id="aiClear" title="Start this conversation over">Start over</button></div>` : ""}
-        ${inApp && locked ? `<div class="chat card" aria-live="polite" style="padding:10px;min-height:auto;flex:none"><div class="msg ai">Hi. I'm LMK's tutor. I already know this ${kind}: what it asks, when it's due, and where you stand in ${esc(e.course)}. I coach one step at a time and I won't do the graded work for you.</div></div>
-        <div class="locked"><span>✦</span><div><b>${plusTutorOn() ? "The tutor is resting right now." : "The tutor opens soon."}</b> ${PLUS.me && PLUS.me.plus ? "Your Plus messages will be waiting." : `Plus members get ${unitPhrase("plus")}; a free account gets ${unitPhrase("free")}.`}</div>${myLevel() !== "free" ? "" : `<button class="minibtn" data-act="plus-open">See plans</button>`}</div>` : ""}
-        ${!inApp && MODE !== "web" ? `<div class="locked"><span>✦</span><div><b>The tutor and Plus live on lmktoday.app.</b> This copy runs inside claude.ai and can't reach them.</div><a class="minibtn" href="${esc(LMK_CONFIG.appUrl)}" target="_blank" rel="noopener">Open there</a></div>` : ""}
+        ${worthBlock}
+        ${e.isCourse ? "" : `<div class="row" style="margin:0">
+          ${sprint && sprint.id === e.id ? `<span class="countchip soon" id="sprintClock">25:00</span><button class="btn ghost" data-sp="stop">End sprint</button>` : `<button class="btn primary" data-sp="go">▶ Start a 25-minute sprint</button>`}
+        </div>`}
         ${ownAI}
       </section>
     </div>`;
@@ -2756,6 +2571,10 @@ function openStudy(id, opts = {}){
   studyPage.scrollTop = 0;
   document.getElementById("spBack").onclick = () => closeStudy();
   studyPage.querySelectorAll('[data-act="plus-open"]').forEach(b => b.addEventListener("click", openPlus));
+  studyPage.querySelectorAll("[data-sp]").forEach(b => b.addEventListener("click", () => {
+    if (b.dataset.sp === "go") startSprint(e.id); else stopSprint();
+    openStudy(id, {replace: true});
+  }));
   const nt = document.getElementById("spNotes");
   let ntTimer = 0;
   nt.addEventListener("input", () => { clearTimeout(ntTimer); ntTimer = setTimeout(() => nt.dispatchEvent(new Event("change")), 500); });
@@ -2765,84 +2584,7 @@ function openStudy(id, opts = {}){
     save();
   });
   const dn = document.getElementById("spDone"); if (dn) dn.onclick = () => { toggleDone(e.id, null, "Marked done. Nice."); render(); dn.textContent = store.done[e.id] ? "Not done after all" : "Done ✓"; };
-  const mf = document.getElementById("spMatFile");
-  if (mf) mf.addEventListener("change", async () => {
-    const f = mf.files && mf.files[0]; if (!f) return;
-    const msg = document.getElementById("spMatMsg"); msg.textContent = "Reading…";
-    try { const text = await readFileText(f); if (!text.trim()) throw new Error("nothing readable in there");
-      addMaterial(e.course, f.name, text); STUDY.mat = (matsFor(e.course)[0] || {}).id || ""; msg.textContent = ""; openStudy(id, {replace: true}); toast("Attached. Ask about it and the tutor reads it."); }
-    catch(err) { msg.textContent = String((err && err.message) || err).slice(0, 60); }
-    mf.value = "";
-  });
-  studyPage.querySelectorAll('input[name="spMat"]').forEach(r => r.addEventListener("change", () => { STUDY.mat = r.value; toast(r.value ? "The tutor will read that file · 2 units a question" : "Not using a file."); }));
   document.getElementById("spScope").addEventListener("change", ev => { const to = ev.target.value; if (to && to !== id) openStudy(to, {replace: true}); });
-  if (inApp && !locked) {
-    tutorRenderThread(id); tutorNote(); tutorBalance();
-    const ta = document.getElementById("aiInput");
-    /* A question typed and not yet sent is the sharpest thing to lose, because everything around it comes
-       back: the assignment, the thread and the mode chip all restore from #study= and localStorage. */
-    try { ta.value = localStorage.getItem("lmk_draft_" + id) || ""; } catch(_){}
-    if (ta.value) { ta.style.height = "auto"; ta.style.height = Math.min(140, ta.scrollHeight) + "px"; }
-    document.getElementById("aiSend").onclick = () => tutorSend(id);
-    ta.addEventListener("keydown", ev => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); tutorSend(id); } });
-    ta.addEventListener("input", () => {
-      ta.style.height = "auto"; ta.style.height = Math.min(140, ta.scrollHeight) + "px";
-      try { ta.value ? localStorage.setItem("lmk_draft_" + id, ta.value.slice(0, 4000)) : localStorage.removeItem("lmk_draft_" + id); } catch(_){}
-    });
-    document.getElementById("aiClear").onclick = () => { TUTOR.threads[id] = []; tutorSave(id); tutorRenderThread(id); };
-    document.getElementById("aiChat").addEventListener("click", ev => {
-      const turnEl = ev.target.closest("[data-turn]"); if (!turnEl) return;
-      const m = tutorThread(id)[+turnEl.dataset.turn]; if (!m) return;
-      const b = ev.target.closest("button"); if (!b) return;
-      if (b.dataset.again) { tutorMake(id, b.dataset.again, b.dataset.focus || ""); return; }
-      if (b.dataset.explain) { ta.value = "Explain question: " + b.dataset.explain; ta.focus(); ta.dispatchEvent(new Event("input")); return; }
-      if (m.quiz && b.dataset.q != null) {
-        m.quiz.picked = m.quiz.picked || []; m.quiz.picked[+b.dataset.q] = +b.dataset.c; m.content = quizDigest(m.quiz);
-        // once every question is answered, what you got wrong becomes cards that come back
-        if (!m.quiz.saved && m.quiz.questions.every((_, j) => m.quiz.picked[j] != null)) {
-          const missed = m.quiz.questions.filter((x, j) => m.quiz.picked[j] !== x.answer);
-          if (missed.length) { try { m.quiz.saved = saveDeck(e.course, m.quiz.title + " · what I missed", missed.map(x => ({front: x.q, back: x.choices[x.answer] + (x.why ? " — " + x.why : "")}))); toast(`${missed.length} card${missed.length === 1 ? "" : "s"} added to your review.`); } catch(_){} }
-          else m.quiz.saved = "none";
-        }
-      }
-      else if (m.cards) {
-        const d = m.cards;
-        if (b.dataset.flip) d.flip = !d.flip;
-        else if (b.dataset.know != null) { d.known = d.known || []; d.known[d.at || 0] = b.dataset.know === "1"; d.flip = false; if ((d.at || 0) < d.cards.length - 1) d.at = (d.at || 0) + 1; }
-        else if (b.dataset.nav) { d.at = Math.max(0, Math.min(d.cards.length - 1, (d.at || 0) + +b.dataset.nav)); d.flip = false; }
-        m.content = deckDigest(d);
-      } else return;
-      const top = document.getElementById("aiChat").scrollTop;
-      tutorSave(id); tutorRenderThread(id); document.getElementById("aiChat").scrollTop = top;
-    });
-    studyPage.querySelectorAll(".mode").forEach(btn => btn.addEventListener("click", () => {
-      const m = STUDY_MODES.find(x => x.id === btn.dataset.mode); if (!m) return;
-      const was = STUDY.mode === m.id;
-      STUDY.mode = was ? "" : m.id;
-      try { if (STUDY.mode) localStorage.setItem("lmk_tutor_mode_" + id, STUDY.mode); else localStorage.removeItem("lmk_tutor_mode_" + id); } catch(_){}
-      studyPage.querySelectorAll(".mode").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.mode === STUDY.mode)));
-      if (m.make) { STUDY.mode = ""; try { localStorage.removeItem("lmk_tutor_mode_" + id); } catch(_){} studyPage.querySelectorAll(".mode").forEach(x => x.setAttribute("aria-pressed", "false")); tutorMake(id, m.make, ""); return; }
-      if (was) return;
-      if (m.id === "check") { ta.placeholder = "Paste your draft or your solution here…"; ta.focus(); return; }
-      ta.placeholder = "Ask anything about it…";
-      if (!tutorThread(id).length && m.starter && !TUTOR.busy) tutorSend(id, m.starter);
-      else toast(m.label + ": on for your next messages.");
-    }));
-    const ph = document.getElementById("aiPhoto");
-    if (ph) ph.addEventListener("change", async () => {
-      const f = ph.files && ph.files[0]; if (!f) return;
-      try { STUDY.image = await shrinkImage(f); document.getElementById("aiPhotoTag").hidden = false; toast("Photo ready. Ask your question and send."); ta.focus(); }
-      catch(err) { toast("That image couldn't be read."); }
-      ph.value = "";
-    });
-    const think = document.getElementById("aiThink");
-    if (think && tierOf(myLevel()).think) think.addEventListener("click", () => {
-      STUDY.think = !STUDY.think; think.setAttribute("aria-pressed", String(STUDY.think));
-      toast(STUDY.think ? "Deep thinking on for the next message · " + unitTable().think + " units" : "Deep thinking off");
-    });
-    studyPage.addEventListener("click", ev => { if (ev.target.closest('[data-act="ai-photo-clear"]')) { STUDY.image = null; document.getElementById("aiPhotoTag").hidden = true; } });
-    if (!IS_MOBILE) setTimeout(() => ta.focus(), 50);
-  }
   studyPage.querySelectorAll("[data-ai]").forEach(b => b.addEventListener("click", ev => {
     const text = document.getElementById("aiPrompt").value.trim() || prompt;
     const t = AI_TARGETS.find(x => x.id === b.dataset.ai);
@@ -2865,7 +2607,6 @@ function closeStudy(opts = {}){
 }
 window.addEventListener("popstate", ev => {
   const st = ev.state || {};
-  if (!reviewPage.hidden && !st.review) { closeReview({fromHistory: true}); return; }
   if (st.study) { if (STUDY.id !== st.study) openStudy(st.study, {fromHistory: true}); return; }
   if (!studyPage.hidden) closeStudy({fromHistory: true});
 });
@@ -3080,7 +2821,7 @@ function aheadHeroHtml(x){
     <div class="actions">
       ${sprint ? `<span class="countchip soon" id="sprintClock">25:00</span><button class="btn ghost" data-act="sprint-stop">End sprint</button>` : `<button class="btn primary" data-act="sprint" data-id="${e.id}">▶ Start · 25-min sprint</button>`}
       ${e.url ? `<a class="btn ghost" href="${esc(e.url)}" target="_blank" rel="noopener" data-id="${e.id}">Open in ${lmsName()} ↗</a>` : ""}
-      <button class="btn grad" data-act="ai" data-id="${e.id}">✦ Ask the tutor</button>
+      <button class="btn grad" data-act="study" data-id="${e.id}">✦ Break it down</button>
       <button class="btn ghost" data-act="ahead-done" data-id="${e.id}">Finished it ✓</button>
       <button class="btn ghost" data-act="ahead-skip" data-id="${e.id}">Not today</button>
     </div>
@@ -3393,7 +3134,6 @@ function sessLogSync(v){ let ch = false; store.sessLog = store.sessLog || {}; fo
    Every number is computed on this device from what is already in the store; nothing is sent to make it, and the
    only thing that can leave is the share card, by a tap. Live all semester as "so far"; final three days after the
    last due date. No personas, no ranking against other students: numbers a student did not know about themselves. */
-function tutorUseBump(kind){ const k = new Date().toISOString().slice(0, 7); store.tutorUse = store.tutorUse || {}; const m = store.tutorUse[k] = store.tutorUse[k] || {chat: 0, quiz: 0, cards: 0}; m[kind === "quiz" ? "quiz" : kind === "cards" ? "cards" : "chat"]++; save(); }
 const WR = {mode: "semester", grades: false};
 function recapWindow(mode){
   const end = recapEnd() || addDays(SEMESTER_WEEK1_MON, 16 * 7 + 7), n = now();
@@ -3445,9 +3185,6 @@ function recapStats(win){
   const mid = s + (e - s) / 2; let h1 = 0, n1 = 0, h2 = 0, n2 = 0, sumM = 0, sumP = 0;
   for (const id in store.dur || {}) for (const x of store.dur[id]) { if (!x.p || x.at < s || x.at > e) continue; const hit = Math.abs(x.m - x.p) / x.p <= .25; if (x.at < mid) { n1++; if (hit) h1++; } else { n2++; if (hit) h2++; } sumM += x.m; sumP += x.p; }
   const pace = sumP ? sumM / sumP : null;
-  const tu = {chat: 0, quiz: 0, cards: 0}; for (const k in store.tutorUse || {}) { const t = new Date(k + "-15T12:00:00").getTime(); if (t >= s - 16 * 864e5 && t <= e + 16 * 864e5) for (const q of ["chat", "quiz", "cards"]) tu[q] += +(store.tutorUse[k] || {})[q] || 0; }
-  const decks = Object.values(store.decks || {}).filter(d => d && d.at >= s && d.at <= e);
-  const cardsMade = decks.reduce((t, d) => t + (d.cards || []).length, 0), reviews = decks.reduce((t, d) => t + (d.cards || []).reduce((u, c) => u + (c.seen || 0), 0), 0);
   let sprintMins = 0; for (const id in store.spent || {}) { const ev = byId[id]; if (ev && ev.due.getTime() >= s && ev.due.getTime() <= win.end.getTime()) sprintMins += +store.spent[id] || 0; }
   const sessions = Object.values(store.sessLog || {}).filter(at => at >= s && at <= e).length;
   const grades = (typeof GRADES === "object" && GRADES) ? Object.keys(GRADES).filter(c => GRADES[c] && GRADES[c].pct != null).map(c => ({course: c, g: GRADES[c]})) : [];
@@ -3455,7 +3192,7 @@ function recapStats(win){
   const months = []; { const d0 = new Date(win.start.getFullYear(), win.start.getMonth(), 1), d1 = new Date(e); for (let d = d0; d <= d1; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) months.push({k: d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"), label: d.toLocaleDateString(undefined, {month: "short"}), n: 0}); }
   fin.forEach(x => { const d = new Date(x.ts), k = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); const m = months.find(mm => mm.k === k); if (m) m.n++; });
   return {fin, n: fin.length, classesN: new Set(withE.map(x => x.e.course)).size, measured, measuredN, ahead, avgAhead, earliest, busiestDow, bandStart, bandBest, biggest, bestRun, bestStart, longest, activeDays: days.length,
-          classes, most, fastest, kinds, big, acc: {h1, n1, h2, n2}, pace, tu, cardsMade, reviews, sprintMins, sessions, grades, milestones, months};
+          classes, most, fastest, kinds, big, acc: {h1, n1, h2, n2}, pace, sprintMins, sessions, grades, milestones, months};
 }
 const DOW = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const hourWord = h => { const x = h % 24; return x === 0 ? "midnight" : x === 12 ? "noon" : x < 12 ? x + " am" : (x - 12) + " pm"; };
@@ -3473,7 +3210,6 @@ function renderWrapped(){
   if (S.kinds.length) cards.push(card("bykind", "By kind", esc(S.kinds[0].kind), [S.kinds[0].mins ? `where the hours went: <b>${wrHours(S.kinds[0].mins)}</b>` : `the most of them: <b>${S.kinds[0].n}</b>`].concat(S.kinds.slice(0, 6).map(k => `<div class="wr-row"><span>${esc(k.kind)}</span><b>${k.n}${k.mins ? " · " + wrHours(k.mins) : ""}</b></div>`))));
   if (S.big) cards.push(card("bigone", "The big one", esc(S.big.x.e.title.slice(0, 60)), [`<b>${wrHours(S.big.m)}</b> of real work · ${esc(S.big.x.e.course)}`, S.big.x.e.effort ? `LMK's first guess was ${wrHours(EFFORT[S.big.x.e.effort].mins)}` : ""]));
   if (S.acc.n1 + S.acc.n2 >= 3 || S.pace) cards.push(card("pace", "Your pace vs the guess", S.pace ? (Math.abs(1 - S.pace) < .1 ? "About what LMK guessed" : S.pace < 1 ? `${Math.round((1 - S.pace) * 100)}% faster` : `${Math.round((S.pace - 1) * 100)}% slower`) : "Still learning", [S.pace ? `${Math.abs(1 - S.pace) < .1 ? "over" : "than LMK's estimates, over"} ${S.acc.n1 + S.acc.n2} timed piece${S.acc.n1 + S.acc.n2 === 1 ? "" : "s"} of work` : "", S.acc.n2 ? `estimates within 25%: <b>${Math.round(S.acc.h2 / S.acc.n2 * 100)}%</b> lately${S.acc.n1 ? ` (was ${Math.round(S.acc.h1 / S.acc.n1 * 100)}% earlier)` : ""}` : S.acc.n1 ? `estimates within 25%: <b>${Math.round(S.acc.h1 / S.acc.n1 * 100)}%</b>` : ""]));
-  if (S.tu.chat + S.tu.quiz + S.tu.cards + S.cardsMade > 0) cards.push(card("tutor", "The tutor", `${S.tu.chat} conversation${S.tu.chat === 1 ? "" : "s"}`, [S.tu.quiz ? `<b>${S.tu.quiz} quiz${S.tu.quiz === 1 ? "" : "zes"}</b> taken` : "", S.cardsMade ? `<b>${S.cardsMade} cards made</b>, reviewed <b>${S.reviews} times</b>` : ""]));
   if (S.sprintMins) cards.push(card("sprints", "Sprints", `${Math.ceil(S.sprintMins / 25)} sprint${Math.ceil(S.sprintMins / 25) === 1 ? "" : "s"}`, [`<b>${S.sprintMins} min</b> of 25-minute focus`]));
   if (S.sessions) cards.push(card("classmates", "Classmates", `${S.sessions} session${S.sessions === 1 ? "" : "s"}`, [`study sessions you said yes to`]));
   if (S.grades.length) cards.push(WR.grades ? card("grades", "Where you landed", esc(S.grades[0].g.letter || ""), [`as ${lmsName()} calculates it — on this device only, never on the card`].concat(S.grades.map(x => `<div class="wr-row"><span>${esc(x.course)}</span><b>${esc(x.g.letter || "")} · ${Math.round(x.g.pct)}%</b></div>`))) : `<div class="card wr" data-card="grades"><div class="kicker">Where you landed</div><div class="line">Your ${lmsName()} grade per class, on this device only. <button class="minibtn" data-act="wr-grades">Show</button></div></div>`);
@@ -3678,7 +3414,7 @@ function renderNow(root){
       <div class="actions">
         <button class="btn primary" data-act="done-submit" data-id="${e.id}">${e.url ? "Done ✓ — submit in " + lmsName() + " ↗" : "Done — next ✓"}</button>
         ${e.url?`<a class="btn ghost" href="${esc(e.url)}" target="_blank" rel="noopener">Open in ${lmsName()} ${"↗"}</a>`:""}
-        <button class="btn grad" data-act="ai" data-id="${e.id}">✦ Ask the tutor</button>
+        <button class="btn grad" data-act="study" data-id="${e.id}">✦ Break it down</button>
         ${sprint ? `<span class="countchip soon" id="sprintClock">25:00</span><button class="btn ghost" data-act="sprint-stop">End sprint</button>` : `<button class="btn ghost" data-act="sprint" data-id="${e.id}">▶ 25-min sprint</button>`}
         <button class="btn ghost" data-act="skip" data-id="${e.id}">Not now — skip</button>
       </div>
@@ -3760,27 +3496,6 @@ function renderNow(root){
       : `<h1>All clear. Actually clear.</h1><div class="why">Every assignment in view is done or scheduled ahead. Go touch grass — you earned it.</div>`}</div>`;
   }
 
-  // review first: it is short, it is free, and it is the reason to open LMK tomorrow
-  const due = dueCards(null);
-  if (due.length) {
-    const byCourse = {}; due.forEach(d => { byCourse[d.course] = (byCourse[d.course] || 0) + 1; });
-    const names = Object.keys(byCourse).sort((a, b) => byCourse[b] - byCourse[a]);
-    const mins = Math.max(1, Math.round(due.length * 0.4));
-    html += `<div class="card intro" data-i="1" style="border-color:color-mix(in srgb,var(--c3) 40%,var(--line));background:linear-gradient(120deg,color-mix(in srgb,var(--c3) 10%,var(--surface)),color-mix(in srgb,var(--c1) 8%,var(--surface)))">
-      <span class="ic" style="background:var(--c3)">↻</span>
-      <div class="txt"><b>Review ${due.length} card${due.length === 1 ? "" : "s"} · about ${mins} min</b>${names.slice(0, 3).map(c => `${esc(c)} ${byCourse[c]}`).join(" · ")}${names.length > 3 ? " · …" : ""}. Cards you missed come back sooner than the ones you knew.</div>
-      <div class="acts"><button class="btn grad" data-act="rv-open">Start review</button>${names.length > 1 ? `<button class="minibtn" data-act="rv-open" data-course="${esc(names[0])}">Just ${esc(names[0])}</button>` : ""}</div></div>`;
-  }
-  // meet the tutor, once: the first time a student with classes sees it working
-  if (tutorPossible() && plusTutorOn() && EVENTS.some(open)) {
-    let seen = false; try { seen = localStorage.getItem("lmk_tutor_intro") === "1"; } catch(_){}
-    if (!seen) {
-      const first = EVENTS.filter(open).sort((a, b) => a.due - b.due)[0];
-      const free = tierOf("free").units, pw = tierOf("plus").units;
-      html += `<div class="card intro" data-i="1"><span class="ic">✦</span><div class="txt"><b>New: a tutor that knows your assignments.</b>Open any assignment and ask. It's already read the instructions, your notes and your syllabus, and it coaches instead of doing the work. ${unitPhrase("free")}; Plus gets ${pw} a day.</div>
-        <div class="acts">${first ? `<button class="btn grad" data-act="ai" data-id="${first.id}">Try it on ${esc(first.title.length > 22 ? first.title.slice(0, 22) + "…" : first.title)}</button>` : ""}<button class="minibtn" data-act="plus-open">See plans</button></div><button class="x" data-act="intro-dismiss" aria-label="Dismiss">✕</button></div>`;
-    }
-  }
   // today's plan — the budget, the short list, and one honest sentence
   const dueToday = EVENTS.filter(visible).filter(e => dayKey(e.due) === dayKey(n));
   const icToday = dueToday.filter(e => e.kind === "inclass" && !store.done[e.id]);
@@ -3973,7 +3688,8 @@ function renderSemester(root){
     (document.documentElement.dataset.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
   const RAMP = isDark ? RAMP_DARK : RAMP_LIGHT;
 
-  let html = `<h2 class="sec" style="margin-top:4px">Hell-week radar <span class="count">whole semester</span></h2>
+  let html = worthCardHtml() + targetsHtml();
+  html += `<h2 class="sec">Hell-week radar <span class="count">whole semester</span></h2>
   <div class="card radar"><div class="radar-grid">`;
   weeks.forEach((w,i)=>{
     const cur = n >= w.s && n < addDays(w.s,7);
@@ -4271,7 +3987,7 @@ function cachePlanLine(days, today){
 /* The sync bookmarklet, generated from ~/lmk-extension/bookmarklet.txt — regenerate both together.
    It works on ANY school's Canvas, which is the whole point: it takes the origin from the page it runs on. */
 const LMK_SYNC_BOOKMARKLET = "javascript:(function(){%0A  let BASE = \"\";%0A  async function getJSON(path){%0A    const out = [];%0A    let url = BASE + path + (path.includes(\"?\") ? \"&\" : \"?\") + \"per_page=100\";%0A    for (let hop = 0; url && hop < 20; hop++){%0A      const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000);%0A      let r; try { r = await fetch(url, {credentials:\"include\", headers:{\"Accept\":\"application/json\"}, signal: ctl.signal}); } finally { clearTimeout(timer); }%0A      if (!r.ok) throw new Error(r.status + \" \" + path);%0A      let txt = await r.text();%0A      if (txt.startsWith(\"while(1);\")) txt = txt.slice(9);%0A      const data = JSON.parse(txt);%0A      if (Array.isArray(data)) out.push(...data); else return data;%0A      const link = r.headers.get(\"Link\") || \"\";%0A      const m = link.match(/<([^>]+)>;%5Cs*rel=\"next\"/);%0A      url = m ? m[1] : null;%0A    }%0A    return out;%0A  }%0A  const strip = h => (h || \"\").replace(/<[^>]+>/g, \" \").replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/%5Cs+/g, \" \").trim();%0A  /* Canvas's own grade for this course: exactly what the student sees, with group weights, drop rules,%0A     late policies and excused work already applied. Null when the instructor hides totals. */%0A  function courseScores(c){%0A    const num = v => (v === null || v === undefined || v === \"\" || !isFinite(+v)) ? null : +v;%0A    const es = (c.enrollments || []).filter(e => /student/i.test(e.type || e.role || \"\"));%0A    const e = es.find(x => x.computed_current_score != null) || es[0] || {};%0A    return {cur: num(e.computed_current_score), fin: num(e.computed_final_score)};%0A  }%0A  function courseTag(c){%0A    const s = (c.course_code || c.name || \"\");%0A    if (/asuready/i.test(s)) return \"ASU Ready\";%0A    const m = s.match(/([A-Z]{2,4})%5Cs?-?(%5Cd{2,3}[A-Z]?)/);%0A    return m ? m[1] + \" \" + m[2] : s.slice(0, 18);%0A  }%0A  function rubricText(a){%0A    const r = Array.isArray(a.rubric) ? a.rubric : [];%0A    return r.slice(0, 12).map(c => String(c.description || \"\").replace(/%5Cs+/g, \" \").trim().slice(0, 80) + (c.points != null ? \" (\" + c.points + \" pts)\" : \"\")).filter(x => x.trim() && x.trim() !== \"(0 pts)\").join(\"; \").slice(0, 900);%0A  }%0A  function kindHint(a){%0A    const st = a.submission_types || [];%0A    if (a.grading_type === \"not_graded\" || (a.points_possible === 0 && !st.includes(\"online_quiz\"))) return \"fyi\";%0A    if (st.includes(\"none\") || st.includes(\"on_paper\")) return \"inclass\";%0A    if (/attendance|participation|in.?class|clicker/i.test(a.name || \"\")) return \"inclass\";%0A    if (st.includes(\"online_quiz\")) return \"quiz\";%0A    if (st.includes(\"discussion_topic\")) return \"discussion\";%0A    return \"\";%0A  }%0A  (typeof window !== \"undefined\" ? window : self).lmkCollect = async function(base){%0A    BASE = (base || location.origin).replace(/%5C/$/, \"\");%0A    const HOST = BASE.replace(/^https?:%5C/%5C//, \"\");%0A    const courses = (await getJSON(\"/api/v1/courses?enrollment_state=active&include[]=term&include[]=total_scores\")).filter(c => c.name && !c.access_restricted_by_date);%0A    const items = {};%0A    const groups = {};%0A    for (const c of courses){%0A      const tag = courseTag(c);%0A      let list = [];%0A      try { list = await getJSON(`/api/v1/courses/${c.id}/assignments?include[]=submission&order_by=due_at`); } catch(e){ continue; }%0A      /* What the instructor actually wrote back. One request per course, only this student's submissions,%0A         only comments from someone who is not the student. It is the most useful thing LMK can know. */%0A      let fb = {};%0A      try {%0A        const subs = await getJSON(`/api/v1/courses/${c.id}/students/submissions?student_ids[]=self&include[]=submission_comments&per_page=100`);%0A        for (const sub of (Array.isArray(subs) ? subs : [])) {%0A          const mine = String(sub.user_id || \"\");%0A          const notes = (sub.submission_comments || []).filter(x => x && x.comment && String(x.author_id || \"\") !== mine);%0A          if (notes.length) fb[String(sub.assignment_id)] = strip(notes[notes.length - 1].comment).slice(0, 400);%0A        }%0A      } catch(e){}%0A      try {%0A        const g = await getJSON(`/api/v1/courses/${c.id}/assignment_groups`);%0A        groups[c.id] = g.map(x => ({id:x.id, name:x.name, w:x.group_weight}));%0A      } catch(e){}%0A      for (const a of list){%0A        if (a.only_visible_to_overrides && !a.due_at && !a.has_overrides) continue;%0A        const s = a.submission || {};%0A        items[String(a.id)] = {%0A          t: a.name, c: tag, cid: String(c.id),%0A          due: a.due_at || \"\", lock: a.lock_at || \"\",%0A          pts: a.points_possible, gt: a.grading_type, st: (a.submission_types || []).join(\",\"),%0A          grp: a.assignment_group_id, k: kindHint(a),%0A          sub: s.workflow_state || \"\", subAt: s.submitted_at || \"\", score: s.score == null ? null : s.score,%0A          late: !!s.late, missing: !!s.missing, excused: !!s.excused,%0A          url: a.html_url || \"\",%0A          desc: strip(a.description).slice(0, 1200),%0A          rub: rubricText(a),%0A          fb: fb[String(a.id)] || \"\",%0A          qid: a.quiz_id ? String(a.quiz_id) : \"\",%0A        };%0A      }%0A    }%0A    // Canvas keeps seconds spent on every quiz attempt %E2%80%94 exact durations, no sensor needed.%0A    const quizTime = {}, quizMap = {};%0A    const quizzes = Object.entries(items).filter(([aid, x]) => x.qid && /^(submitted|graded|pending_review)$/.test(x.sub)).slice(0, 40);%0A    for (const [aid, x] of quizzes){%0A      quizMap[x.cid + \"/\" + x.qid] = aid;%0A      try {%0A        const r = await getJSON(`/api/v1/courses/${x.cid}/quizzes/${x.qid}/submissions`);%0A        const subs = (r && r.quiz_submissions) || [];%0A        const secs = subs.map(q => +q.time_spent || 0).filter(v => v > 0);%0A        if (secs.length) quizTime[aid] = Math.round(Math.max(...secs) / 60);%0A      } catch(e){}%0A    }%0A    for (const aid in items) if (items[aid].qid) quizMap[items[aid].cid + \"/\" + items[aid].qid] = aid;%0A    // apply_assignment_group_weights is the course-level switch: when it is false Canvas ignores%0A    // the group weights entirely and grades on total points, however the weights are set.%0A    return {lmk:\"canvas\", v:3, at: Date.now(), host: HOST,%0A      courses: courses.map(c => Object.assign({id:String(c.id), tag:courseTag(c), name:c.name, wt: !!c.apply_assignment_group_weights, uuid: String(c.uuid || \"\")}, courseScores(c))),   // uuid: Canvas shows it only to the enrolled; it is what proves a classmate is a classmate (rooms), hashed before it leaves the browser%0A      groups, items, quizTime, quizMap};%0A  };%0A})();%0A%0A(async()=>{try{const p=await window.lmkCollect();const s=JSON.stringify(p);const n=Object.keys(p.items).length;%0Alet ok=false;try{await navigator.clipboard.writeText(s);ok=true}catch(e){}%0Aif(!ok){const ta=document.createElement(\"textarea\");ta.value=s;ta.style.cssText=\"position:fixed;top:8px;left:8px;width:90vw;height:40vh;z-index:99999;font-size:12px\";document.body.appendChild(ta);ta.focus();ta.select();try{ok=document.execCommand(\"copy\")}catch(e){}if(ok)ta.remove();else alert(\"Select all + copy the box, then paste it into LMK (gear %E2%86%92 Paste from Canvas).\")}%0Aif(ok)alert(\"LMK: copied \"+n+\" assignments. Open LMK %E2%86%92 gear %E2%86%92 Paste from Canvas %E2%86%92 paste.\")}catch(e){alert(\"LMK: could not read Canvas %E2%80%94 are you logged in on this tab? \"+e)}})();";
-const APP_BUILD = "v66.1";
+const APP_BUILD = "v67.0";
 const LMK_SYNC_BOOKMARKLET_D2L = "javascript:(function(){%0A  let BASE = \"\", XSRF = \"\", LP = \"1.0\", LE = \"1.0\", ME = \"\";%0A  const DIAG = [];%0A  const mask = p => p.replace(/%5C/%5Cd{2,}(?=%5C/|$|%5C?)/g, \"/#\");   // ids out of the path names%0A  async function getJSON(path, soft){%0A    const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000);%0A    let r;%0A    try {%0A      const headers = {\"Accept\": \"application/json\"};%0A      if (XSRF) headers[\"X-Csrf-Token\"] = XSRF;%0A      r = await fetch(BASE + path, {credentials: \"include\", headers, signal: ctl.signal});%0A    } catch(e) { clearTimeout(timer); DIAG.push({p: mask(path), s: 0, err: String(e && e.message || e).slice(0, 60)}); if (soft) return null; throw e; }%0A    finally { clearTimeout(timer); }%0A    const rec = {p: mask(path), s: r.status};%0A    if (!r.ok) { DIAG.push(rec); if (soft) return null; throw new Error(r.status + \" \" + path); }%0A    let data = null;%0A    try { data = await r.json(); } catch(e) { rec.err = \"not json\"; DIAG.push(rec); if (soft) return null; throw e; }%0A    const list = Array.isArray(data) ? data : data && Array.isArray(data.Items) ? data.Items : data && Array.isArray(data.Objects) ? data.Objects : null;%0A    rec.n = list ? list.length : 1;%0A    rec.k = Object.keys((list ? list[0] : data) || {}).slice(0, 40);%0A    DIAG.push(rec);%0A    return data;%0A  }%0A  /* Brightspace pages two ways: PagedResultSet {PagingInfo:{Bookmark,HasMoreItems}, Items} and%0A     ObjectListPage {Objects, Next}. Both are walked here; twenty hops is more than any student has. */%0A  async function getAll(path, soft){%0A    const out = []; let next = path;%0A    for (let hop = 0; next && hop < 20; hop++){%0A      const d = await getJSON(next, soft);%0A      if (!d) break;%0A      if (Array.isArray(d)) { out.push(...d); break; }%0A      if (Array.isArray(d.Items)) { out.push(...d.Items); const pi = d.PagingInfo || {}; next = pi.HasMoreItems && pi.Bookmark ? path + (path.includes(\"?\") ? \"&\" : \"?\") + \"bookmark=\" + encodeURIComponent(pi.Bookmark) : null; continue; }%0A      if (Array.isArray(d.Objects)) { out.push(...d.Objects); next = typeof d.Next === \"string\" && d.Next ? d.Next.replace(/^https?:%5C/%5C/[^/]+/, \"\") : null; continue; }%0A      break;%0A    }%0A    return out;%0A  }%0A  const strip = h => (h || \"\").replace(/<[^>]+>/g, \" \").replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/%5Cs+/g, \" \").trim();%0A  const rich = o => o && typeof o === \"object\" ? (o.Html ? strip(o.Html) : strip(o.Text || \"\")) : strip(typeof o === \"string\" ? o : \"\");%0A  const num = v => (v === null || v === undefined || v === \"\" || !isFinite(+v)) ? null : +v;%0A  const iso = v => { const t = Date.parse(v || \"\"); return isNaN(t) ? \"\" : new Date(t).toISOString(); };%0A  function courseTag(ou){%0A    const s = String(ou.Code || ou.Name || \"\");%0A    const m = s.match(/([A-Z]{2,4})[%5Cs_-]?(%5Cd{2,3}[A-Z]?)(?![0-9])/);%0A    return m ? m[1] + \" \" + m[2] : String(ou.Name || s).slice(0, 18);%0A  }%0A  /* D2L ids are org-wide database ids, but a dropbox folder and a quiz can share a number, and progress is%0A     keyed by id alone. One leading digit per kind keeps them apart and keeps the id all digits (invariant 2). */%0A  const idOf = (kind, id) => (kind === \"quiz\" ? \"2\" : \"1\") + String(id).replace(/%5CD/g, \"\");%0A  const pct = (n, d) => (num(n) != null && num(d) > 0) ? Math.round(n / d * 1000) / 10 : null;%0A%0A  (typeof window !== \"undefined\" ? window : self).lmkD2LDiag = DIAG;%0A  (typeof window !== \"undefined\" ? window : self).lmkCollectD2L = async function(base){%0A    BASE = (base || location.origin).replace(/%5C/$/, \"\");%0A    const HOST = BASE.replace(/^https?:%5C/%5C//, \"\");%0A    DIAG.length = 0;%0A    try { XSRF = String((typeof localStorage !== \"undefined\" && localStorage.getItem(\"XSRF.Token\")) || \"\").replace(/^\"|\"$/g, \"\"); } catch(_) { XSRF = \"\"; }%0A    // the API is versioned per product; ask which versions this school runs rather than guessing%0A    const versions = await getJSON(\"/d2l/api/versions/\", true);%0A    for (const v of (Array.isArray(versions) ? versions : [])) { if (v.ProductCode === \"lp\" && v.LatestVersion) LP = v.LatestVersion; if (v.ProductCode === \"le\" && v.LatestVersion) LE = v.LatestVersion; }%0A    const me = await getJSON(`/d2l/api/lp/${LP}/users/whoami`, true);%0A    ME = me && me.Identifier != null ? String(me.Identifier) : \"\";%0A    const now = Date.now();%0A    const enr = await getAll(`/d2l/api/lp/${LP}/enrollments/myenrollments/?orgUnitTypeId=3`, false);%0A    const courses = enr.map(e => e || {}).filter(e => {%0A      const ou = e.OrgUnit || {}, a = e.Access || {};%0A      if (!ou.Id || !ou.Name) return false;%0A      if (a.IsActive === false || a.CanAccess === false) return false;%0A      const end = Date.parse(a.EndDate || \"\"), start = Date.parse(a.StartDate || \"\");%0A      if (!isNaN(end) && end < now - 14 * 864e5) return false;       // a course that ended a fortnight ago%0A      if (!isNaN(start) && start > now + 30 * 864e5) return false;   // one that has not started%0A      return true;%0A    }).map(e => e.OrgUnit);%0A    const items = {}, groups = {}, quizTime = {}, quizMap = {};%0A    let subCalls = 0, attCalls = 0;%0A    const out = [];%0A    for (const ou of courses){%0A      const cid = String(ou.Id), tag = courseTag(ou);%0A      // grades first: a released score is the strongest evidence, and the id map is needed by both lists%0A      const gv = {};%0A      for (const g of (await getAll(`/d2l/api/le/${LE}/${cid}/grades/values/myGradeValues/`, true) || [])) if (g && g.GradeObjectIdentifier != null) gv[String(g.GradeObjectIdentifier)] = g;%0A      const fin = await getJSON(`/d2l/api/le/${LE}/${cid}/grades/final/values/myGradeValue`, true);%0A      const cur = fin ? (pct(fin.WeightedNumerator, fin.WeightedDenominator) ?? pct(fin.PointsNumerator, fin.PointsDenominator)) : null;%0A      // categories carry the weights; these two routes are often instructor-only, and that is fine (points-based grading then)%0A      const setup = await getJSON(`/d2l/api/le/${LE}/${cid}/grades/setup/`, true);%0A      const cats = await getAll(`/d2l/api/le/${LE}/${cid}/grades/categories/`, true);%0A      const gobjs = await getAll(`/d2l/api/le/${LE}/${cid}/grades/`, true);%0A      const catOf = {}; for (const g of gobjs || []) if (g && g.Id != null && g.CategoryId != null) catOf[String(g.Id)] = String(g.CategoryId);%0A      if (Array.isArray(cats) && cats.length) groups[cid] = cats.map(c => ({id: String(c.Id), name: c.Name, w: num(c.Weight)}));%0A      const wt = !!(setup && /weight/i.test(String(setup.GradingSystem || \"\")));%0A      out.push({id: cid, tag, name: ou.Name, wt, cur, fin: null, uuid: ou.Code ? \"d2l:\" + String(ou.Code) : \"\"});   // Brightspace has no course uuid; the offering code is the nearest thing an outsider does not see%0A      // dropbox folders = assignments%0A      const folders = (await getAll(`/d2l/api/le/${LE}/${cid}/dropbox/folders/`, true) || []).filter(f => f && f.Id != null && f.Name && !f.IsHidden);%0A      folders.sort((a, b) => (Date.parse(b.DueDate || (b.Availability || {}).EndDate || \"\") || 0) - (Date.parse(a.DueDate || (a.Availability || {}).EndDate || \"\") || 0));%0A      for (const f of folders){%0A        const av = f.Availability || {}, as = f.Assessment || {};%0A        const due = iso(f.DueDate) || iso(av.EndDate);          // Brightspace instructors often set only \"Ends\"; the student treats that as the deadline%0A        const g = f.GradeItemId != null ? gv[String(f.GradeItemId)] : null;%0A        const stype = ({0: \"online_upload\", 1: \"online_text_entry\", 2: \"on_paper\", 3: \"none\"})[f.SubmissionType] || \"online_upload\";%0A        const pts = num(as.ScoreDenominator) ?? (g ? num(g.PointsDenominator) : null);%0A        let sub = \"\", subAt = \"\", score = g ? num(g.PointsNumerator) : null, fb = \"\";%0A        /* The learner's own submissions: the one call that turns \"graded\" into \"handed in on <date>\". Read for%0A           the recent and coming work only, capped, and never trusted blindly %E2%80%94 a 403 here just means no%0A           auto-check for this school until we know its rules. */%0A        const dueMs = Date.parse(due) || 0;%0A        if (subCalls < 40 && (!dueMs || dueMs > now - 60 * 864e5) && stype !== \"none\") {%0A          subCalls++;%0A          const ent = await getJSON(`/d2l/api/le/${LE}/${cid}/dropbox/folders/${f.Id}/submissions/`, true);%0A          const mine = (Array.isArray(ent) ? ent : []).filter(e => e && e.Entity && (!ME || String(e.Entity.EntityId) === ME || e.Entity.EntityType === \"Group\"));%0A          for (const e of mine){%0A            const subs = Array.isArray(e.Submissions) ? e.Submissions : [];%0A            const latest = subs.map(s => iso(s.SubmissionDate)).filter(Boolean).sort().pop();%0A            if (latest) { sub = \"submitted\"; subAt = latest; }%0A            const fbk = e.Feedback || null;%0A            if (fbk) { if (num(fbk.Score) != null) { score = num(fbk.Score); sub = \"graded\"; } const t = rich(fbk.Feedback); if (t) fb = t.slice(0, 400); }%0A          }%0A        }%0A        if (!sub && score != null) sub = \"graded\";%0A        items[idOf(\"dropbox\", f.Id)] = {%0A          t: f.Name, c: tag, cid, due, lock: iso(av.EndDate),%0A          pts, gt: (pts > 0 || f.GradeItemId != null) ? \"points\" : \"not_graded\", st: stype,%0A          grp: f.GradeItemId != null && catOf[String(f.GradeItemId)] ? catOf[String(f.GradeItemId)] : \"\",%0A          k: stype === \"on_paper\" || stype === \"none\" ? \"inclass\" : (!(pts > 0) && f.GradeItemId == null) ? \"fyi\" : \"\",%0A          sub, subAt, score, late: false, missing: false, excused: false,%0A          url: `${BASE}/d2l/lms/dropbox/user/folder_submit_files.d2l?ou=${cid}&db=${f.Id}`,%0A          desc: rich(f.CustomInstructions).slice(0, 1200),%0A          rub: (Array.isArray(as.Rubrics) ? as.Rubrics : []).map(r => String(r.Name || \"\").trim()).filter(Boolean).slice(0, 12).join(\"; \").slice(0, 900),%0A          fb, qid: \"\",%0A        };%0A      }%0A      // quizzes%0A      const quizzes = (await getAll(`/d2l/api/le/${LE}/${cid}/quizzes/`, true) || []).filter(q => q && q.QuizId != null && q.Name && q.IsActive !== false);%0A      for (const q of quizzes){%0A        const due = iso(q.DueDate) || iso(q.EndDate);%0A        const g = q.GradeItemId != null ? gv[String(q.GradeItemId)] : null;%0A        let sub = \"\", subAt = \"\", score = g ? num(g.PointsNumerator) : null;%0A        const dueMs = Date.parse(due) || 0;%0A        const aid = idOf(\"quiz\", q.QuizId);%0A        if (attCalls < 20 && (!dueMs || dueMs > now - 60 * 864e5)) {%0A          attCalls++;%0A          const att = await getAll(`/d2l/api/le/${LE}/${cid}/quizzes/${q.QuizId}/attempts/`, true);%0A          const mine = (att || []).filter(a => a && (!ME || a.UserId == null || String(a.UserId) === ME));%0A          const done = mine.map(a => ({at: iso(a.TimeCompleted), mins: (Date.parse(a.TimeCompleted || \"\") - Date.parse(a.TimeStarted || \"\")) / 60e3})).filter(a => a.at);%0A          if (done.length) { sub = \"submitted\"; subAt = done.map(a => a.at).sort().pop(); const m = Math.max(...done.map(a => a.mins).filter(v => v > 0 && v < 600)); if (isFinite(m) && m > 0) quizTime[aid] = Math.round(m); }%0A        }%0A        if (score != null) sub = subAt ? \"graded\" : \"graded\";%0A        quizMap[cid + \"/\" + q.QuizId] = aid;%0A        items[aid] = {%0A          t: q.Name, c: tag, cid, due, lock: iso(q.EndDate),%0A          pts: g ? num(g.PointsDenominator) : null, gt: q.GradeItemId != null ? \"points\" : \"not_graded\", st: \"online_quiz\",%0A          grp: q.GradeItemId != null && catOf[String(q.GradeItemId)] ? catOf[String(q.GradeItemId)] : \"\",%0A          k: \"quiz\",%0A          sub, subAt, score, late: false, missing: false, excused: false,%0A          url: `${BASE}/d2l/lms/quizzing/user/quiz_summary.d2l?ou=${cid}&qi=${q.QuizId}`,%0A          desc: (rich(q.Description) + \" \" + rich(q.Instructions)).trim().slice(0, 1200),%0A          rub: \"\", fb: \"\", qid: String(q.QuizId),%0A        };%0A      }%0A    }%0A    return {lmk: \"canvas\", lms: \"d2l\", v: 3, at: Date.now(), host: HOST, courses: out, groups, items, quizTime, quizMap, diag: DIAG.slice(0, 200)};%0A  };%0A})();%0A%0A(async()=>{try{const p=await window.lmkCollectD2L();delete p.diag;const s=JSON.stringify(p);const n=Object.keys(p.items).length;%0Alet ok=false;try{await navigator.clipboard.writeText(s);ok=true}catch(e){}%0Aif(!ok){const ta=document.createElement(\"textarea\");ta.value=s;ta.style.cssText=\"position:fixed;top:8px;left:8px;width:90vw;height:40vh;z-index:99999;font-size:12px\";document.body.appendChild(ta);ta.focus();ta.select();try{ok=document.execCommand(\"copy\")}catch(e){}if(ok)ta.remove();else alert(\"Select all + copy the box, then paste it into LMK (gear %E2%86%92 Paste from Canvas).\")}%0Aif(ok)alert(\"LMK: copied \"+n+\" assignments from Brightspace. Open LMK %E2%86%92 gear %E2%86%92 Paste from Canvas %E2%86%92 paste.\")}catch(e){alert(\"LMK: could not read Brightspace %E2%80%94 are you signed in on this tab? \"+e)}})();";   // embedded by ~/lmk-backend/tools/build-d2l.py from collect-d2l.js
 let lastErr = null;
 function reportErr(e, where){
@@ -4408,7 +4124,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   const row = act.closest("[data-id]");
   const id = act.dataset.id || (row && row.dataset.id);
   if (act.matches("a[href]") && id && !act.dataset.act) { markStart(id); if (act.closest("[data-ahead]")) pingAhead(); return; }   // "Open in Canvas" / link icons: a start signal
-  if (act.closest("[data-ahead]") && (a === "sprint" || a === "ai" || a === "done" || a === "ahead-done")) pingAhead();   // a head start taken — a name and a day, once a day
+  if (act.closest("[data-ahead]") && (a === "sprint" || a === "study" || a === "done" || a === "ahead-done")) pingAhead();   // a head start taken — a name and a day, once a day
   if (a==="done-submit" && id) {
     const ev = EVENTS.find(x => x.id === id);
     if (ev && ev.url) window.open(ev.url, "_blank", "noopener");
@@ -4419,6 +4135,9 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="star" && id) toggleStar(id);
   else if (a==="skip" && id) { skipped.add(id); render(); }
   else if (a==="ahead-done" && id) { burstAt(act); toggleDone(id, null, "Ahead of it. Nice."); }
+  else if (a==="goal" && act.dataset.course) {
+    store.goal = store.goal || {}; store.goal[act.dataset.course] = +act.dataset.v; save(); render();
+  }
   else if (a==="ahead-skip" && id) {
     store.aheadSkip = store.aheadSkip || {}; const k = dayKey(now());
     for (const i in store.aheadSkip) if (store.aheadSkip[i] < k) delete store.aheadSkip[i];   // yesterday's dismissals are litter
@@ -4429,7 +4148,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="err-reload") { location.reload(); }
   else if (a==="err-dismiss") { const el = document.getElementById("errcard"); if (el) el.hidden = true; }
   else if (a==="del" && id) { store.customRows = (store.customRows||[]).filter(r => "a"+r[4] !== id); store.deleted = store.deleted || {}; store.deleted["custom:" + id.slice(1)] = Date.now(); delete store.done[id]; delete store.starred[id]; delete store.dropped[id]; save(); loadData(); render(); }
-  else if (a==="ai") { try { localStorage.setItem("lmk_tutor_intro", "1"); } catch(_){} markStart(id); openStudy(id); }
+  else if (a==="study") { markStart(id); openStudy(id); }
   else if (a==="detail") { const r = act.closest("[data-id]"); if (r) openDetail(r.dataset.id); }
   else if (a==="coursenotes") openCourseNotes(act.dataset.course);
   else if (a==="sprint") startSprint(id);
@@ -4482,7 +4201,6 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="host-add") { try { window.postMessage({lmk:"host-page"}, "*"); } catch(_){} toast("Chrome is opening a tab where you can add your school."); }
   else if (a==="open-token") { const g = document.getElementById("gearBtn"); if (g) g.click(); const dt = document.getElementById("cloudTokenWay"); if (dt) { dt.hidden = false; dt.open = true; setTimeout(() => dt.scrollIntoView({block: "start"}), 100); } }
   else if (a==="plus-open") { openPlus(); }
-  else if (a==="rv-open") { openReview(act.dataset.course || null); }
   else if (a==="intro-dismiss") { try { localStorage.setItem("lmk_tutor_intro", "1"); } catch(_){} render(); }
   else if (a==="open-gear") { const g = document.getElementById("gearBtn"); if (g) g.click(); }
   else if (a==="web-signin") { webSignIn(); }
@@ -4498,13 +4216,11 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="adm-copy-csv") { adminCopyCsv(); }
   else if (a==="adm-pause") { adminSave({cloudPaused: !!act.checked}); }
   else if (a==="adm-save-plus") { const g = id => document.getElementById(id); adminSave({plusLink: g("admPlusLink").value.trim().slice(0, 300), plusPortal: g("admPlusPortal").value.trim().slice(0, 300), plusPrice: g("admPlusPrice").value.trim().slice(0, 24)}); }
-  else if (a==="adm-save-tutor") { const g = id => document.getElementById(id); adminSave({tutorOn: g("admTutorOn").checked, tutorDaily: Math.max(0, +g("admTutorDaily").value || 0), tutorPlusDaily: Math.max(0, +g("admTutorPlusDaily").value || 0), tutorIpDaily: Math.max(0, +g("admTutorIpDaily").value || 0), tutorModel: g("admTutorModel").value}); }
   else if (a==="adm-lookup") { adminLookup(); }
   else if (a==="adm-student") { adminStudent(act.dataset.sid, act.dataset.do, act.dataset.months, act.dataset.level); }
   else if (a==="adm-grant") { const g = id => document.getElementById(id); adminStudent((g("admGrantSid").value || "").trim(), "grant", g("admGrantMonths").value, g("admGrantLevel").value); }
   else if (a==="adm-save-tiers") { adminSaveTiers(); }
   else if (a==="adm-tab") { ADMIN.tab = act.dataset.tab; try { localStorage.setItem("lmk_admin_tab", ADMIN.tab); } catch(_){} animNext = true; render(); }
-  else if (a==="adm-sub") { ADMIN.sub = act.dataset.sub; try { localStorage.setItem("lmk_admin_sub", ADMIN.sub); } catch(_){} render(); }
   else if (a==="cap-close") { showCap = false; render(); }
   else if (a==="cap-edit") { showCap = !showCap; render(); }
   else if (a==="cap-bump") { store.capOv = store.capOv || {}; store.capOv[dayKey(now())] = capHours(now()) + 1; save(); render(); toast("Today got an extra hour. Just today."); }
@@ -4660,22 +4376,7 @@ document.getElementById("gearBtn").addEventListener("click", ()=>{
 });
 document.getElementById("closeModal").addEventListener("click", ()=>overlay.classList.remove("open"));
 overlay.addEventListener("click", e=>{ if (e.target===overlay) overlay.classList.remove("open"); });
-reviewPage.addEventListener("click", e => {
-  const b = e.target.closest("[data-act]"); if (!b) return;
-  const a = b.dataset.act;
-  if (a === "rv-close") closeReview();
-  else if (a === "rv-flip") { REVIEW.flip = !REVIEW.flip; renderReview(); }
-  else if (a === "rv-got") reviewAnswer(true);
-  else if (a === "rv-miss") reviewAnswer(false);
-  else if (a === "rv-more") { const c = REVIEW.course; closeReview(); openReview(c); }
-});
-document.addEventListener("keydown", e => {
-  if (!REVIEW.open) return;
-  if (e.key === " " || e.key === "Enter") { e.preventDefault(); if (REVIEW.flip) return; REVIEW.flip = true; renderReview(); }
-  else if (REVIEW.flip && (e.key === "1" || e.key.toLowerCase() === "n")) reviewAnswer(false);
-  else if (REVIEW.flip && (e.key === "2" || e.key.toLowerCase() === "y")) reviewAnswer(true);
-});
-document.addEventListener("keydown", e=>{ if (e.key==="Escape") { overlay.classList.remove("open"); ["addOverlay","planOverlay","detailOverlay","findOverlay","celebrateOverlay","plusOverlay"].forEach(x=>document.getElementById(x).classList.remove("open")); if (REVIEW.open) closeReview(); else if (!studyPage.hidden && !TUTOR.busy) closeStudy(); } });
+document.addEventListener("keydown", e=>{ if (e.key==="Escape") { overlay.classList.remove("open"); ["addOverlay","planOverlay","detailOverlay","findOverlay","celebrateOverlay","plusOverlay"].forEach(x=>document.getElementById(x).classList.remove("open")); if (!studyPage.hidden) closeStudy(); } });
 
 const dz = document.getElementById("dropZone"), fi = document.getElementById("fileInput");
 dz.addEventListener("click", ()=>fi.click());
@@ -4879,7 +4580,7 @@ function openDetail(id){
       <textarea id="ddNotes" style="min-height:76px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:9px 10px;font:inherit;font-size:13.5px;resize:vertical">${esc(notes)}</textarea>
     </label>
     <div class="row" style="margin-top:14px">
-      <button class="btn grad" id="ddStudy" data-act="ai" data-id="${e.id}">✦ Ask the tutor</button>
+      <button class="btn grad" id="ddStudy" data-act="study" data-id="${e.id}">✦ Break it down</button>
       ${e.url?`<a class="btn ghost" href="${esc(e.url)}" target="_blank" rel="noopener">Open in ${lmsName()} ↗</a>`:""}
       <button class="btn ghost" id="ddClose">Close</button>
     </div>
@@ -4939,7 +4640,7 @@ function openCourseNotes(course){
   });
 }
 detailOverlay.addEventListener("click", e => {
-  const ai = e.target.closest('[data-act="ai"]');
+  const ai = e.target.closest('[data-act="study"]');
   if (ai) { const id = ai.dataset.id; detailOverlay.classList.remove("open"); markStart(id); openStudy(id); return; }
   if (e.target === detailOverlay || e.target.id === "ddClose") {
     if (detailCtx && detailCtx.kind === "course") pushSyllabusDoc(detailCtx.course);
@@ -5229,7 +4930,7 @@ function mergeStores(a, b){
   const newer = (b.savedAt||0) >= (a.savedAt||0) ? b : a;
   const older = newer === b ? a : b;
   const m = {};
-  for (const k of ["done","dropped","starred","triaged","itemNotes","courseNotes","grades","effortOv","leadOv","seriesRules","kindOv","extGraded","extDone","handDone","capOv","tutorCtx","celebrated","recapSeen","lmkSyllabusIds","sessLog","wrappedSeen"]) {
+  for (const k of ["done","dropped","starred","triaged","itemNotes","courseNotes","grades","effortOv","leadOv","seriesRules","kindOv","extGraded","extDone","handDone","capOv","celebrated","recapSeen","lmkSyllabusIds","sessLog","wrappedSeen"]) {
     m[k] = Object.assign({}, older[k]||{}, newer[k]||{});
   }
   // learning data: measurements union by timestamp, tracked minutes take the max
@@ -5254,10 +4955,10 @@ function mergeStores(a, b){
      dismissal on the phone holds on the laptop; the app drops past days when it writes the next one. */
   m.aheadSkip = {}; for (const src of [older.aheadSkip || {}, newer.aheadSkip || {}]) for (const id in src) if (!m.aheadSkip[id] || String(src[id]) > m.aheadSkip[id]) m.aheadSkip[id] = String(src[id]);
   if (!Object.keys(m.aheadSkip).length) delete m.aheadSkip;
-  /* tutor use per month, for the recap: each device counts what it sent, so a key takes the larger count — a sum
-     would double on every merge, a newer-wins would drop the other device's month */
-  m.tutorUse = {}; for (const src of [older.tutorUse || {}, newer.tutorUse || {}]) for (const mo in src) { const t = m.tutorUse[mo] = m.tutorUse[mo] || {chat: 0, quiz: 0, cards: 0}; for (const k of ["chat", "quiz", "cards"]) t[k] = Math.max(t[k], +(src[mo] || {})[k] || 0); }
-  if (!Object.keys(m.tutorUse).length) delete m.tutorUse;
+  /* The grade a student is playing for, per course: a deliberate choice, so the newer save wins per key
+     and a course only one device knows about survives. */
+  m.goal = Object.assign({}, older.goal || {}, newer.goal || {});
+  if (!Object.keys(m.goal).length) delete m.goal;
   /* The instant of the last gift this student has actually been shown. Newest wins, so a sponsorship
      celebrated on the laptop does not pop again on the phone. */
   m.giftSeen = Math.max(+(a.giftSeen || 0), +(b.giftSeen || 0)); if (!m.giftSeen) delete m.giftSeen;
@@ -5268,19 +4969,8 @@ function mergeStores(a, b){
   m.customRows = [...new Map([...byId(older.customRows), ...byId(newer.customRows)]).values()];
   const uById = list => { const map = new Map(); (list||[]).forEach(u => map.set(u.id, u)); return map; };
   m.undated = [...new Map([...uById(older.undated), ...uById(newer.undated)]).values()];
-  const tLog = list => new Map((list || []).map(x => [x.id, x]));
-  m.tutorLog = [...new Map([...tLog(older.tutorLog), ...tLog(newer.tutorLog)]).values()];
   m.custom = newer.custom !== undefined && newer.custom !== null ? newer.custom : (older.custom || null);
   m.ext = (b.ext && (!a.ext || (b.ext.at || 0) >= (a.ext.at || 0))) ? b.ext : (a.ext || null);
-  // decks: union by id; for a deck both devices have, the copy reviewed more recently wins card by card
-  m.decks = Object.assign({}, older.decks || {}, newer.decks || {});
-  for (const id in (older.decks || {})) {
-    const o = older.decks[id], n = (newer.decks || {})[id]; if (!n) continue;
-    m.decks[id] = Object.assign({}, n, {cards: (n.cards || []).map((c, i) => {
-      const oc = (o.cards || [])[i]; if (!oc) return c;
-      return (oc.seen || 0) > (c.seen || 0) ? oc : c;
-    })});
-  }
   m.deleted = {};
   for (const src of [a.deleted || {}, b.deleted || {}])
     for (const k of Object.keys(src)) m.deleted[k] = Math.max(m.deleted[k] || 0, src[k]);
@@ -5296,7 +4986,6 @@ function mergeStores(a, b){
       else if (m[kind]) delete m[kind][id];
     } else if (kind === "custom") m.customRows = m.customRows.filter(r => r[4] !== id);
     else if (kind === "undated") m.undated = m.undated.filter(u => u.id !== id);
-    else if (kind === "tutor") m.tutorLog = m.tutorLog.filter(x => x.id !== id);
   }
   const tombCutoff = Date.now() - 60 * 864e5;
   for (const k of Object.keys(m.deleted)) if (m.deleted[k] < tombCutoff) delete m.deleted[k];
@@ -5727,7 +5416,7 @@ function openWelcome(){
   if (MODE === "artifact") show("wAct3", false);
   if (MODE === "web" && IS_MOBILE) { /* the phone's step 3 is written above and must not be overwritten */ }
   else if (MODE === "web" && !gdReady()) set("wBody3", "No account, no password. Everything you do here saves privately on this device. Nothing is sent anywhere.");
-  else if (MODE === "web" && !IS_MOBILE && cloudPossible()) { set("wBody3", `No account, no password, so no name or email is on file anywhere. Everything saves on this device; sign in with Google and it follows you to your phone through your own Drive. Every assignment comes with a tutor that has already read it: ${unitPhrase("free")}, then more on a plan.`); const cr = document.getElementById("wCloudRow"); if (cr) cr.hidden = lmsName() === "Brightspace" || (!(EXT.lms || (store.ext || {}).lms) && lmsHint() === "d2l"); }   // Brightspace has no student access keys: no key, no server read
+  else if (MODE === "web" && !IS_MOBILE && cloudPossible()) { set("wBody3", `No account, no password, so no name or email is on file anywhere. Everything saves on this device; sign in with Google and it follows you to your phone through your own Drive. LMK times your work quietly so its estimates get honest \u2014 no names, no grades, ever.`); const cr = document.getElementById("wCloudRow"); if (cr) cr.hidden = lmsName() === "Brightspace" || (!(EXT.lms || (store.ext || {}).lms) && lmsHint() === "d2l"); }   // Brightspace has no student access keys: no key, no server read
   joinWelcomeCopy();
   document.getElementById("wName").value = (store.profile && store.profile.name) || draftName();
   welcomeOverlay.classList.add("open");
@@ -5856,9 +5545,8 @@ function maybeAskReview(){
    Unlocked on a device by opening LMK once with #admin=<STATS_KEY> in the address. The key is the
    credential; the worker checks it on every request. Web mode only — the artifact cannot reach
    the worker, and there is nothing about any student to see: the server holds counts and settings. */
-const ADMIN = {key:null, data:null, at:0, loading:false, err:"", tab:"overview", sub:"cost"};
+const ADMIN = {key:null, data:null, at:0, loading:false, err:"", tab:"overview"};
 try { ADMIN.tab = localStorage.getItem("lmk_admin_tab") || "overview"; } catch(_){}
-try { ADMIN.sub = localStorage.getItem("lmk_admin_sub") || "cost"; } catch(_){}
 const apiUrl = path => LMK_CONFIG.statsUrl.replace(/\/$/, "") + path;
 /* The key rides in the synced store, so every device signed in as the admin gets the tab. */
 function adminApply(){
@@ -5950,11 +5638,9 @@ async function adminSaveTiers(){
   const g = id => document.getElementById(id), tiers = {};
   for (const lv of ["free", "plus", "pro"]) {
     tiers[lv] = {
-      units: Math.max(0, +g("admT_" + lv + "_units").value || 0),
-      quiz: Math.max(3, +g("admT_" + lv + "_quiz").value || 6),
-      cards: Math.max(3, +g("admT_" + lv + "_cards").value || 10),
-      model: g("admT_" + lv + "_model").value,
-      files: g("admT_" + lv + "_files").checked, vision: g("admT_" + lv + "_vision").checked, think: g("admT_" + lv + "_think").checked,
+      worth: Math.max(0, +g("admT_" + lv + "_worth").value || 0),          // 0 = the whole ranked semester
+      targets: Math.max(0, +g("admT_" + lv + "_targets").value || 0),      // 0 = every class
+      sync: g("admT_" + lv + "_sync").checked, push: g("admT_" + lv + "_push").checked, summary: g("admT_" + lv + "_summary").checked,
       sell: lv !== "free" && g("admT_" + lv + "_sell").checked,
       price: g("admT_" + lv + "_price").value.trim().slice(0, 24),
       link: lv === "free" ? "" : (g("admT_" + lv + "_link").value || "").trim().slice(0, 300),
@@ -5963,8 +5649,6 @@ async function adminSaveTiers(){
   let map = {}, packs = [];
   try { map = JSON.parse(g("admTierMap").value || "{}"); if (!map || typeof map !== "object" || Array.isArray(map)) throw 0; }
   catch(_) { toast("The plan map must be JSON like {\"1000\":\"pro\"}."); return; }
-  try { packs = JSON.parse(g("admPacks").value || "[]"); if (!Array.isArray(packs)) throw 0; }
-  catch(_) { toast("Packs must be a JSON list like [{\"units\":60,\"price\":\"$3\",\"link\":\"…\"}]."); return; }
   adminSave({tiers, tierMap: map, packs});
 }
 async function adminRoom(body){
@@ -6009,51 +5693,6 @@ document.querySelector(".wrap").addEventListener("change", e => {
   adminSave({checklist: list});
 });
 /* Review: the cards the tutor wrote, coming back on schedule. No tokens, no limits, on every plan. */
-const REVIEW = {open: false, queue: [], at: 0, flip: false, done: 0, right: 0, course: null, pushed: false};
-function openReview(course, opts = {}){
-  REVIEW.queue = dueCards(course).sort(() => Math.random() - 0.5).slice(0, 30);
-  if (!REVIEW.queue.length) { if (!opts.quiet) toast("Nothing due for review. Make a deck in the Study screen."); return; }
-  REVIEW.open = true; REVIEW.at = 0; REVIEW.flip = false; REVIEW.done = 0; REVIEW.right = 0; REVIEW.course = course || null;
-  renderReview();
-  reviewPage.hidden = false; document.documentElement.style.overflow = "hidden";
-  REVIEW.pushed = false;
-  if (!opts.fromHistory) { try { history.pushState({review: true}, "", location.pathname + location.search + "#review" + (course ? "=" + encodeURIComponent(course) : "")); REVIEW.pushed = true; } catch(_){} }
-}
-function closeReview(opts = {}){
-  if (reviewPage.hidden) return;
-  reviewPage.hidden = true; reviewPage.innerHTML = ""; REVIEW.open = false;
-  document.documentElement.style.overflow = ""; render();
-  const pushed = REVIEW.pushed; REVIEW.pushed = false;
-  if (!opts.fromHistory && pushed) { try { history.back(); return; } catch(_){} }
-  if (/#review/.test(location.hash)) { try { history.replaceState(null, "", location.pathname + location.search); } catch(_){} }
-}
-function renderReview(){
-  const q = REVIEW.queue, i = REVIEW.at, left = q.length - i;
-  if (i >= q.length) {
-    reviewPage.innerHTML = `<div class="sp-head"><button class="sp-back" data-act="rv-close">← Plan</button><div class="sp-title"><b>Done</b><span>${esc(REVIEW.course || "review")}</span></div></div>
-      <div class="rv-body"><div class="card rv-done"><b>${REVIEW.right} of ${REVIEW.done} right.</b>
-        <p class="sub2" style="margin:8px 0 0">${REVIEW.right === REVIEW.done ? "The ones you knew come back later; the rest come back sooner." : "What you missed comes back tomorrow. That is the whole trick."}</p>
-        <div class="row" style="margin-top:14px"><button class="btn primary" data-act="rv-close">Back to today</button>${dueCards(REVIEW.course).length ? `<button class="btn ghost" data-act="rv-more">Keep going · ${dueCards(REVIEW.course).length} left</button>` : ""}</div></div></div>`;
-    return;
-  }
-  const it = q[i];
-  reviewPage.innerHTML = `<div class="sp-head"><button class="sp-back" data-act="rv-close">← Plan</button>
-      <div class="sp-title"><b>Review · ${esc(it.course)}</b><span>${i + 1} of ${q.length} · ${esc(it.title)}</span></div></div>
-    <div class="rv-body">
-      <button class="fc rv-card ${REVIEW.flip ? "flipped" : ""}" data-act="rv-flip" aria-label="Flip the card">
-        <span class="fc-side front">${esc(it.card.front)}</span><span class="fc-side back">${esc(it.card.back)}</span></button>
-      <div class="rv-acts">${REVIEW.flip
-        ? `<button class="btn ghost" data-act="rv-miss">Not yet</button><button class="btn primary" data-act="rv-got">Got it</button>`
-        : `<button class="btn primary" data-act="rv-flip">Show the answer</button>`}</div>
-      <p class="privacy" style="text-align:center">${left} to go. Reviewing is free on every plan.</p>
-    </div>`;
-}
-function reviewAnswer(ok){
-  const it = REVIEW.queue[REVIEW.at]; if (!it) return;
-  gradeCard(it.deck, it.i, ok);
-  REVIEW.done++; if (ok) REVIEW.right++;
-  REVIEW.at++; REVIEW.flip = false; renderReview();
-}
 /* bars + a line over 30 day keys; used for opens/installs and for cash/tokens */
 function chartCard(title, sub, keys, bar, line, barLabel, lineLabel, fmt, tip){
   const W = 640, H = 210, padL = 40, padR = 12, padT = 12, padB = 26;
@@ -6131,21 +5770,8 @@ function renderAdmin(root){
   // money: real cost from Anthropic's usage blocks (worker `usage` table) and real cash from Stripe (`payments`)
   const priceNum = parseFloat(String(PL.plusPrice || "").replace(/[^0-9.]/g, "")) || 4;
   const mrr = RV ? RV.mrr : (PL.paying || 0) * priceNum;
-  const spend30 = CO ? CO.d30.usd : 0, spendToday = CO ? CO.today.usd : 0, cash30 = RV ? RV.d30.usd : 0;
-  /* Two independent counts of the same thing: `tutor_msg` is bumped by reserve() before a single token is
-     bought, and `usage.n` is incremented by recordUsage after a reply lands. They must agree by construction.
-     They differed by ten for two days and nothing on the page said so — which is how "0.00¢ a message,
-     measured" got printed as fact while the cost ledger had never once run. */
-  /* Only count messages from the day cost tracking began. Ten messages sent on 2026-09-08, before the usage
-     table had a single row, are history — not a leak — and measuring against them flagged a fault forever. */
-  const costSince = (CO && CO.since) || "";
-  const costDays = costSince ? Math.min(30, Math.max(1, Math.round((Date.now() - Date.parse(costSince + "T00:00:00Z")) / 864e5) + 1)) : 30;
-  const msgs30 = sum("tutor_msg", 0, 30), costRows30 = CO ? CO.d30.n : 0;
-  const msgsTracked = costSince ? sum("tutor_msg", 0, costDays) : msgs30;
-  const costGap = Math.max(0, msgsTracked - costRows30);
-  const perMsg = costRows30 ? CO.d30.usd / costRows30 : 0;
+  const cash30 = RV ? RV.d30.usd : 0;
   const attention = [];
-  if (!TU.configured) attention.push(["tutor", "The tutor has no API key; students see only their own AI."]);
   if (cronStale) attention.push(["ops", `Cron last ran ${ago(ops.cronAt)}; Cloudflare fires it every 3 minutes. Check the worker triggers first; the Actions tick is only a backstop and GitHub throttles it to a few runs a day.`]);
   if (!PL.webhook) attention.push(["plus", "Stripe webhook secret is not set; payments can't be recognised."]);
   if ((PL.tray || {}).stuck) attention.push(["plus", `${PL.tray.stuck} gift${PL.tray.stuck === 1 ? "" : "s"} took money and reached no account (${money(PL.tray.cents / 100)}). Put ${PL.tray.stuck === 1 ? "it" : "them"} on the right code under Plus.`]);
@@ -6156,12 +5782,9 @@ function renderAdmin(root){
   if (rmReports) attention.push(["ops", `${rmReports} room report${rmReports === 1 ? "" : "s"} waiting for a person to read ${rmReports === 1 ? "it" : "them"}.`]);
   if (S.cloudPaused) attention.push(["students", "Sync from anywhere is paused (kill switch on)."]);
   if (installs >= 5 && syncs / installs < 0.5) attention.push(["students", `Only ${conv}% of devices ever connected to Canvas. Activation, not features, is the bottleneck.`]);
-  if (!TU.tutorOn) attention.push(["tutor", "The tutor is switched off."]);
   if (d.costError || d.revenueError) attention.push(["ops", "Cost or revenue tables failed to read: " + (d.costError || d.revenueError) + ". Apply schema.sql."]);
-  if (CO && costGap > 0) attention.push(["tutor", `${n(costGap)} of ${n(msgsTracked)} tutor message${msgsTracked === 1 ? "" : "s"} since cost tracking began left no cost row, so what the tutor spends is unknown. Send one message and check the usage table.`]);
-  if (CO && RV && spend30 > cash30 && spend30 > 1) attention.push(["revenue", `The tutor cost ${money(spend30)} in 30 days against ${money(cash30)} in cash.`]);
   const TT = PL.tiers || {}, UN = PL.units || {};    // the tier table: read by the Tutor tab and the Plus tab
-  const TABS = [["overview", "Overview", 0], ["revenue", "Revenue", 0], ["students", "Students", CL.errors || 0], ["tutor", "Tutor", 0], ["plus", "Plus", (PL.tray || {}).stuck || 0], ["ops", "Ops", (cronStale ? 1 : 0) + (errToday ? 1 : 0) + rmReports]];
+  const TABS = [["overview", "Overview", 0], ["revenue", "Revenue", 0], ["students", "Students", CL.errors || 0], ["plus", "Plus", (PL.tray || {}).stuck || 0], ["ops", "Ops", (cronStale ? 1 : 0) + (errToday ? 1 : 0) + rmReports]];
   if (!TABS.some(t => t[0] === ADMIN.tab)) ADMIN.tab = "overview";
   const tile = (k, v, s, extra) => `<div class="card tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div>${extra || ""}</div>`;
   const input = (id, val, w, attrs) => `<input id="${id}" ${attrs || 'type="number" min="0"'} value="${esc(String(val))}" class="adm-in" style="width:${w || 90}px">`;
@@ -6182,33 +5805,26 @@ function renderAdmin(root){
       ${tile("Connected to an LMS", `${n(syncs)}<span class="of"> of ${n(installs)}</span>`, `${conv === null ? "no devices yet" : conv + "% of every device"} · ${connToday} active today`,
         act7 === null ? "" : `<span class="d">${act7}% activated this week${actPrev === null ? "" : ` (was ${actPrev}%)`}</span>`)}
       ${tile("Plus members", n((PL.paying || 0) + (PL.granted || 0)), `${PL.paying || 0} paying · ${PL.granted || 0} granted`)}
-      ${tile("Tutor today", n(T.tutor_msg), `${money(spendToday)} in tokens · ${n(full7("tutor_msg"))} in 7 full days`)}
-      ${tile("30 days", money(cash30), `cash in · ${money(spend30)} tokens out · MRR ${money(mrr)}`)}
+      ${tile("30 days", money(cash30), `cash in · MRR ${money(mrr)}`)}
     </div>`;
     html += `<div class="card adm-card"><h3>Needs attention</h3>${attention.length ? `<ul class="attn">${attention.map(([tab, msg]) => `<li><span>${esc(msg)}</span><button class="minibtn" data-act="adm-tab" data-tab="${tab}">Open</button></li>`).join("")}</ul>` : `<p class="sub2" style="margin:0">Nothing. The machine is running, the money side is wired, and no one is stuck.</p>`}</div>`;
     html += chartCard("Last 30 days", `Every day here is a UTC day, and a device counts once per day. <b>Active today</b> is devices that opened the app, not opens. Every number on this tab counts <b>devices</b>, because that is what the counter can see: one browser opening the app is one device, and a student with a laptop and a phone is two. The one people-number is the students line under Devices ever, which comes from sync ids — a sync id follows a student across their devices on purpose. <b>Devices ever</b> and <b>Connected to Canvas</b> are all-time${firstDay ? `, since ${esc(firstDay)}` : ""} — before ${esc(APP_BUILD)} they showed a 90-day slice and rows were bucketed by each student's own local midnight, so anything before that date is a different measurement. The extension has been installed ${n(extInstalls)} times. Your own devices, test renders and anything not served from lmktoday.app never count.`, keys, k => get(k, "open"), k => get(k, "synced"), "Devices active", "Reached Canvas", v => String(v), k => `${k}: ${known(k) ? `${get(k, "open")} active, ${get(k, "synced")} with Canvas, ${get(k, "install")} new devices, ${get(k, "tutor_msg")} tutor msgs` : "before the counter existed"}`);
   }
   if (ADMIN.tab === "revenue") {
-    if (!RV || !CO) html += `<div class="card adm-card"><h3>Revenue</h3><p class="sub2" style="margin:0">The worker hasn't answered with cost and revenue yet${d.costError || d.revenueError ? ": " + esc(d.costError || d.revenueError) : ""}. Deploy worker v10 and apply schema.sql (usage and payments tables).</p></div>`;
+    if (!RV) html += `<div class="card adm-card"><h3>Revenue</h3><p class="sub2" style="margin:0">The worker hasn't answered with cost and revenue yet${d.costError || d.revenueError ? ": " + esc(d.costError || d.revenueError) : ""}. Deploy worker v10 and apply schema.sql (usage and payments tables).</p></div>`;
     else {
-      const net30 = cash30 - RV.fees30 - spend30, margin = cash30 > 0 ? Math.round(net30 / cash30 * 100) : null;
+      const net30 = cash30 - RV.fees30, margin = cash30 > 0 ? Math.round(net30 / cash30 * 100) : null;
       html += `<div class="tiles">
         ${tile("MRR", money(RV.mrr), `${RV.paying} paying × ${esc(PL.plusPrice || "$4/month")}`)}
         ${tile("Cash, 30 days", money(cash30), `${RV.d30.pays} payment${RV.d30.pays === 1 ? "" : "s"} · ${money(RV.d7.usd)} this week · ${money(RV.today.usd)} today`)}
-        ${tile("Tokens, 30 days", money(spend30), `${n(CO.d30.n)} messages · ${CO.students} student${CO.students === 1 ? "" : "s"} used the tutor`)}
         ${tile("Net, 30 days", money(net30), `after ≈ ${money(RV.fees30)} Stripe fees${margin !== null ? " · " + margin + "% margin" : ""}`, margin !== null ? `<span class="d ${net30 >= 0 ? "up" : "down"}">${net30 >= 0 ? "▲ in the black" : "▼ in the red"}</span>` : "")}
-        ${tile("All time", money(RV.all.usd), `cash in · ${money(CO.all.usd)} tokens out · ${money(RV.all.usd - CO.all.usd)} kept before fees`)}
+        ${tile("All time", money(RV.all.usd), `cash in, all time`)}
         ${tile("ARPU", money(RV.arpu30), "cash per paying member, 30 days")}
         ${tile("Churn", `${RV.churn30}%`, `${RV.gone30} ended · ${RV.started30} started, 30 days`)}
         ${tile("Conversion", `${RV.conversion}%`, `${RV.paying} paying of ${n(RV.owners)} accounts the worker has met`)}
       </div>`;
-      const cashBy = {}; (RV.daily || []).forEach(x => { cashBy[x.day] = x.usd; }); const costBy = {}; (CO.daily || []).forEach(x => { costBy[x.day] = x.usd; });
-      html += chartCard("Cash in and tokens out, last 30 days", "Bars are Stripe payments (refunds subtract); the line is what Anthropic billed us for the tutor that day, from the real token counts.", keys, k => cashBy[k] || 0, k => costBy[k] || 0, "Cash in", "Tokens out", v => "$" + (v >= 10 ? v.toFixed(0) : v.toFixed(2)), k => `${k}: ${money(cashBy[k] || 0)} in, ${money(costBy[k] || 0)} out`);
       html += `<div class="card adm-card"><h3>Payments</h3><p class="sub2">Every Stripe payment the webhook has seen, newest first. Amounts are what the student paid; Stripe's fee comes off in Stripe.</p>
         ${table(["When", "Code", "Kind", "num:Amount"], (RV.recent || []).map(r => `<tr><td>${FMT_DAY.format(new Date(r.at))}</td><td class="mono">${esc(r.code || "—")}</td><td>${esc(r.kind)}</td><td class="num ${r.usd < 0 ? "bad" : ""}">${money(r.usd)}${r.currency !== "usd" ? " " + esc(r.currency.toUpperCase()) : ""}</td></tr>`)) || `<p class="sub2" style="margin:0">No payments yet. The first one appears here the moment Stripe's webhook lands. Make sure the webhook sends invoice.paid, checkout.session.completed, customer.subscription.updated, customer.subscription.deleted and charge.refunded.</p>`}</div>`;
-      html += `<div class="card adm-card"><h3>What costs what</h3><p class="sub2">Prices per million tokens as of ${esc(CO.pricesAsOf)}: ${Object.entries(CO.prices || {}).filter(([m]) => /opus-5$|sonnet-5$/.test(m)).map(([m, p]) => `<b>${esc(m.replace("claude-", "").replace("-", " "))}</b> $${p.in} in · $${p.out} out · $${p.cr} cached`).join(" · ")}. Every reply's real token counts are recorded; nothing here is estimated except Stripe's fee.</p>
-        ${table(["Model, 30 days", "num:Messages", "num:Cost", "num:Per message"], (CO.byModel || []).map(r => `<tr><td>${esc(r.model)}</td><td class="num">${n(r.n)}</td><td class="num">${money(r.usd)}</td><td class="num">${r.n ? (r.usd / r.n * 100).toFixed(2) + "¢" : "—"}</td></tr>`))}
-        ${table(["Kind, 30 days", "num:Messages", "num:Cost", "num:Per message"], (CO.byKind || []).map(r => `<tr><td>${esc(r.kind)}</td><td class="num">${n(r.n)}</td><td class="num">${money(r.usd)}</td><td class="num">${r.n ? (r.usd / r.n * 100).toFixed(2) + "¢" : "—"}</td></tr>`))}</div>`;
     }
   }
   if (ADMIN.tab === "students") {
@@ -6231,68 +5847,6 @@ function renderAdmin(root){
       ${table(["Code", "School", "num:Courses", "Last read", "Status", ""], probs.map(p => `<tr><td class="mono">${esc(p.sid.slice(0, 8))}</td><td>${esc(p.host)}</td><td>${p.courses}</td><td>${ago(p.synced_at)}</td><td>${!p.active ? "paused" : p.err ? `<span class="bad">${esc(p.err)}</span>` : "stale"}</td>
         <td class="acts">${p.active ? `<button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="retry">Retry</button><button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="pause">Pause</button>` : `<button class="minibtn" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="resume">Resume</button>`}<button class="minibtn drop" data-act="adm-student" data-sid="${esc(p.sid)}" data-do="forget">Forget</button></td></tr>`)) || `<p class="sub2" style="margin:0">Everyone is syncing.</p>`}
       <div class="adm-row" style="margin-top:12px"><label class="ck"><input type="checkbox" id="admPaused" ${S.cloudPaused ? "checked" : ""} data-act="adm-pause"> Pause Sync from anywhere for everyone (kill switch: reads stop, phones keep their last copy, nothing is deleted)</label></div></div>`;
-  }
-
-  if (ADMIN.tab === "tutor") {
-    const SUBS = [["cost", "Cost"], ["ceilings", "Ceilings"], ["plans", "Plans vs budget"]];
-    if (!SUBS.some(x => x[0] === ADMIN.sub)) ADMIN.sub = "cost";
-    const U = PL.units || {chat: 1, quiz: 5, cards: 5, think: 12, file: 3, photo: 2};
-    const unitsOf = k => +U[k] || 1;
-    const kinds = (CO && CO.byKind) || [];
-    /* usage records what an action COST but not what it was CHARGED, so units are re-derived from the same
-       table the server prices with. Cost per unit is the only number that says whether a tier is profitable. */
-    const unitsBilled = kinds.reduce((t, r) => t + r.n * unitsOf(r.kind), 0);
-    const perUnit = unitsBilled ? spend30 / unitsBilled : 0;
-    const KIND_NAME = {chat: "Chat message", quiz: "Quiz", cards: "Flashcard deck", think: "Deep thinking", file: "Course material", photo: "Photograph"};
-
-    html += `<div class="tiles">
-      ${tile("Messages today", n(T.tutor_msg), `${n(T.tutor_msg_free || 0)} free · pots ${n(TU.tutorDaily)} free / ${n(TU.tutorPlusDaily)} member`)}
-      ${tile("Spend, 30 days", money(spend30), costRows30 ? `${n(costRows30)} costed message${costRows30 === 1 ? "" : "s"} · ${n(unitsBilled)} units` : `${n(msgs30)} sent, none costed yet`, costGap > 0 ? `<span class="d down">${n(costGap)} without a cost row</span>` : costSince && msgs30 > msgsTracked ? `<span class="muted">${n(msgs30 - msgsTracked)} predate cost tracking</span>` : "")}
-      ${tile("A unit really costs", perUnit ? (perUnit * 100).toFixed(2) + "¢" : "—", perUnit ? "measured, not assumed" : "no measured cost yet")}
-      ${tile("Model", TU.tutorModel === "claude-opus-5" ? "Opus 5" : "Sonnet 5", "chat · quizzes and decks always Sonnet")}
-    </div>
-    <nav class="adm-tabs" role="tablist" aria-label="Tutor sections" style="margin:14px 0">${SUBS.map(([id, label]) => `<button role="tab" data-act="adm-sub" data-sub="${id}" aria-selected="${ADMIN.sub === id}">${label}</button>`).join("")}</nav>`;
-
-    if (ADMIN.sub === "cost") {
-      html += `<div class="card adm-card"><h3>What each thing costs</h3><p class="sub2">Every row is measured from Anthropic's own usage block, not estimated. <b>Units</b> is what the student was charged; <b>per unit</b> is what it actually cost, and it is the number that decides whether a plan makes money.</p>
-        ${table(["Action", "num:Units each", "num:Times", "num:Cost", "num:Per time", "num:Per unit"], kinds.slice().sort((a, b) => b.usd - a.usd).map(r => {
-          const pu = r.n ? r.usd / (r.n * unitsOf(r.kind)) : 0;
-          return `<tr><td>${esc(KIND_NAME[r.kind] || r.kind)}</td><td class="num">${unitsOf(r.kind)}</td><td class="num">${n(r.n)}</td><td class="num">${money(r.usd)}</td><td class="num">${r.n ? (r.usd / r.n * 100).toFixed(2) + "¢" : "—"}</td><td class="num ${pu > 0.01 ? "bad" : ""}">${pu ? (pu * 100).toFixed(2) + "¢" : "—"}</td></tr>`;
-        })) || `<p class="sub2" style="margin:0">Nothing costed yet. Send one chat and one quiz from lmktoday.app and this fills in.</p>`}
-        ${kinds.length ? `<p class="sub2" style="margin:10px 0 0">A unit is priced to be about half a cent of real spend. Anything above <b>1.00¢ per unit</b> is shown in red: that action is underpriced in units, and the fix is to raise its unit cost in <span class="mono">plus.js</span>, not to raise the plan price.</p>` : ""}</div>`;
-      html += `<div class="card adm-card"><h3>By model</h3>
-        ${table(["Model, 30 days", "num:Messages", "num:Cost", "num:Per message"], (CO && CO.byModel || []).map(r => `<tr><td>${esc(r.model)}</td><td class="num">${n(r.n)}</td><td class="num">${money(r.usd)}</td><td class="num">${r.n ? (r.usd / r.n * 100).toFixed(2) + "¢" : "—"}</td></tr>`)) || `<p class="sub2" style="margin:0">No model has answered yet.</p>`}</div>`;
-      if (CO && CO.top && CO.top.length) html += `<div class="card adm-card"><h3>Who costs what · 30 days</h3><p class="sub2">Real token spend per support code. A free account near the top is the reason the daily allowance exists; a member near the top is a happy customer.</p>
-        ${table(["Code", "Plan", "num:Messages", "num:Cost", "num:Per message", ""], CO.top.map(r => `<tr><td class="mono">${esc(r.code)}</td><td>${r.plan === "plus" ? "Plus" : r.plan === "granted" ? "granted" : "free"}</td><td class="num">${n(r.n)}</td><td class="num">${money(r.usd)}</td><td class="num">${r.n ? (r.usd / r.n * 100).toFixed(2) + "¢" : "—"}</td><td class="acts">${r.plan === "free" ? `<button class="minibtn" data-act="adm-student" data-sid="${esc(r.sid)}" data-do="grant" data-months="4" data-level="plus">Grant Plus</button>` : r.plan === "granted" ? `<button class="minibtn drop" data-act="adm-student" data-sid="${esc(r.sid)}" data-do="revoke">Revoke</button>` : ""}</td></tr>`))}</div>`;
-    }
-
-    if (ADMIN.sub === "ceilings") {
-      html += `<div class="card adm-card"><h3>Ceilings</h3><p class="sub2">${TU.configured ? "" : "<b>Not configured:</b> set the ANTHROPIC_API_KEY secret on the worker and this turns on. "}Three checks run before any token is bought: the student's own units for the day, their network's daily count, and one shared pot. The pots are counted in <b>requests</b>, not units, and are a spend brake, not the plan — the plan is the units-a-day column under <b>Plans vs budget</b>. Set the Anthropic console's monthly limit to match.</p>
-        <div class="adm-grid">
-          <label class="ck"><input type="checkbox" id="admTutorOn" ${TU.tutorOn ? "checked" : ""}> Tutor on</label>
-          <label class="fld">Free pot, requests a day ${input("admTutorDaily", +TU.tutorDaily || 0, 100)}</label>
-          <label class="fld">Member pot, requests a day ${input("admTutorPlusDaily", +TU.tutorPlusDaily || 0, 100)}</label>
-          <label class="fld">Per network, a day ${input("admTutorIpDaily", +TU.tutorIpDaily || 0)}</label>
-          <label class="fld">Chat model <select id="admTutorModel" class="adm-in"><option value="claude-sonnet-5" ${TU.tutorModel === "claude-sonnet-5" ? "selected" : ""}>Claude Sonnet 5</option><option value="claude-opus-5" ${TU.tutorModel === "claude-opus-5" ? "selected" : ""}>Claude Opus 5</option></select></label>
-        </div>
-        ${(() => { const free = (TT.free || {}).units || 3, covers = Math.floor((+TU.tutorDaily || 0) / Math.max(1, free));
-          return `<p class="sub2" style="margin:10px 0 0"${covers < installs ? ' class="bad"' : ""}>The free pot covers <b>${n(covers)}</b> new students a day, each spending their whole ${free}-unit trial at once. ${covers < installs ? `<span class="bad">You have ${n(installs)} devices, so the pot runs out before the allowance does and students are told the tutor is resting while their own units are untouched.</span>` : "That is comfortably above the number of devices you have."}</p>`; })()}
-        <div class="adm-row" style="margin-top:12px;justify-content:flex-end"><button class="btn primary" data-act="adm-save-tutor">Save tutor settings</button></div></div>`;
-    }
-
-    if (ADMIN.sub === "plans") {
-      const net = p => Math.max(0, p * 0.971 - 0.30);
-      html += `<div class="card adm-card"><h3>Do the plans pay for themselves?</h3><p class="sub2">Worst case is a student who spends every unit, every day, priced at the <b>measured</b> cost per unit${perUnit ? "" : " (no measured cost yet, so this uses 0.5¢ as the design target)"}. Anything red loses money at full use.</p>
-        ${table(["Plan", "num:Units a day", "num:Units a month", "num:Worst-case cost", "num:Price", "num:Net after Stripe", "num:Margin"], ["free", "plus", "pro"].map(lv => {
-          const t = TT[lv] || {}, u = +t.units || 0, mo = u * 30.4;
-          const cost = mo * (perUnit || 0.005);
-          const price = parseFloat(String(t.price || "").replace(/[^0-9.]/g, "")) || 0;
-          const nt = price ? net(price) : 0, margin = nt - cost;
-          return `<tr><td><b>${TIER_NAMES[lv]}</b></td><td class="num">${u}</td><td class="num">${n(Math.round(mo))}</td><td class="num">${money(cost)}</td><td class="num">${price ? money(price) : "—"}</td><td class="num">${price ? money(nt) : "—"}</td><td class="num ${margin < 0 ? "bad" : ""}">${price ? money(margin) : "-" + money(cost)}</td></tr>`;
-        }))}
-        <p class="sub2" style="margin:10px 0 0">Free has no price, so its row is pure cost: that is the marketing budget, and the free pot above is what caps it across everyone. Realistic use is far below worst case — the measured average is ${perUnit ? (perUnit * 100).toFixed(2) + "¢ a unit" : "not measured yet"} — but a plan should survive its own ceiling.</p></div>`;
-      html += `<div class="card adm-card"><h3>What the app promises</h3><p class="sub2" style="margin:0">These are the numbers students actually see, straight from the tier table: <b>${["free", "plus", "pro"].map(lv => `${TIER_NAMES[lv]} ${(TT[lv] || {}).units || 0} units a day`).join(" · ")}</b>. A message costs ${unitsOf("chat")} unit, a quiz ${unitsOf("quiz")}, a deck ${unitsOf("cards")}, deep thinking ${unitsOf("think")}, a photograph ${unitsOf("photo")}, course material ${unitsOf("file")}. Change them in the Plus tab; the server enforces exactly this and nothing else — there is no weekly allowance anywhere in the code.</p></div>`;
-    }
   }
 
   if (ADMIN.tab === "plus") {
@@ -6328,25 +5882,20 @@ function renderAdmin(root){
           <button class="btn primary" data-act="gift-place" data-ref="${esc(g.ref)}">Place it</button>
         </div>`).join("")}</div>`;
     }
-    html += `<div class="card adm-card"><h3>Plans</h3><p class="sub2">A unit is one tutor message; a quiz or a deck costs ${UN.quiz || 3}, deep thinking ${UN.think || 6}, a file or photo question ${UN.file || 2}. Units are priced to track real spend, so a daily allowance is also a cost ceiling. Sell a plan only when the features it names actually work.</p>
-      ${table(["Plan", "num:Units a day", "num:Quiz", "num:Cards", "Model", "Files", "Photo", "Think", "Price", "On sale"], ["free", "plus", "pro"].map(lv => { const t = TT[lv] || {};
+    html += `<div class="card adm-card"><h3>Plans</h3><p class="sub2">Nothing here costs a model call any more. <b>Worth</b> is how many ranked items the plan shows (0 = the whole semester); <b>Targets</b> is how many classes get the finish-with maths (0 = all).</p>
+      ${table(["Plan", "num:Worth rows", "num:Target classes", "Phone sync", "Morning push", "Send-home summary", "Price", "On sale"], ["free", "plus"].map(lv => { const t = TT[lv] || {};
         return `<tr><td><b>${TIER_NAMES[lv]}</b></td>
-          <td>${input("admT_" + lv + "_units", +t.units || 0, 70)}</td>
-          <td>${input("admT_" + lv + "_quiz", +t.quiz || 0, 60)}</td>
-          <td>${input("admT_" + lv + "_cards", +t.cards || 0, 60)}</td>
-          <td><select id="admT_${lv}_model" class="adm-in"><option value="" ${!t.model ? "selected" : ""}>default</option><option value="claude-sonnet-5" ${t.model === "claude-sonnet-5" ? "selected" : ""}>Sonnet 5</option><option value="claude-opus-5" ${t.model === "claude-opus-5" ? "selected" : ""}>Opus 5</option></select></td>
-          <td><input type="checkbox" id="admT_${lv}_files" ${t.files ? "checked" : ""}></td>
-          <td><input type="checkbox" id="admT_${lv}_vision" ${t.vision ? "checked" : ""}></td>
-          <td><input type="checkbox" id="admT_${lv}_think" ${t.think ? "checked" : ""}></td>
+          <td>${input("admT_" + lv + "_worth", +t.worth || 0, 80)}</td>
+          <td>${input("admT_" + lv + "_targets", +t.targets || 0, 80)}</td>
+          <td><input type="checkbox" id="admT_${lv}_sync" ${t.sync ? "checked" : ""}></td>
+          <td><input type="checkbox" id="admT_${lv}_push" ${t.push ? "checked" : ""}></td>
+          <td><input type="checkbox" id="admT_${lv}_summary" ${t.summary ? "checked" : ""}></td>
           <td>${input("admT_" + lv + "_price", t.price || "", 110, 'type="text" maxlength="24"')}</td>
-          <td><input type="checkbox" id="admT_${lv}_sell" ${t.sell ? "checked" : ""} ${lv === "free" ? "disabled" : ""}></td></tr>`; }))}
+          <td><input type="checkbox" id="admT_${lv}_sell" ${t.sell ? "checked" : ""} ${lv === "free" ? "disabled" : ""}></td></tr>`; }).join(""))}
       <div class="adm-grid" style="margin-top:12px">
-        <label class="fld wide">Top-up packs, as JSON <span class="muted" style="font-weight:400">(the price must match the Stripe price exactly)</span> ${input("admPacks", JSON.stringify(PL.packs || []), 0, 'type="text" placeholder=\'[{"units":60,"price":"$3","link":"https://buy.stripe.com/..."}]\'')}</label>
         <label class="fld wide">Plus payment link ${input("admT_plus_link", (TT.plus || {}).link || "", 0, 'type="url" placeholder="https://buy.stripe.com/…"')}</label>
-        <label class="fld wide">Pro payment link ${input("admT_pro_link", (TT.pro || {}).link || "", 0, 'type="url" placeholder="https://buy.stripe.com/… (create it in Stripe first)"')}</label>
         <label class="fld wide">Which payment buys which plan ${input("admTierMap", JSON.stringify(PL.tierMap || {}), 0, 'type="text" placeholder=\'{"1000":"pro","price_abc":"pro"}\'')}</label>
       </div>
-      <p class="sub2" style="margin:10px 0 0">Sell a pack as a one-off payment. The webhook matches what Stripe charged against the price written here to know how many units to add, so the two must agree to the cent; <span class="mono">metadata.credits</span> on the Stripe link overrides it. Map plans by amount in cents or by Stripe price id; anything unmapped counts as Plus. Upgrades keep their credit automatically when a student switches plan in the billing portal, so turn plan switching on there rather than selling a second link.</p>
       <div class="adm-row" style="margin-top:12px;justify-content:flex-end"><button class="btn primary" data-act="adm-save-tiers">Save plans</button></div></div>`;
     html += `<div class="card adm-card"><h3>Offer</h3><p class="sub2">${PL.webhook ? "" : "<b>Webhook secret not set:</b> run <span class=\"mono\">npx wrangler secret put STRIPE_WEBHOOK_SECRET</span> or payments can't be recognised. "}The link opens Stripe with the student's code attached; a plan's success page must send them to lmktoday.app/app/#plus=ok and a pack's to #credits=ok. The price here is what the app shows; change it in Stripe too.</p>
       <div class="adm-grid">
@@ -6433,10 +5982,8 @@ async function loadRemoteConfig(){
   if (!cfg) return;
   if (cfg.storeUrl && /^https:\/\/chromewebstore\.google\.com\//.test(cfg.storeUrl)) { LMK_CONFIG.storeUrl = cfg.storeUrl; applyStoreUrl(); }
   if (cfg.plus && typeof cfg.plus === "object") {
-    PLUS.offer = Object.assign({}, cfg.plus, cfg.units ? {units: cfg.units} : {}); renderPlus();   // /config carries the unit table at its top level; the offer is where unitTable() looks
-    // the intro card and the tutor's plan chip depend on the offer, which arrives after the first paint
-    let seen = true; try { seen = localStorage.getItem("lmk_tutor_intro") === "1"; } catch(_){}
-    if (!seen && tutorPossible() && plusTutorOn()) render();
+    PLUS.offer = Object.assign({}, cfg.plus); renderPlus();
+    render();   // how much of the ranked semester is shown depends on the plan the offer describes
   }
   renderPlusPill();
   showAnnouncement(cfg.announce);
@@ -6528,14 +6075,6 @@ joinCount(); refClaimMaybe();
 })();
 /* Reviewing when the tab reloads: come back to the cards, not to a stale #review sitting in the address bar
    for the rest of the session. The queue is rebuilt from the store, so only the tally starts fresh. */
-(function reviewFromHash(){
-  try {
-    const m = location.hash.match(/#review(?:=([^&]*))?/); if (!m) return;
-    history.replaceState({review: true}, "", location.href);
-    openReview(m[1] ? decodeURIComponent(m[1]) : null, {fromHistory: true, quiet: true});
-    if (!REVIEW.open) history.replaceState(null, "", location.pathname + location.search);
-  } catch(_){}
-})();
 setTimeout(maybeAskReview, 25000);
 /* The welcome asks for a name. Only show it once we're sure this is a new person: after the first
    Drive sync had its chance (a phone whose browser storage was wiped gets its name back from Drive). */

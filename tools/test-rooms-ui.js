@@ -141,7 +141,7 @@ const SYNCED = {onboarded:1, profile:{name:"Emiel"}, cloud:{sid:SID, secret:SEC,
   check('K2 Hide stamps the store, removes the line, and the gear still offers the sheet', r.gone && r.stamped && r.gear, r);
 
   // K3 the admin Ops tab renders the rooms card and a report row from the worker's bundle
-  r=JSON.parse(await ev(ws,`(function(){ ADMIN.key='k'; ADMIN.tab='ops'; ADMIN.data={ok:true,settings:{},tutor:{configured:true},plus:{webhook:true,plusLink:'x',tray:{}},cost:null,revenue:null,lmsHosts:[],rooms:{rooms:2,members:5,filled:1,sessionsWeek:3,referrals:4,refUnits:40,reports:[{id:'r1',host:'canvas.asu.edu',cid:'184220',by:'bbbbbbbb',about:'m1',aboutCode:'aaaaaaaa',what:'spam handle',at:Date.now()-60000}]},ops:{cronAt:Date.now(),pushAt:Date.now(),version:12},cloud:{errors:0},problems:[],errs:[],today:{},totals:{},days:{},allTime:{},firstDay:'2026-09-01',todayKey:'2026-09-11',errToday:0};
+  r=JSON.parse(await ev(ws,`(function(){ ADMIN.key='k'; ADMIN.tab='ops'; ADMIN.data={ok:true,settings:{},plus:{webhook:true,plusLink:'x',tray:{}},cost:null,revenue:null,lmsHosts:[],rooms:{rooms:2,members:5,filled:1,sessionsWeek:3,referrals:4,refUnits:40,reports:[{id:'r1',host:'canvas.asu.edu',cid:'184220',by:'bbbbbbbb',about:'m1',aboutCode:'aaaaaaaa',what:'spam handle',at:Date.now()-60000}]},ops:{cronAt:Date.now(),pushAt:Date.now(),version:12},cloud:{errors:0},problems:[],errs:[],today:{},totals:{},days:{},allTime:{},firstDay:'2026-09-01',todayKey:'2026-09-11',errToday:0};
     const sc=document.createElement('section'); try { renderAdmin(sc); } catch(e) { return JSON.stringify({err:e.message}); }
     const t=sc.textContent; return JSON.stringify({tiles:/2\\s*Rooms|Rooms\\s*2/.test(t.replace(/\\s+/g,' ')) || /5 members/.test(t), report:/spam handle/.test(t), seen:!!sc.querySelector('[data-act="adm-room-seen"][data-id="r1"]'), remove:!!sc.querySelector('[data-act="adm-room-remove"][data-sid="aaaaaaaa"]'), badge:(sc.querySelector('[data-tab="ops"] .badge')||{}).textContent}); })()`));
   check('K3 admin Ops: rooms tiles, the report row with Seen and Remove, and an Ops badge', !r.err && r.tiles && r.report && r.seen && r.remove && r.badge==='1', r);
@@ -150,8 +150,8 @@ const SYNCED = {onboarded:1, profile:{name:"Emiel"}, cloud:{sid:SID, secret:SEC,
   // W1–W6 the semester recap, from local data only
   const mon = new Date().toISOString().slice(0,7);
   const WSEED = Object.assign({}, SYNCED, {done:{a901:Date.now()-2*864e5, a903:Date.now()-1*864e5}, dur:{a901:[{m:40,src:"track",at:Date.now()-2*864e5,p:45}], a903:[{m:70,src:"track",at:Date.now()-864e5,p:45}]},
-    streakDays:[new Date(Date.now()-864e5).toISOString().slice(0,10), new Date().toISOString().slice(0,10)], spent:{a901:25}, decks:{d1:{id:"d1",course:"ECN 212",title:"Ch 4",at:Date.now()-3*864e5,cards:[{seen:2},{seen:1},{seen:0}]}},
-    tutorUse:{[mon]:{chat:4,quiz:1,cards:1}}, sessLog:{s9:Date.now()-864e5}, since:Date.now()-30*864e5});
+    streakDays:[new Date(Date.now()-864e5).toISOString().slice(0,10), new Date().toISOString().slice(0,10)], spent:{a901:25}, XXdecks:{d1:{id:"d1",course:"ECN 212",title:"Ch 4",at:Date.now()-3*864e5,cards:[{seen:2},{seen:1},{seen:0}]}},
+    sessLog:{s9:Date.now()-864e5}, since:Date.now()-30*864e5});
   await fresh(ws,{seed:WSEED});
   await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.6.1'}, '*'); window.postMessage({lmk:'canvas-payload', payload:${PAYLOAD}}, '*')`); await sleep(900);
   r=JSON.parse(await ev(ws,`(function(){ openWrapped('semester'); const P=document.getElementById('recapPage'); const card=k=>(P.querySelector('[data-card="'+k+'"]')||{}).textContent||null;
@@ -160,7 +160,7 @@ const SYNCED = {onboarded:1, profile:{name:"Emiel"}, cloud:{sid:SID, secret:SEC,
   check('W1 headline: 2 assignments across 2 classes, hours from measured minutes', /2 assignments/.test(r.head) && /2 classes/.test(r.head) && /1 h 50 m|1h 50m|110 min|1\.8 h/.test(r.head), r.head);
   check('W1 ahead of the clock: both finished before the due day', /2 of 2/.test(r.ahead), r.ahead);
   check('W1 streak card: longest 2', /2 days|2-day|2 day/.test(r.streak), r.streak);
-  check('W1 tutor, sprints, classmates cards only because they were used', /4 conversation/.test(r.tutor) && /1 quiz/.test(r.tutor) && /3 cards made/.test(r.tutor) && /3 reviews|3 times/.test(r.tutor) && /1 sprint/.test(r.sprints) && /25 min/.test(r.sprints) && /1 session/.test(r.mates), {t:r.tutor, s:r.sprints, m:r.mates});
+  check('W1 sprint and classmate cards only because they were used', /1 sprint/.test(r.sprints) && /25 min/.test(r.sprints) && !r.tutor, {s:r.sprints, t:r.tutor});
   check('W1 no grades card when Canvas sent no scores; no milestones under 50', r.grades===null && !r.cards.includes('milestones'), r.cards);
   check('W1 the share card is a story-sized canvas', r.canvas && r.canvas[0]===1080 && r.canvas[1]===1920, r.canvas);
   await ev(ws,`document.querySelector('#recapPage [data-act="wr-mode"][data-mode="year"]').click()`); await sleep(200);
@@ -168,9 +168,6 @@ const SYNCED = {onboarded:1, profile:{name:"Emiel"}, cloud:{sid:SID, secret:SEC,
   check('W2 the year view is the same deck over the calendar year', /Your 20[0-9][0-9]/.test(r.title) && /2 assignments/.test(r.head), r);
   await send(ws,'Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27}); await sleep(200);
   check('W2 Escape closes the recap', (await ev(ws,`document.getElementById('recapPage').hidden`))===true);
-  // W3 the tutor counter and the session log are written where the work happens
-  r=JSON.parse(await ev(ws,`(function(){ tutorUseBump('chat'); tutorUseBump('quiz'); const m=new Date().toISOString().slice(0,7); return JSON.stringify(store.tutorUse[m]); })()`));
-  check('W3 tutorUseBump counts per month', r.chat===5 && r.quiz===2 && r.cards===1, r);
   // W4 with a semester that has ended, the line says the recap is ready and is not hideable
   await fresh(ws,{seed:WSEED});
   await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.6.1'}, '*'); window.postMessage({lmk:'canvas-payload', payload:(function(){ const p=${PAYLOAD}; for (const k in p.items) p.items[k].due=new Date(Date.now()-10*864e5).toISOString(); return p; })()}, '*')`); await sleep(900);
