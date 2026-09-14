@@ -978,9 +978,7 @@ const fmtMins = m => m >= 60 ? (Math.round(m / 30) / 2) + "h" : m + "m";
 
 /* ================= state ================= */
 const LS_KEY = "duenorth_v1";
-/* Cards the tutor wrote, kept per course and scheduled so they come back.
-   Intervals in days after each "got it"; a miss sends a card back to tomorrow. Nothing here costs a token. */
-let store = {done:{}, dropped:{}, starred:{}, triaged:{}, streakDays:[], custom:null, customRows:[], undated:[], itemNotes:{}, courseNotes:{}, grades:{}, deleted:{}, celebrated:{}, effortOv:{}, leadOv:{}, seriesRules:{}, kindOv:{}, extGraded:{}, ext:null, capacity:null, capOv:{}, dur:{}, spent:{}, tab:{}, anon:"", tutorCtx:{}, tutorLog:[]};
+let store = {done:{}, dropped:{}, starred:{}, triaged:{}, streakDays:[], custom:null, customRows:[], undated:[], itemNotes:{}, courseNotes:{}, grades:{}, deleted:{}, celebrated:{}, effortOv:{}, leadOv:{}, seriesRules:{}, kindOv:{}, extGraded:{}, ext:null, capacity:null, capOv:{}, dur:{}, spent:{}, tab:{}, anon:"", };
 try { const raw = localStorage.getItem(LS_KEY); if (raw) store = Object.assign(store, JSON.parse(raw)); } catch(e){}
 function migrateIds(s){
   for (const mk of ["done","dropped","starred","triaged","itemNotes"]) {
@@ -2102,8 +2100,7 @@ function studyPrompt(e){
 }
 const aiHref = e => "https://claude.ai/new?q=" + encodeURIComponent(studyPrompt(e));
 /* ---- Study with AI: one sheet, the AI the student already uses, a prompt that knows the assignment ----
-   Nothing is sent anywhere by LMK: the student opens their own Claude, ChatGPT or Gemini with the prompt.
-   "Tell me" is a single anonymous count (one per device) so the admin knows how many want the tutor inside. */
+   Nothing is sent anywhere by LMK: the student opens their own Claude, ChatGPT or Gemini with the prompt. */
 const AI_TARGETS = [
   {id:"claude",  name:"Claude",  url: p => "https://claude.ai/new?q=" + encodeURIComponent(p)},
   {id:"chatgpt", name:"ChatGPT", url: p => "https://chatgpt.com/?q=" + encodeURIComponent(p)},
@@ -2262,7 +2259,7 @@ const _renderPlus = renderPlus;
    mentioning the gift. The one moment the feature exists for was the one moment it could not survive. */
 renderPlus = function(){ _renderPlus(); renderPlusPill(); if (plusOverlay.classList.contains("open") && plusOverlay.dataset.sheet === "plans") openPlus(); };
 /* The Plus sheet: one screen that says what it is, what it costs, and where this student stands. Opened from
-   the footer pill, the Study sheet, the setup card and the tutor's "out of messages" line. In the artifact
+   the footer pill, the Study page and the setup card. In the artifact
    (which can't reach the worker) it is a door to lmktoday.app. */
 const plusOverlay = document.getElementById("plusOverlay");
 function openPlus(){
@@ -2382,7 +2379,7 @@ function renderPlusPill(){
   pill.hidden = !show; if (!show) return;
   const lvl = myLevel(), free = lvl === "free";
   pill.classList.toggle("free", free);
-  pill.title = free ? "What the tutor can do on each plan" : "Your plan";
+  pill.title = free ? "What each plan gives you" : "Your plan";
   txt.textContent = free ? "LMK plans" : TIER_NAMES[lvl] + " \u2713";
 }
 /* Back from Stripe: a link's success page sends the student to #plus=ok (a plan) or #credits=ok (a pack).
@@ -2436,10 +2433,10 @@ function giftThanks(){
   plusOverlay.dataset.sheet = "thanks";
   plusOverlay.classList.add("open");
 }
-/* ---- the tutor inside LMK ----
+/* ---- the assignment page ----
    The worker holds the key and the allowance; the page sends only this assignment's context and the
    conversation. Threads live on this device (localStorage), never in the synced store. */
-/* Everything LMK already knows about this piece of work, in the tutor's hands: what it is worth, the rubric,
+/* Everything LMK already knows about this piece of work: what it is worth, the rubric,
    how long it usually takes, today's budget, what else is due this week, and the course standing. Nothing here
    names the student. */
 function studyFacts(e){
@@ -2484,12 +2481,6 @@ function courseFeedback(course){
   EVENTS.filter(x => x.course === course).forEach(x => { const it = items[x.id.slice(1)]; if (it && it.fb && (!best || x.due > best.due)) best = {due: x.due, t: x.title, fb: it.fb}; });
   return best ? `on "${best.t}": ${best.fb}` : "";
 }
-/* The tutor should arrive with a plan, not a blank box. This is written from the brief, costs nothing,
-   and gives the student two obvious next moves. */
-/* A quiz is one assistant turn the student works through in place. Picks are saved with the thread, and the
-   turn's text is rewritten as a digest so the next chat message knows how the quiz went. */
-/* The Study screen. One assignment, full page: the brief on the left (what it is, what it is worth, the rubric,
-   the time you have, your notes) and the tutor on the right. The 60-second render never touches this page. */
 function scopeOptions(cur){
   const n = now(), byCourse = {};
   EVENTS.filter(open).filter(x => x.kind !== "fyi").sort((a, b) => a.due - b.due).forEach(x => { (byCourse[x.course] = byCourse[x.course] || []).push(x); });
@@ -3360,7 +3351,7 @@ async function refClaimMaybe(){
   let j; try { j = await roomApi("/ref/claim", Object.assign({code: JOIN.code}, JOIN.cid ? {cid: JOIN.cid} : {})); } catch(_) { return; }   // roomApi adds host, course and the proof for a course join
   if (!j || j.error === "network" || j.error === "cloud" || j.error === "proof") return;   // no proof yet: keep the invite for the next sync
   const cid = JOIN.cid; joinClear();
-  if (j.ok && j.paid) { plusRefresh(true); toast(j.inviterPaid ? `Welcome — you and the friend who invited you each got ${j.units} tutor units.` : `Welcome — ${j.units} tutor units are on your account.`); }
+  if (j.ok && j.paid) { plusRefresh(true); const d = +j.days || 14; toast(j.inviterPaid ? `Welcome — you and the friend who invited you each got ${d} days of LMK Plus.` : `Welcome — ${d} days of LMK Plus are on your account.`); }
   if (cid && courseOfCid(cid)) setTimeout(() => openRoom(cid), j.ok && j.paid ? 2500 : 600);
   render();
 }
@@ -4201,7 +4192,6 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="host-add") { try { window.postMessage({lmk:"host-page"}, "*"); } catch(_){} toast("Chrome is opening a tab where you can add your school."); }
   else if (a==="open-token") { const g = document.getElementById("gearBtn"); if (g) g.click(); const dt = document.getElementById("cloudTokenWay"); if (dt) { dt.hidden = false; dt.open = true; setTimeout(() => dt.scrollIntoView({block: "start"}), 100); } }
   else if (a==="plus-open") { openPlus(); }
-  else if (a==="intro-dismiss") { try { localStorage.setItem("lmk_tutor_intro", "1"); } catch(_){} render(); }
   else if (a==="open-gear") { const g = document.getElementById("gearBtn"); if (g) g.click(); }
   else if (a==="web-signin") { webSignIn(); }
   else if (a==="triage-more") { triageOpen = true; render(); }
@@ -5600,7 +5590,7 @@ async function adminSave(patch){
     const j = await r.json(); if (ADMIN.data) ADMIN.data.settings = j.settings;
     try { localStorage.removeItem("lmk_cfg"); } catch(_){}
     toast("Saved. Everyone sees it within a minute.");
-    ADMIN.at = 0; await adminFetch(true);   // the worker derives the tutor card from settings; re-read so the card shows what was saved
+    ADMIN.at = 0; await adminFetch(true);   // re-read so the card shows what was actually saved
     return;
   } catch(e) { toast("Save failed — the worker didn't accept it."); }
   render();
@@ -5627,7 +5617,7 @@ async function adminLookup(){
     const r = await fetch(apiUrl("/admin/student?key=" + encodeURIComponent(ADMIN.key) + "&sid=" + encodeURIComponent(q.trim())), {mode:"cors", credentials:"omit"});
     const j = await r.json(); const p = j.student;
     const planTxt = j.plan ? (j.plan.plus ? (j.plan.granted ? "Plus, granted" : "Plus, paying") + (j.plan.until ? " until " + FMT_DAY.format(new Date(j.plan.until)) : "") : "free plan") : "";
-    const costTxt = j.cost ? ` · tutor ${j.cost.d30.n} msgs / $${j.cost.d30.usd.toFixed(2)} in 30 d, $${j.cost.all.usd.toFixed(2)} all time` : "";
+    const costTxt = "";
     const planBtn = j.sid ? (j.plan && j.plan.plus ? `<button class="minibtn drop" data-act="adm-student" data-sid="${esc(j.sid)}" data-do="revoke">Revoke Plus</button>` : `<button class="minibtn" data-act="adm-student" data-sid="${esc(j.sid)}" data-do="grant" data-months="4" data-level="plus">Plus · 4 mo</button>`) : "";
     if (!p) { out.innerHTML = j.sid ? `Known to the worker (${esc(planTxt)}${costTxt}) but not syncing from anywhere. ${planBtn}` : "No student with that code."; return; }
     const ago = t => t ? Math.round((Date.now() - t) / 60000) + " min ago" : "never";
@@ -5672,8 +5662,8 @@ async function adminStudent(sid, action, months, level){
 }
 function adminCopyCsv(){
   const d = ADMIN.data; if (!d) return;
-  const lines = ["day,installs,first_syncs,opens,synced,extension,tutor_msg"];
-  Object.keys(d.days || {}).sort().forEach(k => { const r = d.days[k]; lines.push(`${k},${r.install||0},${r.firstsync||0},${r.open||0},${r.synced||0},${r.extension||0},${r.tutor_msg||0}`); });
+  const lines = ["day,installs,first_syncs,opens,synced,extension"];
+  Object.keys(d.days || {}).sort().forEach(k => { const r = d.days[k]; lines.push(`${k},${r.install||0},${r.firstsync||0},${r.open||0},${r.synced||0},${r.extension||0}`); });
   try { navigator.clipboard.writeText(lines.join("\n")).then(() => toast("CSV copied — " + (lines.length - 1) + " days."), () => toast("Couldn't copy here.")); } catch(_) { toast("Couldn't copy here."); }
 }
 const PHASE1 = [
@@ -5692,7 +5682,6 @@ document.querySelector(".wrap").addEventListener("change", e => {
   const list = {}; document.querySelectorAll("[data-check]").forEach(c => { list[c.dataset.check] = c.checked ? 1 : 0; });
   adminSave({checklist: list});
 });
-/* Review: the cards the tutor wrote, coming back on schedule. No tokens, no limits, on every plan. */
 /* bars + a line over 30 day keys; used for opens/installs and for cash/tokens */
 function chartCard(title, sub, keys, bar, line, barLabel, lineLabel, fmt, tip){
   const W = 640, H = 210, padL = 40, padR = 12, padT = 12, padB = 26;
@@ -5734,13 +5723,13 @@ function renderAdmin(root){
   if (!ADMIN.data && !ADMIN.err) { adminFetch(false); root.innerHTML = `<div class="empty">Reading the numbers…</div>`; return; }
   if (!ADMIN.data) { root.innerHTML = `<div class="empty" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${esc(ADMIN.err)} <button class="minibtn" data-act="adm-refresh">Try again</button> <button class="minibtn drop" data-act="adm-logout">Forget admin key</button></div>`; return; }
   const d = ADMIN.data, days = d.days || {}, S = d.settings || {}, tot = d.totals || {};
-  const CL = d.cloud || {}, T = d.today || {}, ops = d.ops || {}, PL = d.plus || {}, TU = d.tutor || {}, errs = d.errs || [], probs = d.problems || [];
+  const CL = d.cloud || {}, T = d.today || {}, ops = d.ops || {}, PL = d.plus || {}, errs = d.errs || [], probs = d.problems || [];
   const CO = d.cost || null, RV = d.revenue || null;
   const money = v => "$" + (+v || 0).toFixed(2);
   const ago = t => { if (!t) return "never"; const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 1440 ? Math.round(m / 60) + " h ago" : Math.round(m / 1440) + " d ago"; };
   const n = v => (+v || 0).toLocaleString();
   const errToday = d.errToday || 0;   // app errors live in the `errs` table; T.err was always undefined
-  const reqToday = (T.sync_pull || 0) + (T.sync_refresh || 0) + (T.sync_register || 0) + (T.cron_step || 0) + (T.open || 0) + (T.install || 0) + (T.firstsync || 0) + errToday + (T.tutor_msg || 0);
+  const reqToday = (T.sync_pull || 0) + (T.sync_refresh || 0) + (T.sync_register || 0) + (T.cron_step || 0) + (T.open || 0) + (T.install || 0) + (T.firstsync || 0) + errToday;
   const cronStale = ops.cronAt && Date.now() - ops.cronAt > 10 * 60e3;
   /* One clock. Rows are keyed by the worker's UTC day, so the axis and "today" must be UTC too — reading
      them off the admin's own local calendar shifted the whole chart for anyone west of Greenwich. */
@@ -5783,7 +5772,7 @@ function renderAdmin(root){
   if (S.cloudPaused) attention.push(["students", "Sync from anywhere is paused (kill switch on)."]);
   if (installs >= 5 && syncs / installs < 0.5) attention.push(["students", `Only ${conv}% of devices ever connected to Canvas. Activation, not features, is the bottleneck.`]);
   if (d.costError || d.revenueError) attention.push(["ops", "Cost or revenue tables failed to read: " + (d.costError || d.revenueError) + ". Apply schema.sql."]);
-  const TT = PL.tiers || {}, UN = PL.units || {};    // the tier table: read by the Tutor tab and the Plus tab
+  const TT = PL.tiers || {};    // the tier table the Plus tab edits
   const TABS = [["overview", "Overview", 0], ["revenue", "Revenue", 0], ["students", "Students", CL.errors || 0], ["plus", "Plus", (PL.tray || {}).stuck || 0], ["ops", "Ops", (cronStale ? 1 : 0) + (errToday ? 1 : 0) + rmReports]];
   if (!TABS.some(t => t[0] === ADMIN.tab)) ADMIN.tab = "overview";
   const tile = (k, v, s, extra) => `<div class="card tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div>${extra || ""}</div>`;
@@ -5808,7 +5797,7 @@ function renderAdmin(root){
       ${tile("30 days", money(cash30), `cash in · MRR ${money(mrr)}`)}
     </div>`;
     html += `<div class="card adm-card"><h3>Needs attention</h3>${attention.length ? `<ul class="attn">${attention.map(([tab, msg]) => `<li><span>${esc(msg)}</span><button class="minibtn" data-act="adm-tab" data-tab="${tab}">Open</button></li>`).join("")}</ul>` : `<p class="sub2" style="margin:0">Nothing. The machine is running, the money side is wired, and no one is stuck.</p>`}</div>`;
-    html += chartCard("Last 30 days", `Every day here is a UTC day, and a device counts once per day. <b>Active today</b> is devices that opened the app, not opens. Every number on this tab counts <b>devices</b>, because that is what the counter can see: one browser opening the app is one device, and a student with a laptop and a phone is two. The one people-number is the students line under Devices ever, which comes from sync ids — a sync id follows a student across their devices on purpose. <b>Devices ever</b> and <b>Connected to Canvas</b> are all-time${firstDay ? `, since ${esc(firstDay)}` : ""} — before ${esc(APP_BUILD)} they showed a 90-day slice and rows were bucketed by each student's own local midnight, so anything before that date is a different measurement. The extension has been installed ${n(extInstalls)} times. Your own devices, test renders and anything not served from lmktoday.app never count.`, keys, k => get(k, "open"), k => get(k, "synced"), "Devices active", "Reached Canvas", v => String(v), k => `${k}: ${known(k) ? `${get(k, "open")} active, ${get(k, "synced")} with Canvas, ${get(k, "install")} new devices, ${get(k, "tutor_msg")} tutor msgs` : "before the counter existed"}`);
+    html += chartCard("Last 30 days", `Every day here is a UTC day, and a device counts once per day. <b>Active today</b> is devices that opened the app, not opens. Every number on this tab counts <b>devices</b>, because that is what the counter can see: one browser opening the app is one device, and a student with a laptop and a phone is two. The one people-number is the students line under Devices ever, which comes from sync ids — a sync id follows a student across their devices on purpose. <b>Devices ever</b> and <b>Connected to Canvas</b> are all-time${firstDay ? `, since ${esc(firstDay)}` : ""} — before ${esc(APP_BUILD)} they showed a 90-day slice and rows were bucketed by each student's own local midnight, so anything before that date is a different measurement. The extension has been installed ${n(extInstalls)} times. Your own devices, test renders and anything not served from lmktoday.app never count.`, keys, k => get(k, "open"), k => get(k, "synced"), "Devices active", "Reached Canvas", v => String(v), k => `${k}: ${known(k) ? `${get(k, "open")} active, ${get(k, "synced")} with Canvas, ${get(k, "install")} new devices, ${get(k, "synced")} tutor msgs` : "before the counter existed"}`);
   }
   if (ADMIN.tab === "revenue") {
     if (!RV) html += `<div class="card adm-card"><h3>Revenue</h3><p class="sub2" style="margin:0">The worker hasn't answered with cost and revenue yet${d.costError || d.revenueError ? ": " + esc(d.costError || d.revenueError) : ""}. Deploy worker v10 and apply schema.sql (usage and payments tables).</p></div>`;
@@ -5934,7 +5923,6 @@ function renderAdmin(root){
     html += `<div class="card adm-card"><h3>Places</h3><div class="adm-links">
       <a href="https://chrome.google.com/webstore/devconsole" target="_blank" rel="noopener">Chrome Web Store dashboard<small>review status, install count, ratings</small></a>
       <a href="https://dashboard.stripe.com" target="_blank" rel="noopener">Stripe<small>payments, subscriptions, the webhook</small></a>
-      <a href="https://console.anthropic.com" target="_blank" rel="noopener">Anthropic console<small>tutor spend and the monthly limit</small></a>
       <a href="https://mail.google.com/mail/#search/subject%3A%22LMK%22" target="_blank" rel="noopener">Feedback inbox<small>Gmail, every message with LMK in the subject</small></a>
       <a href="https://dash.cloudflare.com" target="_blank" rel="noopener">Cloudflare<small>the worker and its database</small></a>
       <a href="https://github.com/DVNSON/lmk/actions" target="_blank" rel="noopener">GitHub Actions<small>the cron tick, every 5 minutes</small></a>
