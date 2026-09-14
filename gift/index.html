@@ -79,88 +79,15 @@
 </style>
 </head>
 <body>
-<header><div class="wrap"><a href="/" style="text-decoration:none"><span class="mark">LMK</span></a></div></header>
-
-<main class="wrap">
-  <section class="hero">
-    <h1>Cover LMK for your student.</h1>
-    <p>They'll know what to do today — and what it's going to take — without you having to ask.</p>
-  </section>
-
-  <div id="cards" class="cards"></div>
-  <p class="note" id="note">One payment. No renewal, no card kept on file, nothing to cancel. When it ends they simply go back to the free version with everything they've built still there.</p>
-
-  <section class="panel">
-    <h2>How it works</h2>
-    <ol class="steps">
-      <li>Ask your student for their <b>LMK code</b> — eight characters, in the app under <b>LMK plans</b>. They can send it to you in a text.</li>
-      <li>Pick a length above and pay. You'll be asked for that code at the checkout.</li>
-      <li>That's it. It lands on their account within seconds. <b>Nothing for them to set up, nothing to redeem</b>, and no account for you to create.</li>
-    </ol>
-  </section>
-
-  <section class="panel">
-    <h2>What they get</h2>
-    <ul class="what">
-      <li>A daily plan built from their real Canvas assignments, sized to the hours they actually have that day.</li>
-      <li>Everything left in the semester ranked by how much of their final grade it decides per hour of work, so a
-        limited evening goes to the thing that actually moves the grade.</li>
-      <li>What they need to score on what is left to finish each class at the grade they are aiming for — in every
-        class, not just one.</li>
-      <li>Their plan kept current on their phone while the laptop is closed, and one short message each morning.</li>
-      <li>A weekly summary they can choose to send you. They decide whether to send it, and it never contains grades.</li>
-      <li><b>No AI is involved and nothing they write is sent to a model.</b> This is arithmetic on the assignments
-        their school already published.</li>
-      <li><b>You will never see their grades, their work, or what they do in the app.</b> This is a gift, not a monitor — there is no parent dashboard and there will not be one.</li>
-      <li>What LMK itself handles is written down plainly in the <a href="/privacy.html">privacy policy</a>, including the short list of what ever reaches LMK's own server.</li>
-    </ul>
-  </section>
-
-  <footer>
-    <p>Questions? <a href="mailto:hello@lmktoday.app">hello@lmktoday.app</a> &nbsp;·&nbsp; <a href="/">What LMK is</a> &nbsp;·&nbsp; <a href="/privacy.html">Privacy</a> &nbsp;·&nbsp; <a href="/terms.html">Terms</a></p>
-  </footer>
-</main>
-
-<script>
-/* Prices and links come from the worker, so this page can never drift from what Stripe will charge.
-   If it cannot be reached the page says so rather than showing a stale number. */
-var API = "https://lmk-api.emieldieuvenson.workers.dev";
-var esc = function(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
-  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); };
-var COVERS = {30: "A month, for a rough patch mid-term.", 150: "A full semester, straight through finals.", 300: "The whole school year, fall and spring."};
-
-function perMonth(g){ return "$" + (g.cents / 100 / (g.days / 30)).toFixed(2).replace(/\.00$/, "") + "/month"; }
-
-function render(list){
-  var el = document.getElementById("cards");
-  if (!list || !list.length) {
-    el.innerHTML = '<div class="err">The gift options can\'t be loaded right now. Please try again in a minute, or email '
-      + '<a href="mailto:hello@lmktoday.app">hello@lmktoday.app</a> and we\'ll sort it out.</div>';
-    document.getElementById("note").hidden = true;
-    return;
-  }
-  // longest first: the parent sees the whole-year commitment before the smaller ones
-  list.sort(function(a, b){ return b.days - a.days; });
-  el.innerHTML = list.map(function(g, i){
-    var pick = g.days === 150;              // the term is the one most people are actually buying for
-    return '<div class="card' + (pick ? ' pick' : '') + '">'
-      + (pick ? '<span class="tag">Covers the term they\'re in</span>' : '')
-      + '<h3>' + esc(g.name || (g.days + " days")) + '</h3>'
-      + '<div class="amt">' + esc(g.price) + '</div>'
-      + '<div class="per">' + perMonth(g) + '</div>'
-      + '<p class="covers">' + esc(COVERS[g.days] || (g.days + " days of LMK Pro.")) + '</p>'
-      + '<a class="btn' + (pick ? ' grad' : '') + '" href="' + esc(g.link) + '">Cover ' + esc((g.name || "").toLowerCase().replace(/^a /, "a ")) + '</a>'
-      + '</div>';
-  }).join("");
-}
-
-fetch(API + "/config", {mode: "cors", credentials: "omit"})
-  .then(function(r){ return r.ok ? r.json() : null; })
-  .then(function(j){
-    var gifts = j && j.plus && j.plus.gifts ? j.plus.gifts : [];
-    render(gifts.filter(function(g){ return g && g.link && /^https:\/\/buy\.stripe\.com\//.test(g.link); }));
-  })
-  .catch(function(){ render(null); });
-</script>
+  <main class="wrap" style="max-width:640px;margin:0 auto;padding:48px 20px">
+    <h1>LMK is free.</h1>
+    <p class="sub">Someone sent you here to cover LMK for a student. You don't need to: as of 14 September 2026 every
+    part of LMK is free for everyone — the daily plan, the grade ranking, what they need to finish each class, the
+    classmates rooms and the semester recap. There is nothing to buy and nothing to renew.</p>
+    <p class="sub">If you want to help, the thing that actually helps is other students hearing about it.</p>
+    <p><a class="btn grad" href="https://lmktoday.app/">See what LMK does</a></p>
+    <p class="sub" style="margin-top:28px;font-size:13px">Anyone who bought LMK before that date keeps everything.
+    Questions: <a href="mailto:hello@lmktoday.app">hello@lmktoday.app</a>.</p>
+  </main>
 </body>
 </html>
