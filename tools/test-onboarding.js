@@ -23,8 +23,10 @@ async function fresh(ws, {seed={onboarded:0}, ls={}, mobile=false}={}){
   await send(ws,'Page.navigate',{url:'http://localhost:8899/app/'}); await sleep(2600);
 }
 const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...document.querySelectorAll('.checks li')].map(li=>li.className+':'+li.textContent.trim());
+  const wb2=document.getElementById('wBody2'), heroTxt=(document.querySelector('section.view .hero')||{}).textContent||'';
+  const s3el=document.getElementById('wSignin3');
   const hero=$('section.view .hero'); return JSON.stringify({rows, h1: hero? (hero.querySelector('h1')||{}).textContent : null, waiting: !!(hero&&hero.classList.contains('waiting')),
-  addToChrome: !!(hero && /Add to Chrome/.test(hero.innerHTML)), overlay: welcomeOverlay.classList.contains('open'), wInstallHidden: $('#wInstall').hidden, wHead2: $('#wHead2').textContent,
+  addToChrome: !!(hero && /Add to Chrome/.test(hero.innerHTML)), overlay: welcomeOverlay.classList.contains('open'), wInstallHidden: $('#wInstall').hidden, wBody2: wb2?wb2.textContent:'', s3: s3el?s3el.textContent:'', s3cls: s3el?s3el.className:'', reqTag: !!document.querySelector('.checks .req'), signinLbl: [...document.querySelectorAll('section.view .hero [data-act="web-signin"]')].map(b=>b.textContent).join(''), otherLbl: [...document.querySelectorAll('section.view .hero [data-act="open-gear"]')].map(b=>b.textContent).join(''), heroTxt, wHead2: $('#wHead2').textContent,
   wChips: $('#wClasses')? {hidden:$('#wClasses').hidden, n:$('#wClasses').querySelectorAll('.chip').length} : null,
   syncedIn: !!$('.hero.celebrate .synced-in'), chips: document.querySelectorAll('.synced-in .chip').length, confetti: document.querySelectorAll('.synced-in .confetti i').length,
   ext: !!store.ext, firstKey: localStorage.getItem('lmk_synced_first'), draft: localStorage.getItem('lmk_name_draft'), leaked: /\\$\\{/.test(document.body.innerText)}); })()`;
@@ -38,7 +40,9 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
   await fresh(ws); let r=JSON.parse(await ev(ws,Q));
   check('T1 fresh: checklist renders with row 1 current', r.rows.length===3 && /^now:/.test(r.rows[0]) && /^todo:/.test(r.rows[1]), r.rows);
   check('T1 fresh: Add to Chrome is the primary action', r.addToChrome, r);
-  check('T1 fresh: overlay open, its install button hidden, step 2 points at the card', r.overlay && r.wInstallHidden && r.wHead2==='Get your classes in.', {o:r.overlay,h:r.wInstallHidden,w:r.wHead2});
+  check('T1 fresh: the extension is marked required, and the alternatives say what they are for', r.reqTag && /required step/.test(r.heroTxt) && /the extension does this/.test(r.heroTxt) && r.signinLbl==='Used LMK before? Sign in' && r.otherLbl==="Can't add it? Other ways", {req:r.reqTag, s:r.signinLbl, o:r.otherLbl});
+  check('T1 fresh: overlay open, its install button hidden, step 2 names the extension as the required step', r.overlay && r.wInstallHidden && /required step/.test(r.wHead2) && /no automatic way in without it/.test(r.wBody2), {o:r.overlay,h:r.wInstallHidden,w:r.wHead2,b:r.wBody2});
+  check('T1 fresh: the sheet\'s Google button is a demoted restore, not the loudest thing in it', r.s3==='Used LMK before? Sign in' && r.s3cls==='btn ghost', {t:r.s3, c:r.s3cls});
   check('T1 fresh: no template literal leaked into visible text', !r.leaked);
 
   // T2 hello arrives (posted FROM the page, satisfying ev.source === window)
