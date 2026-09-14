@@ -41,6 +41,10 @@ m = merge({savedAt: t}, {savedAt: t - 1});
 check("absent tutorUse stays absent", !("tutorUse" in m), Object.keys(m).filter(k => /tutorUse/.test(k)));
 m = merge({savedAt: t - 1, roomName: "Old"}, {savedAt: t, roomName: "New"});
 check("roomName: newer non-empty wins", m.roomName === "New", m.roomName);
+m = merge({savedAt: t - 1, aheadSkip: {a1: "2026-09-14", a2: "2026-09-10"}}, {savedAt: t, aheadSkip: {a2: "2026-09-12", a3: "2026-09-14"}});
+check("aheadSkip: union, the later day wins per id", m.aheadSkip.a1 === "2026-09-14" && m.aheadSkip.a2 === "2026-09-12" && m.aheadSkip.a3 === "2026-09-14", m.aheadSkip);
+m = merge({savedAt: t}, {savedAt: t - 1});
+check("absent aheadSkip stays absent", !("aheadSkip" in m), Object.keys(m).filter(k => /ahead/.test(k)));
 m = merge({savedAt: t}, {savedAt: t - 1});
 check("absent room keys stay absent (no empty-string litter)", !("roomName" in m) && !("roomHandle" in m) && !("roomNudge" in m) && !("recapHide" in m), Object.keys(m).filter(k => /^(room|recap)/.test(k)));
 
