@@ -35,6 +35,9 @@ const READ = `(function(){
     shareFinal: w("Final exam"), sharePs3: w("Problem set 3"),
     need: (needFor("ECN 212",90)||{}).need,
     ceiling: (targetMath("ECN 212")||{}).ceiling,
+    unseen: (targetMath("ECN 212")||{}).unseen,
+    blind: (targetMath("ECN 212")||{}).blind,
+    line: (targetLine("ECN 212")||{}).txt,
     left: (targetMath("ECN 212")||{}).left,
     grade: (gradeFor("ECN 212")||{}).pct,
     doneIds: Object.keys(store.done||{}),
@@ -107,6 +110,24 @@ const READ = `(function(){
   r = await sync({ps3:{d:null,pts:10}, extra:"", drop:""});
   check('9. an assignment with its date removed leaves the ranking rather than sitting at an invented date',
         !r.rank.includes("Problem set 3") && !r.planTitles.includes("Problem set 3"), {rank:r.rank, plan:r.planTitles});
+
+  // 10. a weighted category the professor has not published any dated work in yet. LMK can only see the
+  //     groups that have dated items; if it still divides by the syllabus total, the ceiling collapses and
+  //     the app tells a 96% student their grade is out of reach. Three of Emiel's six courses read that way.
+  r = await sync({ps3:{d:6,pts:10}, finalPts:100, extra:`delete it["201"]; delete it["202"];`});
+  //     17 of 20 homework points are already scored, so 90% is the true ceiling of the visible 40%.
+  //     The old maths multiplied that by 40/100 and reported 36%.
+  check('10. a course whose whole Exams category is undated still has a reachable ceiling',
+        Math.abs(r.ceiling-90)<0.1, {ceiling:r.ceiling, unseen:r.unseen});
+  check('10. and the maths says which 60% of the grade it could not see',
+        Math.abs(r.unseen-0.6)<0.01 && (r.blind||[]).some(b=>b.name==="Exams"), {unseen:r.unseen, blind:r.blind});
+  check('10. the card refuses to name a target when most of the grade is unpublished',
+        /Too early to say/.test(r.line||""), r.line);
+
+  // 11. the same course with every category published: nothing about the honest case changes
+  r = await sync({});
+  check('11. a fully published course is unaffected by the blind-category rule',
+        r.unseen===0 && Math.abs(r.ceiling-90)<0.1 && /You need/.test(r.line||""), {unseen:r.unseen, ceiling:r.ceiling, line:r.line});
 
   console.log('\nJS errors during run:', errs.length? errs.slice(0,3) : 'none');
   console.log(`\n${fail?fail+' FAILED':'ALL OK'}  (${pass} passed)`);
