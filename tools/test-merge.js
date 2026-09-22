@@ -37,6 +37,9 @@ check("recapHide: the later dismissal wins", m.recapHide === t - 500, m.recapHid
 m = merge({savedAt: t - 1, sessLog: {s1: 5}, wrappedSeen: {a: 1}, goal: {"ECN 212": 90}}, {savedAt: t, sessLog: {s2: 6}, wrappedSeen: {b: 2}, goal: {"ECN 212": 93, "HST 100": 87}});
 check("goal: newer wins per course, courses union", m.goal["ECN 212"] === 93 && m.goal["HST 100"] === 87, m.goal);
 check("sessLog and wrappedSeen union", m.sessLog.s1 === 5 && m.sessLog.s2 === 6 && m.wrappedSeen.a === 1 && m.wrappedSeen.b === 2, [m.sessLog, m.wrappedSeen]);
+m = merge({savedAt: t - 1, courseColor: {"ECN 212": "c1", "PSY 101": "c5"}}, {savedAt: t, courseColor: {"ECN 212": "c3"}});
+check("courseColor: newer wins per course, courses union", m.courseColor["ECN 212"] === "c3" && m.courseColor["PSY 101"] === "c5", m.courseColor);
+check("absent courseColor stays absent", !("courseColor" in merge({savedAt: t - 1}, {savedAt: t})), "leaked");
 m = merge({savedAt: t}, {savedAt: t - 1});
 check("absent goal stays absent", !("goal" in m), Object.keys(m).filter(k => /goal/.test(k)));
 m = merge({savedAt: t - 1, roomName: "Old"}, {savedAt: t, roomName: "New"});
