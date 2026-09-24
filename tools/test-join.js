@@ -26,7 +26,7 @@ async function open(hash, ua, mobile){
 (async()=>{
   const H='#join=canvas.asu.edu.269886.abc123&c=MAT%20210';   // c= is the COURSE; the friend's name is in the chat, never the URL
   const ph = await open(H, IPHONE, true);
-  check('PHONE: the invite is remembered', ph.join.code==='abc123' && ph.join.cid==='269886' && ph.join.tag==='MAT 210', ph.join);
+  check('PHONE: the invite is remembered; an old three-part link parses and its sharer code is dropped', !ph.join.code && ph.join.cid==='269886' && ph.join.tag==='MAT 210', ph.join);
   check('PHONE: the headcount was fetched', ph.join.count===3, ph.join.count);
   check('PHONE: the welcome names the ROOM the link is for, with its headcount', /invited to the MAT 210 room — 3 classmates are already in it/.test(ph.text), ph.text.slice(0,300));
   check('PHONE: it never presents the course as a person', !/MAT 210 is (already )?on LMK/.test(ph.text), ph.text.slice(0,300));

@@ -92,7 +92,7 @@ const openDetails=(P,re)=>ev(P.ws,`(()=>{const d=[...document.querySelectorAll('
   const shared=JSON.parse(await ev(A.ws,`JSON.stringify(window.__shared)`)); const msg=shared[0]||'';
   const link=(msg.match(/https?:\S+/)||[''])[0];
   say('A',`taps Share → clipboard: "${msg.slice(0,90)}…"`);
-  check('L5 A: the share text carries the join link with host, course id, A\'s code and the COURSE name — and no student name', new RegExp(`#join=${HOST.replace(/\\./g,'\\.')}\\.${CID}\\.${CODE_A}&c=MAT%20210$`).test(link) && /Free, a Chrome extension/.test(msg) && !/Emiel/.test(msg), {link,msg:msg.slice(0,200)});
+  check('L5 A: the share text carries the join link with the chat door, host, course id and the COURSE name — no code, no student name', new RegExp(`/app/\\?from=chat#join=${HOST.replace(/\\./g,'\\.')}\\.${CID}&c=MAT%20210$`).test(link) && !link.includes(CODE_A) && /Free, a Chrome extension/.test(msg) && !/Emiel/.test(msg), {link,msg:msg.slice(0,200)});
   await openDetails(A,'/chat link/i'); await A.set('#roomChat','https://groupme.com/join_group/123/abc'); await A.click('[data-act="room-chat-set"]'); await sleep(1500);
   await openDetails(A,'/Propose a session/i'); await A.set('#sessNote','Hayden Library 2nd floor'); await A.click('[data-act="sess-propose"]'); await sleep(1800); r=await A.text('#roomModal');
   await A.click('[data-act="room-close"]'); await sleep(600); const lineA=await A.text('.roomline');
@@ -106,7 +106,7 @@ const openDetails=(P,re)=>ev(P.ws,`(()=>{const d=[...document.querySelectorAll('
   let B=await open('B-phone',IPHONE,true,{},hash); await sleep(1500);
   const w=await B.text('#welcomeOverlay'); const J=JSON.parse(await ev(B.ws,`JSON.stringify({code:JOIN.code,cid:JOIN.cid,tag:JOIN.tag,count:JOIN.count,hash:location.hash,saved:!!localStorage.getItem('lmk_join')})`));
   say('B-phone',`opens A's link on an iPhone → "${w.slice(0,120)}…"`);
-  check('L7 B-phone: the invite is remembered with the headcount, the hash is scrubbed, and step 2 names the ROOM (never the course as a person) and the full computer step', J.code===CODE_A && J.cid===CID && J.tag==='MAT 210' && J.count===1 && J.hash==='' && J.saved && /invited to the MAT 210 room — 1 classmate is already in it/.test(w) && !/MAT 210 is (already )?on LMK/.test(w) && /sign in with Google there\. Then sign in with Google here/.test(w), {J,w:w.slice(0,400)});
+  check('L7 B-phone: the invite is remembered with the headcount, the hash is scrubbed, and step 2 names the ROOM (never the course as a person) and the full computer step', !J.code && J.cid===CID && J.tag==='MAT 210' && J.count===1 && J.hash==='' && J.saved && /invited to the MAT 210 room — 1 classmate is already in it/.test(w) && !/MAT 210 is (already )?on LMK/.test(w) && /sign in with Google there\. Then sign in with Google here/.test(w), {J,w:w.slice(0,400)});
   const P1=await B.ls(); B.close();
   say('B-phone','puts the phone down. Later, on a laptop that never saw the link…');
 
@@ -134,7 +134,7 @@ const openDetails=(P,re)=>ev(P.ws,`(()=>{const d=[...document.querySelectorAll('
   say('B-phone',`picks the phone up, taps the welcome's "Sign in with Google" → Drive: ${drive.length} calls, toast "${toasts.slice(-1)[0]||''}"`);
   check('L9 B-phone: the real sign-in ran — the data file was listed, read and pushed back — and the toast is written for a phone', tapped && drive.some(d=>/^GET .*LMK-data/.test(d)) && drive.some(d=>/^GET .*f1\?alt=media/.test(d)) && drive.some(d=>/^PATCH/.test(d)) && toasts.includes('Synced — your plan is on this phone now.') && !toasts.some(t=>/Open LMK on your phone/.test(t)), {tapped,drive,toasts});
   const cl=calls.filter(c=>/ref\/claim/.test(c.url)); const refs=state().referrals;
-  check('L10 B-phone: the merge claimed the invite exactly once — code, course, host and a 64-hex proof — and the worker credits A', cl.length===1 && cl[0].body.code===CODE_A && cl[0].body.cid===CID && cl[0].body.host===HOST && /^[a-f0-9]{64}$/.test(cl[0].body.proof||'') && Object.keys(refs).length===1 && Object.values(refs)[0].ref===SID_A, {cl,refs});
+  check('L10 B-phone: the merge asked the worker for no claim and nothing was recorded about who shared — a share earns nothing', cl.length===0 && Object.keys(refs).length===0, {cl,refs});
   r=await Q.text('#roomModal'); const title=await ev(Q.ws,`(document.getElementById('roomTitle')||{}).textContent`);
   const nm2=await ev(Q.ws,`(document.getElementById('roomName')||{}).value||''`);
   check('L11 B-phone: the MAT 210 room opened at once, join form first, saying the invite brought them here; the invite is consumed; no toast claims they are "in"', (await Q.sheetOpen()) && title==='MAT 210' && /Your invite brought you here\. 1 classmate from MAT 210 is here\. Join to see names, and to be seen/.test(r) && nm2==='Sam' && (await Q.ls()).lmk_join===undefined && !toasts.some(t=>/both in|you're in/i.test(t)), {r:r.slice(0,200),title,nm2,toasts});
@@ -148,7 +148,7 @@ const openDetails=(P,re)=>ev(P.ws,`(()=>{const d=[...document.querySelectorAll('
   await send(Q.ws,'Page.reload'); await sleep(4500);
   const hero=await Q.text('#view-now'); await Q.click('.chip[data-course="MAT 210"]'); await sleep(1500); r=await Q.text('.roomline');
   say('B-phone','reloads the page, taps MAT 210');
-  check('L14 B-phone: after a reload the plan is still there (no first run), nothing is claimed twice, and the course line names the session', !/FIRST RUN/.test(hero) && state().calls.filter(c=>c==='/ref/claim').length===1 && /1 classmate on LMK/.test(r) && /you're in/.test(r), {hero:hero.slice(0,80),r});
+  check('L14 B-phone: after a reload the plan is still there (no first run), no claim was ever sent, and the course line names the session', !/FIRST RUN/.test(hero) && state().calls.filter(c=>c==='/ref/claim').length===0 && /1 classmate on LMK/.test(r) && /you're in/.test(r), {hero:hero.slice(0,80),r});
   Q.close();
 
   /* ================= A comes back ================= */
@@ -165,11 +165,11 @@ const openDetails=(P,re)=>ev(P.ws,`(()=>{const d=[...document.querySelectorAll('
   await A.click('[data-act="room-join"]'); await sleep(1500); A.close();
   let C=await open('C-laptop','',false,{},hash); const wc=await C.text('#welcomeOverlay');
   await C.set('#wName','Priya'); await ev(C.ws,POST); await sleep(2500);
-  const early=(await C.calls()).filter(c=>/ref\/claim/.test(c.url)).length;
-  say('C-laptop',`opens the link, adds the extension; Canvas answers while the welcome is still open (claims so far: ${early})`);
+  const early=await C.sheetOpen();
+  say('C-laptop',`opens the link, adds the extension; Canvas answers while the welcome is still open (room open yet: ${early})`);
   await C.click('#wGo'); await sleep(2500); r=await C.text('#roomModal'); toasts=await C.toasts();
   say('C-laptop','taps Let\'s go');
-  check('L16 C-laptop: the welcome named the room; nothing was claimed before Let\'s go (no cloud id yet); Let\'s go claimed it and opened the join form; nobody was auto-joined', /invited to the MAT 210 room — 1 classmate is already in it/.test(wc) && early===0 && (await C.calls()).filter(c=>/ref\/claim/.test(c.url)).length===1 && (await C.sheetOpen()) && /Your invite brought you here/.test(r) && !toasts.some(t=>/both in/.test(t)) && members().join()==='Emiel', {wc:wc.slice(0,200),early,r:r.slice(0,160),toasts,m:members()});
+  check('L16 C-laptop: the welcome named the room; the room stayed shut before Let\'s go (no cloud id yet); Let\'s go opened the join form with no claim sent; nobody was auto-joined', /invited to the MAT 210 room — 1 classmate is already in it/.test(wc) && early===false && (await C.calls()).filter(c=>/ref\/claim/.test(c.url)).length===0 && (await C.sheetOpen()) && /Your invite brought you here/.test(r) && !toasts.some(t=>/both in/.test(t)) && members().join()==='Emiel', {wc:wc.slice(0,200),early,r:r.slice(0,160),toasts,m:members()});
   C.close();
 
   /* ================= what left the devices ================= */

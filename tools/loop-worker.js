@@ -51,12 +51,7 @@ http.createServer((req,res)=>{
       else if(b.action==='out'){ S.rsvps=S.rsvps.filter(x=>!(x.id===b.id&&x.sid===m.sid)) }
       else if(b.action==='cancel'){ S.sessions=S.sessions.filter(s=>!(s.id===b.id&&s.sid===m.sid)); S.rsvps=S.rsvps.filter(x=>x.id!==b.id) }
       return send(200,view(m.host,m.cid,m.sid))}
-    if(u.pathname==='/ref/claim'){const id=identity(b); if(id.err) return send(id.status,{ok:false,error:id.err});
-      if(S.referrals[id.sid]) return send(200,{ok:true,paid:false,reason:'already'});
-      const k=key(id.host,String(b.cid||'')); const rows=S.members[k]||[]; const inviter=rows[0]; if(!inviter) return send(404,{ok:false,error:'no such code'});
-      if(inviter.sid===id.sid) return send(400,{ok:false,error:'self'});
-      const room=S.rooms[k]; const proof=String(b.proof||''); if(!(room&&room.proof&&proof===room.proof)) return send(403,{ok:false,error:proof?'not classmates':'proof'});
-      S.referrals[id.sid]={ref:inviter.sid,at:Date.now()}; return send(200,{ok:true,paid:true,days:14,inviterPaid:true})}
+    if(u.pathname==='/ref/claim'){const id=identity(b); if(id.err) return send(id.status,{ok:false,error:id.err}); return send(200,{ok:true,paid:false,reason:'off'})}   // retired: a share earns nothing; older app copies still call it
     if(u.pathname==='/__state') return send(200,{rooms:S.rooms,members:S.members,sessions:S.sessions,rsvps:S.rsvps,referrals:S.referrals,hits:S.hits,hitKeys:S.hitKeys,calls:S.calls.slice(-60)});
     if(u.pathname==='/__reset'){for(const k in S) S[k]=Array.isArray(S[k])?[]:{}; return send(200,{ok:true})}
     return send(404,{ok:false,error:'no route '+u.pathname});

@@ -48,7 +48,7 @@ const SYNCED = {onboarded:1, profile:{name:"Emiel"}, cloud:{sid:SID, secret:SEC,
   // J1 a fresh laptop opens an invite
   await fresh(ws,{hash:'#join=canvas.asu.edu.184220.b7c1d2e3&c=ECN%20212'});
   let r=JSON.parse(await ev(ws,`JSON.stringify({hash:location.hash, join:JSON.parse(localStorage.getItem('lmk_join')||'null'), kicker:(document.querySelector('section.view .hero .kicker')||{}).textContent, why:[...document.querySelectorAll('section.view .hero .why')].map(x=>x.textContent).join(' | '), w2:document.getElementById('wBody2').textContent, leaked:/\\$\\{/.test(document.body.innerText), calls:window.__calls.map(c=>c.url)})`));
-  check('J1 the hash is stripped and the invite is kept in localStorage, not the store', r.hash==='' && r.join && r.join.code==='b7c1d2e3' && r.join.cid==='184220' && r.join.host==='canvas.asu.edu' && r.join.tag==='ECN 212', r.join);
+  check('J1 the hash is stripped and the invite is kept in localStorage, not the store; an old three-part link parses and its code is dropped', r.hash==='' && r.join && !r.join.code && r.join.cid==='184220' && r.join.host==='canvas.asu.edu' && r.join.tag==='ECN 212', r.join);
   check('J1 the first-run hero says you were invited, names the ROOM and the count (v70.0: c= is the course, never a person)', r.kicker==='You were invited' && /invited to the ECN 212 room — 3 classmates are already in it/.test(r.why) && !/ECN 212 is (already )?on LMK/.test(r.why), {k:r.kicker, why:r.why});
   check('J1 the welcome overlay step 2 is set from JS and names the room', /invited to the ECN 212 room — 3 classmates are already in it/.test(r.w2) && !/ECN 212 is (already )?on LMK/.test(r.w2), r.w2);
   check('J1 no template literal leaked into visible text', !r.leaked);
@@ -57,16 +57,16 @@ const SYNCED = {onboarded:1, profile:{name:"Emiel"}, cloud:{sid:SID, secret:SEC,
   await send(ws,'Page.reload'); await sleep(2200);
   r=JSON.parse(await ev(ws,`JSON.stringify({kicker:(document.querySelector('section.view .hero .kicker')||{}).textContent, join:!!localStorage.getItem('lmk_join')})`));
   check('J2 the invite survives a reload (the install reloads the tab)', r.kicker==='You were invited' && r.join, r);
-  // J3 your own link is ignored; a malformed one is ignored
+  // J3 an old link with a sharer's code (your own, even) is just an invite by class; a malformed one is ignored; #ref= is nothing
   await fresh(ws,{seed:SYNCED, hash:'#join=canvas.asu.edu.184220.a41f9c02&c=ECN%20212'});
   r=JSON.parse(await ev(ws,`JSON.stringify({join:localStorage.getItem('lmk_join'), hash:location.hash})`));
-  check('J3 your own code does nothing', r.join===null && r.hash==='', r);
+  check('J3 an old three-part link is remembered by class with the code dropped — even your own code, which no longer means anything', r.join && JSON.parse(r.join).cid==='184220' && !JSON.parse(r.join).code && r.hash==='', r);
   await fresh(ws,{hash:'#join=evil.example.<script>.zz&c=%3Cb%3Ex'});
   r=JSON.parse(await ev(ws,`JSON.stringify({join:localStorage.getItem('lmk_join'), hash:location.hash, leaked:/evil\\.example|<script>|%3Cscript/i.test(document.getElementById('view-now').innerHTML+document.getElementById('welcomeOverlay').innerHTML)})`));
   check('J3 a malformed invite is dropped, its hash stripped, and nothing of it rendered', r.join===null && r.hash==='' && !r.leaked, r);
   await fresh(ws,{hash:'#ref=b7c1d2e3'});
-  r=JSON.parse(await ev(ws,`JSON.stringify({join:JSON.parse(localStorage.getItem('lmk_join')||'null'), kicker:(document.querySelector('section.view .hero .kicker')||{}).textContent})`));
-  check('J3 a plain #ref= is kept with no course and does not change the hero', r.join && r.join.code==='b7c1d2e3' && r.join.cid==='' && r.kicker!=='You were invited', r);
+  r=JSON.parse(await ev(ws,`JSON.stringify({join:JSON.parse(localStorage.getItem('lmk_join')||'null'), hash:location.hash, kicker:(document.querySelector('section.view .hero .kicker')||{}).textContent})`));
+  check('J3 a plain #ref= (the old referral link) is stripped and ignored: nothing remembered, hero unchanged', r.join===null && r.hash==='' && r.kicker!=='You were invited', r);
 
   // R1 synced, cloud on: the nudge at the bottom of Today, the room line on a course tab, the sheet
   await fresh(ws,{seed:SYNCED});
@@ -106,7 +106,7 @@ const SYNCED = {onboarded:1, profile:{name:"Emiel"}, cloud:{sid:SID, secret:SEC,
   r=JSON.parse(await ev(ws,`JSON.stringify({rows:document.querySelectorAll('.sesslist li').length, mins:sessMinsToday(), today:[...document.querySelectorAll('#view-now .item .t')].some(x=>/^Study/.test(x.textContent))})`));
   check('S4 cancel and out: back to one session, nothing on Today, no minutes', r.rows===1 && r.mins===0 && !r.today, r);
   const share = await ev(ws,`roomShareText('184220','ECN 212')`);
-  check('R4 the share text carries the join link with host, course and your code, and claims only what exists', /lmktoday\.app\/app\/#join=canvas\.asu\.edu\.184220\.a41f9c02&c=ECN%20212/.test(share) && /4 of us are on it/.test(share) && !/studying when/.test(share), share);
+  check('R4 the share text carries the join link with host, course and your code, and claims only what exists', /lmktoday\.app\/app\/\?from=chat#join=canvas\.asu\.edu\.184220&c=ECN%20212/.test(share) && /4 of us are on it/.test(share) && !/studying when/.test(share), share);
   await ev(ws,`document.getElementById('roomChat').value='https://groupme.com/join_group/1/abc'; document.querySelector('#roomModal [data-act="room-chat-set"]').click()`); await sleep(400);
   r=JSON.parse(await ev(ws,`JSON.stringify({chat:(document.querySelector('#roomModal a[href^="https://groupme"]')||{}).textContent})`));
   check('R5 the class chat link becomes a button', /Class chat/.test(r.chat), r);
@@ -195,20 +195,17 @@ const SYNCED = {onboarded:1, profile:{name:"Emiel"}, cloud:{sid:SID, secret:SEC,
   await send(ws,'Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27}); await sleep(200);
   check('R8 Escape closes the sheet', (await ev(ws,`roomOverlay.classList.contains('open')`))===false);
 
-  // C1 the claim: an invited student's first verified sync pays, opens the room, and clears the invite
-  await fresh(ws,{seed:SYNCED, hash:'#join=canvas.asu.edu.184220.b7c1d2e3&c=ECN%20212'});
+  // C1 an invite opens its room after the first sync — no claim, nothing earned, the invite consumed (two-part link)
+  await fresh(ws,{seed:SYNCED, hash:'#join=canvas.asu.edu.184220&c=ECN%20212'});
   await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.6.1'}, '*'); window.postMessage({lmk:'canvas-payload', payload:${PAYLOAD}}, '*')`); await sleep(2600);
-  r=JSON.parse(await ev(ws,`JSON.stringify({claim:window.__calls.filter(c=>/ref\\/claim/.test(c.url)).map(c=>c.body), join:localStorage.getItem('lmk_join'), toast:[...document.querySelectorAll('.toast, #toast, .toasts *')].map(x=>x.textContent).join(' ')})`));
-  check('C1 after the sync the claim is sent once with the code and the course', r.claim.length===1 && r.claim[0].code==='b7c1d2e3' && r.claim[0].cid==='184220' && r.claim[0].sid===SID, r.claim);
-  check('C1 a paid claim clears the invite', r.join===null, r.join);
-  await sleep(2600);
-  r=JSON.parse(await ev(ws,`JSON.stringify({open:roomOverlay.classList.contains('open'), title:(document.getElementById('roomTitle')||{}).textContent})`));
-  check('C1 the room opens for the invited course', r.open && r.title==='ECN 212', r);
-  // C2 the server has not seen the sync yet: the invite is kept for the next one
+  r=JSON.parse(await ev(ws,`JSON.stringify({claim:window.__calls.filter(c=>/ref\\/claim/.test(c.url)).length, join:localStorage.getItem('lmk_join'), open:roomOverlay.classList.contains('open'), title:(document.getElementById('roomTitle')||{}).textContent, copy:(document.getElementById('roomModal')||{}).innerText||''})`));
+  check('C1 after the sync the worker is asked for no claim, ever', r.claim===0, r.claim);
+  check('C1 the invite is consumed and the room opens for the invited course, join form first, saying the invite brought them here', r.join===null && r.open && r.title==='ECN 212' && /Your invite brought you here/.test(r.copy), r);
+  // C2 the course code has not arrived yet (pre-0.7 extension): the sheet says what is needed and the invite waits; the old three-part link still parses
   await fresh(ws,{seed:SYNCED, hash:'#join=canvas.asu.edu.184220.b7c1d2e3&c=ECN%20212'});
-  await ev(ws,`window.__claim={ok:false,error:"proof"}; window.postMessage({lmk:'ext-hello', version:'0.6.1'}, '*'); window.postMessage({lmk:'canvas-payload', payload:${PAYLOAD}}, '*')`); await sleep(2600);
-  r=JSON.parse(await ev(ws,`JSON.stringify({join:!!localStorage.getItem('lmk_join'), claims:window.__calls.filter(c=>/ref\\/claim/.test(c.url)).map(c=>({proof:c.body.proof, host:c.body.host}))})`));
-  check('C2 "proof" keeps the invite for the next sync, and the claim carried the course proof', r.join && r.claims.length===1 && /^[a-f0-9]{64}$/.test(r.claims[0].proof||'') && r.claims[0].host==='canvas.asu.edu', r);
+  await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.6.1'}, '*'); window.postMessage({lmk:'canvas-payload', payload:${PAYLOAD.replace('uuid:"Uu1dEcn212"','uuid:""')}}, '*')`); await sleep(2600);
+  r=JSON.parse(await ev(ws,`JSON.stringify({join:!!localStorage.getItem('lmk_join'), open:roomOverlay.classList.contains('open'), copy:(document.getElementById('roomModal')||{}).innerText||'', asked:window.__calls.filter(c=>/room\\/get|ref\\/claim/.test(c.url)).length})`));
+  check('C2 without the course code the invite is kept for the next sync, the sheet says 0.7 is needed, and the worker is asked nothing', r.join && r.open && /0\.7/.test(r.copy) && r.asked===0, r);
 
   // A1 artifact mode: nothing of this exists
   await send(ws,'Page.addScriptToEvaluateOnNewDocument',{source:'window.claude={use:async()=>null}'});
