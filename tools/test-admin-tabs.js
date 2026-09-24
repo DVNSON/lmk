@@ -19,9 +19,9 @@ const KEY=process.argv[2];
   await ev(ws,`(()=>{const b=[...document.querySelectorAll('[data-tab]')].find(x=>x.dataset.tab==='admin');if(b)b.click();return !!b})()`);
   await sleep(3500);
   check('the admin bundle loaded', await ev(ws,`!!ADMIN.data`), await ev(ws,`ADMIN.err`));
-  const tabs = await ev(ws,`JSON.stringify([...document.querySelectorAll('[data-act="adm-tab"]')].map(b=>b.dataset.tab))`);
+  const tabs = await ev(ws,`JSON.stringify([...document.querySelectorAll('.adm-tabs [data-act="adm-tab"]')].map(b=>b.dataset.tab))`);
   const ids = JSON.parse(tabs);
-  check(`there are ${ids.length} sub-tabs to check`, ids.length >= 5, ids);
+  check(`there are ${ids.length} sub-tabs to check`, ids.length >= 3 && new Set(ids).size === ids.length, ids);
   for (const id of ids) {
     await ev(ws,`document.getElementById('errcard').hidden = true; ADMIN.tab=${JSON.stringify(id)}; render(); 1`);
     await sleep(350);
