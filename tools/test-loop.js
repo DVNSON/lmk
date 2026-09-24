@@ -28,7 +28,7 @@ const POST=`window.postMessage({lmk:'ext-hello',version:'0.8.9'},'*'); window.po
    counter bodies are kept so the test can read what left the device */
 const STUB=`(function(){
   const real=window.fetch; window.__shared=[]; window.__toasts=[]; window.__calls=[];
-  window.fetch=(u,o)=>{ const url=String(u); if(/\\/ref\\/claim$|\\/hit$/.test(url)) { try{ window.__calls.push({url:url.replace(/^.*?(\\/[a-z]+\\/?[a-z]*)$/,'$1'), body:JSON.parse((o||{}).body||'{}')}); }catch(_){} }
+  window.fetch=(u,o)=>{ const url=String(u); if(/\\/ref\\/claim$|\\/hit$|\\/room\\/(mine|get)$/.test(url)) { try{ window.__calls.push({url:url.replace(/^.*?(\\/[a-z]+\\/?[a-z]*)$/,'$1'), body:JSON.parse((o||{}).body||'{}')}); }catch(_){} }
     return real(url.replace('https://lmk-api.emieldieuvenson.workers.dev','http://localhost:${PORT}'),o); };
   Object.defineProperty(navigator,'share',{value:async d=>{window.__shared.push(d.text||d.url||'');},configurable:true});
   try{Object.defineProperty(navigator,'clipboard',{value:{writeText:async t=>{window.__shared.push(t);}},configurable:true});}catch(_){}
@@ -161,12 +161,22 @@ const openDetails=(P,re)=>ev(P.ws,`(()=>{const d=[...document.querySelectorAll('
   const P2=await Q.ls(); Q.close();
 
   /* ================= A comes back ================= */
-  A=await open('A','',false,A_LS,''); await ev(A.ws,`welcomeOverlay.classList.remove('open'); 1`);
+  A=await open('A','',false,A_LS,''); await ev(A.ws,`welcomeOverlay.classList.remove('open'); 1`); await sleep(2500);
+  const todayA=await A.text('#view-now'); const cardA=await A.text('#view-now .card .list');
+  const diagA=JSON.parse(await ev(A.ws,`JSON.stringify({possible:roomsPossible(), list:ROOMS.list, bootAt:ROOMS.bootAt, view:Object.keys(ROOMS.view), member:!!(ROOMS.view[${JSON.stringify(CID)}]||{}).member, filter:courseFilter, seen:store.roomSeen||null, calls:window.__calls.map(c=>c.url), cardText:(document.querySelector('#view-now h2.sec + .card .list')||{innerText:''}).innerText.slice(0,200)})`));
+  say('A','comes back the next day and looks at Today, nothing opened');
+  check('L22 A: Today says Sam joined MAT 210 with the Instagram link, and shows the session with both going and "you\'re in" — A knows who\'s in without opening the room', /Sam joined MAT 210/.test(todayA) && /@Sam\.K ↗/.test(todayA) && /MAT 210 study session · Fri/.test(todayA) && /2 going: Emiel, Sam/.test(todayA) && /you're in/i.test(todayA) && /~1\.5h\?/i.test(todayA) && (await ev(A.ws,`!!document.querySelector('#view-now .card .list a.rhandle.ig')`))===true, {diag:diagA, today:todayA.slice(0,200)});
   await A.click('.chip[data-course="MAT 210"]'); await sleep(1500); await A.click('.roomline [data-act="room-open"]'); await sleep(1800); r=await A.text('#roomModal');
-  say('A','comes back, opens the room');
+  say('A','opens the room');
   check('L15 A: sees Sam on the roster (with Report, not Edit) and both going to the session', /Sam (@Sam\.K ↗ )?Report/.test(r) && /Emiel YOU/.test(r) && /2 going: Emiel, Sam/.test(r), r.slice(0,300));
   const igA=await ev(A.ws,`(document.querySelector('#roomModal a.rhandle.ig')||{}).href||''`);
   check('L18 A: Sam\'s Instagram is a tappable link on A\'s roster — A sees it because A joined too', igA==='https://instagram.com/Sam.K' && /@Sam\.K ↗/.test(r), {igA,r:r.slice(0,200)});
+  await A.click('[data-act="sess-share"]'); await sleep(600);
+  const shared2=JSON.parse(await ev(A.ws,`JSON.stringify(window.__shared)`)); const sline=shared2[shared2.length-1]||'';
+  check('L23 A: Share on a session copies one line for the class chat — what, when, where, and the room\'s own invite link', /^Study session for MAT 210 — Fri, Sep \d+ · 7:00 PM · Library · Hayden Library 2nd floor\. Say you're in on LMK: https:\/\/lmktoday\.app\/app\/\?from=chat#join=canvas\.asu\.edu\.269886&c=MAT%20210$/.test(sline), sline);
+  await A.click('[data-act="room-close"]'); await sleep(400); await ev(A.ws,`courseFilter = null; saveView(); render(); 1`); await sleep(400);
+  const todayA2=await A.text('#view-now'); const seenA=JSON.parse(await ev(A.ws,`JSON.stringify(store.roomSeen||{})`));
+  check('L24 A: opening the room marked it seen — the "joined" line is gone from Today, the session stays, and roomSeen is stamped for MAT 210', !/Sam joined/.test(todayA2) && /MAT 210 study session/.test(todayA2) && seenA[CID]>0, {seen:seenA, today:todayA2.slice(0,300)});
   A.close();
 
   /* ================= B's laptop again: the phone's doings arrive through Drive, nothing opened by hand ================= */
@@ -175,6 +185,8 @@ const openDetails=(P,re)=>ev(P.ws,`(()=>{const d=[...document.querySelectorAll('
   r=JSON.parse(await ev(L.ws,`JSON.stringify({rooms:ROOMS.list.map(x=>String(x.cid)), sessions:mySessions().map(x=>({me:x.me,course:x.course})), handle:store.roomHandle, roomAt:store.roomAt||0})`));
   say('B-laptop','opens LMK the next morning; Drive brings the phone\'s store (real gdrivePull)');
   check('L19 B-laptop: without opening anything, the laptop knows the room (via /plus/status), Sam\'s RSVP is on the calendar, and the handle typed on the phone is here', r.rooms.includes(CID) && r.sessions.length===1 && r.sessions[0].me && r.sessions[0].course==='MAT 210' && r.handle==='@Sam.K' && r.roomAt>0, r);
+  const todayL=await L.text('#view-now');
+  check('L25 B-laptop: Today shows the session under Classmates with both going and "you\'re in", from Drive alone', /MAT 210 study session/.test(todayL) && /2 going: Emiel, Sam/.test(todayL) && /you're in/i.test(todayL), todayL.slice(0,400));
   await L.click('.chip[data-course="MAT 210"]'); await sleep(1500); const lineL=await L.text('.roomline');
   await L.click('.roomline [data-act="room-open"]'); await sleep(1800); await L.click('[data-act="room-edit"]'); await sleep(400);
   const preL=await ev(L.ws,`(document.getElementById('roomHandle')||{}).value`);

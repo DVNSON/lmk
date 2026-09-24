@@ -43,6 +43,11 @@ m = merge(a3, b3);
 check("roomAt on one side only (the other device is on an older build): the stamped pair wins", m.roomHandle === "@sam.k" && m.roomAt === t - 500, [m.roomHandle, m.roomAt]);
 m = merge({savedAt: t - 1000, roomHandle: "@old"}, {savedAt: t, roomHandle: ""});
 check("no roomAt anywhere: the old rule, a real value beats a newer empty one, and no roomAt appears", m.roomHandle === "@old" && m.roomAt === undefined, [m.roomHandle, m.roomAt]);
+/* v70.4: roomSeen — when this student last looked at each room; per room the later look wins, and it follows the student */
+m = merge({savedAt: t - 1000, roomSeen: {"210": t - 100, "105": t - 900}}, {savedAt: t, roomSeen: {"210": t - 50}});
+check("roomSeen: per room the later look wins, rooms seen on one device only are kept", m.roomSeen["210"] === t - 50 && m.roomSeen["105"] === t - 900, m.roomSeen);
+m = merge({savedAt: t - 1000}, {savedAt: t});
+check("roomSeen: absent on both sides stays absent", m.roomSeen === undefined, m.roomSeen);
 m = merge({savedAt: t - 1, recapHide: t - 500}, {savedAt: t, recapHide: t - 900});
 check("recapHide: the later dismissal wins", m.recapHide === t - 500, m.recapHide);
 m = merge({savedAt: t - 1, sessLog: {s1: 5}, wrappedSeen: {a: 1}, goal: {"ECN 212": 90}}, {savedAt: t, sessLog: {s2: 6}, wrappedSeen: {b: 2}, goal: {"ECN 212": 93, "HST 100": 87}});

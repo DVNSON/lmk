@@ -33,6 +33,7 @@ http.createServer((req,res)=>{
     S.calls.push(u.pathname);
     if(u.pathname==='/config') return send(200,{ok:true,rooms:{on:true,days:14},plus:{tiers:{}},storeUrl:'',push:{key:''},announce:{on:false}});
     if(u.pathname==='/hit'){S.hits.push(b.ev); S.hitKeys.push(Object.keys(b).sort().join(',')); return send(200,{ok:true,counted:true})}   // hitKeys: the privacy check — an event name and a day, nothing else
+    if(u.pathname==='/room/mine'){const id=identity(b); if(id.err) return send(id.status,{ok:false,error:id.err}); const rooms=[]; for(const k in S.members) if((S.members[k]||[]).some(r=>r.sid===id.sid)){const [host,cid]=k.split('|'); rooms.push({host,cid})} return send(200,{ok:true,rooms})}   // like rooms.js roomMine: the rooms this sid is in
     if(u.pathname==='/plus/status'){const id=identity(b); if(id.err) return send(id.status,{ok:false,error:id.err}); const rooms=[]; for(const k in S.members) if((S.members[k]||[]).some(r=>r.sid===id.sid)){const [host,cid]=k.split('|'); rooms.push({host,cid})} return send(200,{ok:true,rooms,tiers:{},plan:'free',level:'free'})}   // like worker.js: the rooms this sid is in, so a second device knows them at boot
     if(u.pathname==='/room/count'){const k=key(String(b.host||'').toLowerCase(),String(b.cid||''));return send(200,{ok:true,count:(S.members[k]||[]).length})}
     if(u.pathname==='/room/get'){const m=member(b); if(m.err) return send(m.status,{ok:false,error:m.err}); return send(200,view(m.host,m.cid,m.sid))}
