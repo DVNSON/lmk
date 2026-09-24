@@ -49,8 +49,8 @@ const SYNCED = {onboarded:1, profile:{name:"Emiel"}, cloud:{sid:SID, secret:SEC,
   await fresh(ws,{hash:'#join=canvas.asu.edu.184220.b7c1d2e3&c=ECN%20212'});
   let r=JSON.parse(await ev(ws,`JSON.stringify({hash:location.hash, join:JSON.parse(localStorage.getItem('lmk_join')||'null'), kicker:(document.querySelector('section.view .hero .kicker')||{}).textContent, why:[...document.querySelectorAll('section.view .hero .why')].map(x=>x.textContent).join(' | '), w2:document.getElementById('wBody2').textContent, leaked:/\\$\\{/.test(document.body.innerText), calls:window.__calls.map(c=>c.url)})`));
   check('J1 the hash is stripped and the invite is kept in localStorage, not the store', r.hash==='' && r.join && r.join.code==='b7c1d2e3' && r.join.cid==='184220' && r.join.host==='canvas.asu.edu' && r.join.tag==='ECN 212', r.join);
-  check('J1 the first-run hero says you were invited, names the class and the count', r.kicker==='You were invited' && /ECN 212 is on LMK with 3 classmates/.test(r.why), {k:r.kicker, why:r.why});
-  check('J1 the welcome overlay step 2 is set from JS and names the class', /ECN 212 is already on LMK with 3 classmates/.test(r.w2), r.w2);
+  check('J1 the first-run hero says you were invited, names the ROOM and the count (v70.0: c= is the course, never a person)', r.kicker==='You were invited' && /invited to the ECN 212 room — 3 classmates are already in it/.test(r.why) && !/ECN 212 is (already )?on LMK/.test(r.why), {k:r.kicker, why:r.why});
+  check('J1 the welcome overlay step 2 is set from JS and names the room', /invited to the ECN 212 room — 3 classmates are already in it/.test(r.w2) && !/ECN 212 is (already )?on LMK/.test(r.w2), r.w2);
   check('J1 no template literal leaked into visible text', !r.leaked);
   check('J1 the count came from /room/count and nothing else was asked of the worker for rooms', r.calls.includes('/room/count') && !r.calls.some(u=>/\/room\/(get|join)|\/ref\/claim/.test(u)), r.calls);
   // J2 a reload without the hash keeps the invite

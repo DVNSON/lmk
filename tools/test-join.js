@@ -24,16 +24,18 @@ async function open(hash, ua, mobile){
   return {ws, text, join, hashLeft};
 }
 (async()=>{
-  const H='#join=canvas.asu.edu.269886.abc123&c=Emiel';
+  const H='#join=canvas.asu.edu.269886.abc123&c=MAT%20210';   // c= is the COURSE; the friend's name is in the chat, never the URL
   const ph = await open(H, IPHONE, true);
-  check('PHONE: the invite is remembered', ph.join.code==='abc123' && ph.join.cid==='269886' && ph.join.tag==='Emiel', ph.join);
+  check('PHONE: the invite is remembered', ph.join.code==='abc123' && ph.join.cid==='269886' && ph.join.tag==='MAT 210', ph.join);
   check('PHONE: the headcount was fetched', ph.join.count===3, ph.join.count);
-  check('PHONE: the welcome names the friend who sent it', /Emiel is already on LMK/.test(ph.text), ph.text.slice(0,200));
+  check('PHONE: the welcome names the ROOM the link is for, with its headcount', /invited to the MAT 210 room — 3 classmates are already in it/.test(ph.text), ph.text.slice(0,300));
+  check('PHONE: it never presents the course as a person', !/MAT 210 is (already )?on LMK/.test(ph.text), ph.text.slice(0,300));
+  check('PHONE: the computer step says the computer must sign in with Google too', /sign in with Google there\. Then sign in with Google here/.test(ph.text), ph.text.slice(0,400));
   check('PHONE: and says the invite is saved for after the computer step', /invite is saved on this phone/.test(ph.text), ph.text.slice(0,300));
   check('PHONE: the hash is scrubbed from the address bar', ph.hashLeft==='', ph.hashLeft);
   ph.ws.close();
   const lp = await open(H, '', false);
-  check('LAPTOP: the welcome names the friend too', /Emiel is already on LMK/.test(lp.text), lp.text.slice(0,200));
+  check('LAPTOP: the welcome names the room too', /invited to the MAT 210 room — 3 classmates are already in it/.test(lp.text), lp.text.slice(0,300));
   lp.ws.close();
   const bad = await open('#join=<script>alert(1)</script>.1.zz&c=<b>x</b>', '', false);
   check('a malformed invite is ignored, not rendered', !bad.join.code && !/alert|<b>/.test(bad.text), bad.join);
