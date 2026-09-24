@@ -32,6 +32,17 @@ check("recapSeen unions", m.recapSeen.r1 === 1 && m.recapSeen.r2 === 1, m.recapS
 check("adminKey: a real key beats a newer empty one", m.adminKey === "K", m.adminKey);
 check("roomName / roomHandle: a real value beats a newer empty one", m.roomName === "Emiel" && m.roomHandle === "Discord: e", [m.roomName, m.roomHandle]);
 check("roomNudge: the later dismissal wins", m.roomNudge === t - 9000, m.roomNudge);
+/* v70.2: the name/handle pair travels with roomAt, so a handle cleared on one device stays cleared on the other */
+const a2 = {savedAt: t - 1000, roomName: "Sam", roomHandle: "@sam.k", roomAt: t - 2000}, b2 = {savedAt: t, roomName: "Sam", roomAt: t - 500};
+m = merge(a2, b2);
+check("roomAt: the later save wins even when it cleared the handle", m.roomName === "Sam" && m.roomHandle === undefined && m.roomAt === t - 500, [m.roomName, m.roomHandle, m.roomAt]);
+m = merge(b2, a2);
+check("roomAt: the argument order does not matter", m.roomHandle === undefined && m.roomAt === t - 500, [m.roomHandle, m.roomAt]);
+const a3 = {savedAt: t - 1000, roomName: "Sam", roomHandle: "@sam.k", roomAt: t - 500}, b3 = {savedAt: t, roomName: "Sam", roomHandle: "@sam.new"};
+m = merge(a3, b3);
+check("roomAt on one side only (the other device is on an older build): the stamped pair wins", m.roomHandle === "@sam.k" && m.roomAt === t - 500, [m.roomHandle, m.roomAt]);
+m = merge({savedAt: t - 1000, roomHandle: "@old"}, {savedAt: t, roomHandle: ""});
+check("no roomAt anywhere: the old rule, a real value beats a newer empty one, and no roomAt appears", m.roomHandle === "@old" && m.roomAt === undefined, [m.roomHandle, m.roomAt]);
 m = merge({savedAt: t - 1, recapHide: t - 500}, {savedAt: t, recapHide: t - 900});
 check("recapHide: the later dismissal wins", m.recapHide === t - 500, m.recapHide);
 m = merge({savedAt: t - 1, sessLog: {s1: 5}, wrappedSeen: {a: 1}, goal: {"ECN 212": 90}}, {savedAt: t, sessLog: {s2: 6}, wrappedSeen: {b: 2}, goal: {"ECN 212": 93, "HST 100": 87}});

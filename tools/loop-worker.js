@@ -33,12 +33,12 @@ http.createServer((req,res)=>{
     S.calls.push(u.pathname);
     if(u.pathname==='/config') return send(200,{ok:true,rooms:{on:true,days:14},plus:{tiers:{}},storeUrl:'',push:{key:''},announce:{on:false}});
     if(u.pathname==='/hit'){S.hits.push(b.ev); S.hitKeys.push(Object.keys(b).sort().join(',')); return send(200,{ok:true,counted:true})}   // hitKeys: the privacy check — an event name and a day, nothing else
-    if(u.pathname==='/plus/status') return send(404,{ok:false});
+    if(u.pathname==='/plus/status'){const id=identity(b); if(id.err) return send(id.status,{ok:false,error:id.err}); const rooms=[]; for(const k in S.members) if((S.members[k]||[]).some(r=>r.sid===id.sid)){const [host,cid]=k.split('|'); rooms.push({host,cid})} return send(200,{ok:true,rooms,tiers:{},plan:'free',level:'free'})}   // like worker.js: the rooms this sid is in, so a second device knows them at boot
     if(u.pathname==='/room/count'){const k=key(String(b.host||'').toLowerCase(),String(b.cid||''));return send(200,{ok:true,count:(S.members[k]||[]).length})}
     if(u.pathname==='/room/get'){const m=member(b); if(m.err) return send(m.status,{ok:false,error:m.err}); return send(200,view(m.host,m.cid,m.sid))}
-    if(u.pathname==='/room/join'){const m=member(b); if(m.err) return send(m.status,{ok:false,error:m.err}); const name=String(b.name||'').trim().slice(0,40); if(!name) return send(400,{ok:false,error:'name'});
+    if(u.pathname==='/room/join'){const m=member(b); if(m.err) return send(m.status,{ok:false,error:m.err}); const name=String(b.name||'').trim().slice(0,40); if(!name) return send(400,{ok:false,error:'name'}); const hdl=String(b.handle||'').trim().slice(0,60); if(/^@/.test(hdl)&&!/^@[A-Za-z0-9._]{1,30}$/.test(hdl)) return send(400,{ok:false,error:'handle'});
       if(!S.rooms[m.k]) S.rooms[m.k]={chat:'',proof:m.proof,created:Date.now()}; if(!S.rooms[m.k].proof) S.rooms[m.k].proof=m.proof;
-      const rows=S.members[m.k]=S.members[m.k]||[]; const ex=rows.find(r=>r.sid===m.sid); if(ex){ex.name=name;ex.handle=String(b.handle||'')} else rows.push({sid:m.sid,mid:'m'+(nextId++),name,handle:String(b.handle||''),joined:Date.now()});
+      const rows=S.members[m.k]=S.members[m.k]||[]; const ex=rows.find(r=>r.sid===m.sid); if(ex){ex.name=name;ex.handle=hdl} else rows.push({sid:m.sid,mid:'m'+(nextId++),name,handle:hdl,joined:Date.now()});
       S.hits.push('room_join'); return send(200,view(m.host,m.cid,m.sid))}
     if(u.pathname==='/room/leave'){const id=identity(b); if(id.err) return send(id.status,{ok:false,error:id.err}); const k=key(id.host,String(b.cid||'')); S.members[k]=(S.members[k]||[]).filter(r=>r.sid!==id.sid); return send(200,{ok:true,member:false})}
     if(u.pathname==='/room/chat'){const m=member(b); if(m.err) return send(m.status,{ok:false,error:m.err}); if(!(S.members[m.k]||[]).some(r=>r.sid===m.sid)) return send(403,{ok:false,error:'not a member'});

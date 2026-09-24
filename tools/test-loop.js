@@ -61,6 +61,14 @@ async function open(who, ua, mobile, seed, hash){
 }
 const state=()=>JSON.parse(execSync(`curl -s localhost:${PORT}/__state`).toString());
 const members=()=>((state().members[HOST+'|'+CID])||[]).map(m=>m.name);
+const handles=()=>((state().members[HOST+'|'+CID])||[]).map(m=>m.handle);
+/* Google, one layer down: the token and Drive REST are stubbed so gdrivePull() — the real merge — runs against REMOTE */
+const DRIVE=(remote)=>`(()=>{const REMOTE=JSON.parse(${JSON.stringify(remote)}); window.__drive=[];
+    gdReady=()=>true; loadGIS=async()=>{}; gdToken=async()=>{};
+    gdFetch=async(url,opts={})=>{ window.__drive.push((opts.method||'GET')+' '+url.replace('https://www.googleapis.com','').slice(0,48));
+      if(url.includes('LMK-data')) return {ok:true,status:200,json:async()=>({files:[{id:'f1',modifiedTime:'2026-09-24T01:00:00Z'}]})};
+      if(url.includes('/f1?alt=media')) return {ok:true,status:200,json:async()=>REMOTE};
+      return {ok:true,status:200,json:async()=>({files:[],id:'f1'})}; }; return 1 })()`;
 const openDetails=(P,re)=>ev(P.ws,`(()=>{const d=[...document.querySelectorAll('#roomModal details')].find(x=>${re}.test(x.textContent)); if(d) d.open=true; return !!d})()`);
 
 (async()=>{
@@ -138,9 +146,10 @@ const openDetails=(P,re)=>ev(P.ws,`(()=>{const d=[...document.querySelectorAll('
   r=await Q.text('#roomModal'); const title=await ev(Q.ws,`(document.getElementById('roomTitle')||{}).textContent`);
   const nm2=await ev(Q.ws,`(document.getElementById('roomName')||{}).value||''`);
   check('L11 B-phone: the MAT 210 room opened at once, join form first, saying the invite brought them here; the invite is consumed; no toast claims they are "in"', (await Q.sheetOpen()) && title==='MAT 210' && /Your invite brought you here\. 1 classmate from MAT 210 is here\. Join to see names, and to be seen/.test(r) && nm2==='Sam' && (await Q.ls()).lmk_join===undefined && !toasts.some(t=>/both in|you're in/i.test(t)), {r:r.slice(0,200),title,nm2,toasts});
-  await Q.click('[data-act="room-join"]'); await sleep(1800); r=await Q.text('#roomModal');
-  say('B-phone','taps "Join MAT 210"');
-  check('L12 B-phone: joined — the roster shows Emiel and Sam (you), the worker has both', /Emiel/.test(r) && /Sam YOU/.test(r) && members().join()==='Emiel,Sam', {r:r.slice(0,200),m:members()});
+  await Q.set('#roomHandle','instagram.com/Sam.K'); await Q.click('[data-act="room-join"]'); await sleep(1800); r=await Q.text('#roomModal');
+  const igQ=await ev(Q.ws,`(document.querySelector('#roomModal a.rhandle.ig')||{}).href||''`);
+  say('B-phone','types instagram.com/Sam.K as the contact, taps "Join MAT 210"');
+  check('L12 B-phone: joined — the roster shows Emiel and Sam (you), the worker has both, and the pasted profile URL became a tappable @Sam.K', /Emiel/.test(r) && /Sam YOU/.test(r) && members().join()==='Emiel,Sam' && handles()[1]==='@Sam.K' && igQ==='https://instagram.com/Sam.K' && /@Sam\.K ↗/.test(r), {r:r.slice(0,200),m:members(),h:handles(),igQ});
   const inBtn=await Q.click('[data-act="sess-in"]'); await sleep(1500); r=await Q.text('#roomModal');
   say('B-phone','taps "I\'m in" on Emiel\'s session');
   check('L13 B-phone: the session shows both going and the worker has two RSVPs', inBtn && /2 going: Emiel, Sam/.test(r) && state().rsvps.length===2, {inBtn,r:r.slice(0,300),rsvps:state().rsvps});
@@ -149,14 +158,42 @@ const openDetails=(P,re)=>ev(P.ws,`(()=>{const d=[...document.querySelectorAll('
   const hero=await Q.text('#view-now'); await Q.click('.chip[data-course="MAT 210"]'); await sleep(1500); r=await Q.text('.roomline');
   say('B-phone','reloads the page, taps MAT 210');
   check('L14 B-phone: after a reload the plan is still there (no first run), no claim was ever sent, and the course line names the session', !/FIRST RUN/.test(hero) && state().calls.filter(c=>c==='/ref/claim').length===0 && /1 classmate on LMK/.test(r) && /you're in/.test(r), {hero:hero.slice(0,80),r});
-  Q.close();
+  const P2=await Q.ls(); Q.close();
 
   /* ================= A comes back ================= */
   A=await open('A','',false,A_LS,''); await ev(A.ws,`welcomeOverlay.classList.remove('open'); 1`);
   await A.click('.chip[data-course="MAT 210"]'); await sleep(1500); await A.click('.roomline [data-act="room-open"]'); await sleep(1800); r=await A.text('#roomModal');
   say('A','comes back, opens the room');
-  check('L15 A: sees Sam on the roster (with Report, not Edit) and both going to the session', /Sam Report/.test(r) && /Emiel YOU/.test(r) && /2 going: Emiel, Sam/.test(r), r.slice(0,300));
+  check('L15 A: sees Sam on the roster (with Report, not Edit) and both going to the session', /Sam (@Sam\.K ↗ )?Report/.test(r) && /Emiel YOU/.test(r) && /2 going: Emiel, Sam/.test(r), r.slice(0,300));
+  const igA=await ev(A.ws,`(document.querySelector('#roomModal a.rhandle.ig')||{}).href||''`);
+  check('L18 A: Sam\'s Instagram is a tappable link on A\'s roster — A sees it because A joined too', igA==='https://instagram.com/Sam.K' && /@Sam\.K ↗/.test(r), {igA,r:r.slice(0,200)});
   A.close();
+
+  /* ================= B's laptop again: the phone's doings arrive through Drive, nothing opened by hand ================= */
+  L=await open('B-laptop',IPHONE.replace(/.*/,''),false,L1,'');
+  await ev(L.ws,DRIVE(P2.duenorth_v1)); await ev(L.ws,`gdrivePull()`); await sleep(3000);
+  r=JSON.parse(await ev(L.ws,`JSON.stringify({rooms:ROOMS.list.map(x=>String(x.cid)), sessions:mySessions().map(x=>({me:x.me,course:x.course})), handle:store.roomHandle, roomAt:store.roomAt||0})`));
+  say('B-laptop','opens LMK the next morning; Drive brings the phone\'s store (real gdrivePull)');
+  check('L19 B-laptop: without opening anything, the laptop knows the room (via /plus/status), Sam\'s RSVP is on the calendar, and the handle typed on the phone is here', r.rooms.includes(CID) && r.sessions.length===1 && r.sessions[0].me && r.sessions[0].course==='MAT 210' && r.handle==='@Sam.K' && r.roomAt>0, r);
+  await L.click('.chip[data-course="MAT 210"]'); await sleep(1500); const lineL=await L.text('.roomline');
+  await L.click('.roomline [data-act="room-open"]'); await sleep(1800); await L.click('[data-act="room-edit"]'); await sleep(400);
+  const preL=await ev(L.ws,`(document.getElementById('roomHandle')||{}).value`);
+  await L.set('#roomHandle',''); await L.click('[data-act="room-join"]'); await sleep(1800); r=await L.text('#roomModal');
+  const stL=JSON.parse(await ev(L.ws,`JSON.stringify({handle:store.roomHandle, roomAt:store.roomAt||0})`));
+  say('B-laptop','taps MAT 210 → Open → Edit, clears the Instagram field, Save');
+  check('L20 B-laptop: the course line says you\'re in; Edit is prefilled with @Sam.K; clearing it and saving removes it on the worker and stamps the store', /you're in/.test(lineL) && preL==='@Sam.K' && handles()[1]==='' && !/@Sam\.K/.test(r) && /Sam YOU/.test(r) && stL.handle===undefined && stL.roomAt>0, {lineL,preL,h:handles(),stL});
+  const L2=await L.ls(); L.close();
+
+  /* ================= the phone, after the laptop's edit: the removal must arrive, not the old handle ================= */
+  Q=await open('B-phone',IPHONE,true,P2,'');
+  await ev(Q.ws,DRIVE(L2.duenorth_v1)); await ev(Q.ws,`gdrivePull()`); await sleep(2500);
+  const stQ=JSON.parse(await ev(Q.ws,`JSON.stringify({handle:store.roomHandle, roomAt:store.roomAt||0, want:JSON.parse(${JSON.stringify(L2.duenorth_v1)}).roomAt||0})`));
+  await Q.click('.chip[data-course="MAT 210"]'); await sleep(1500); await Q.click('.roomline [data-act="room-open"]'); await sleep(1800); r=await Q.text('#roomModal');
+  const igQ2=await ev(Q.ws,`!!document.querySelector('#roomModal a.rhandle.ig')`);
+  await Q.click('[data-act="room-edit"]'); await sleep(400); const preQ=await ev(Q.ws,`(document.getElementById('roomHandle')||{}).value`);
+  say('B-phone','opens LMK again; Drive brings the laptop\'s store');
+  check('L21 B-phone: the cleared handle stays cleared — the merge took the later save (roomAt), the roster shows no link, and Edit is prefilled empty', stQ.handle===undefined && stQ.roomAt===stQ.want && stQ.want>0 && !igQ2 && /Sam YOU/.test(r) && preQ==='', {stQ,igQ2,preQ,r:r.slice(0,160)});
+  Q.close();
 
   /* ================= C, laptop: link and setup in one sitting, Canvas answering before "Let's go" ================= */
   execSync(`curl -s -X POST localhost:${PORT}/__reset`);
