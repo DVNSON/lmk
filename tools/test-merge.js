@@ -48,6 +48,11 @@ m = merge({savedAt: t - 1000, roomSeen: {"210": t - 100, "105": t - 900}}, {save
 check("roomSeen: per room the later look wins, rooms seen on one device only are kept", m.roomSeen["210"] === t - 50 && m.roomSeen["105"] === t - 900, m.roomSeen);
 m = merge({savedAt: t - 1000}, {savedAt: t});
 check("roomSeen: absent on both sides stays absent", m.roomSeen === undefined, m.roomSeen);
+/* v70.5: credits per class for the GPA — union, newer wins, and an empty map is pruned */
+m = merge({savedAt: t - 1000, credits: {"MAT 210": 4, "ASU Ready": 0}}, {savedAt: t, credits: {"MAT 210": 3}});
+check("credits: union across devices, the newer device wins a class both set", m.credits["MAT 210"] === 3 && m.credits["ASU Ready"] === 0, m.credits);
+m = merge({savedAt: t - 1000}, {savedAt: t});
+check("credits: absent on both sides stays absent", m.credits === undefined, m.credits);
 m = merge({savedAt: t - 1, recapHide: t - 500}, {savedAt: t, recapHide: t - 900});
 check("recapHide: the later dismissal wins", m.recapHide === t - 500, m.recapHide);
 m = merge({savedAt: t - 1, sessLog: {s1: 5}, wrappedSeen: {a: 1}, goal: {"ECN 212": 90}}, {savedAt: t, sessLog: {s2: 6}, wrappedSeen: {b: 2}, goal: {"ECN 212": 93, "HST 100": 87}});
