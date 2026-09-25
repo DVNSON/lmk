@@ -196,6 +196,21 @@ const SYNCED = {onboarded:1, profile:{name:"Emiel"}, cloud:{sid:SID, secret:SEC,
   await send(ws,'Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27}); await sleep(200);
   check('R8 Escape closes the sheet', (await ev(ws,`roomOverlay.classList.contains('open')`))===false);
 
+  // R9 (v70.6) the proof never depends on WebCrypto, and a server refusal says why and offers the repair
+  const vec=await ev(ws,`sha256Hex('abc')`);
+  check('R9 sha256Hex matches the standard vector for "abc"', vec==='ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad', vec);
+  await fresh(ws,{seed:SYNCED});
+  await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.8.8'}, '*'); window.postMessage({lmk:'canvas-payload', payload:${PAYLOAD}}, '*')`); await sleep(900);
+  r=JSON.parse(await ev(ws,`(async function(){ const a=await courseProof('184220'); ROOMS.proofs={}; const key='canvas.asu.edu|184220|Uu1dEcn212'; return JSON.stringify({a, js:sha256Hex(key)}); })()`));
+  check('R9 the proof from crypto.subtle and the pure-JS fallback are the same 64-hex string', /^[a-f0-9]{64}$/.test(r.a) && r.a===r.js, r);
+  await ev(ws,`window.__room={ok:false,error:"proof"}; document.querySelector('#courseChips [data-course="ECN 212"]').click()`); await sleep(300);
+  await ev(ws,`document.querySelector('.roomline [data-act="room-open"]').click()`); await sleep(500);
+  r=JSON.parse(await ev(ws,`JSON.stringify({copy:document.getElementById('roomModal').innerText.replace(/\\s+/g,' '), resync:!!document.querySelector('#roomModal [data-act="room-resync"]'), retry:!!document.querySelector('#roomModal [data-act="room-retry"]')})`));
+  check('R9 a "proof" refusal says the server did not accept this device\'s code, prints why (answer, secure page, extension version, code length, host) and offers Read Canvas now + Try again', /didn't accept this device's code for ECN 212/.test(r.copy) && /server answered “proof”/.test(r.copy) && /this page is secure/.test(r.copy) && /LMK Today 0\.8\.8/.test(r.copy) && /class code 10 characters/.test(r.copy) && /canvas\.asu\.edu/.test(r.copy) && r.resync && r.retry, r.copy.slice(0,400));
+  await ev(ws,`window.__room={ok:false,error:"not enrolled"}; document.querySelector('#roomModal [data-act="room-retry"]').click()`); await sleep(500);
+  r=await ev(ws,`document.getElementById('roomModal').innerText.replace(/\\s+/g,' ')`);
+  check('R9 a "not enrolled" refusal says the codes do not match and where to write', /doesn't match the one this room was opened with/.test(r) && /hello@lmktoday\.app/.test(r) && /server answered “not enrolled”/.test(r), r.slice(0,300));
+
   // C1 an invite opens its room after the first sync — no claim, nothing earned, the invite consumed (two-part link)
   await fresh(ws,{seed:SYNCED, hash:'#join=canvas.asu.edu.184220&c=ECN%20212'});
   await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.6.1'}, '*'); window.postMessage({lmk:'canvas-payload', payload:${PAYLOAD}}, '*')`); await sleep(2600);

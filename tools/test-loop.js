@@ -15,6 +15,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let pass=0,fail=0; const check=(n,ok,d)=>{console.log((ok?'ok   ':'FAIL ')+n+(ok?'':'  -> '+String(JSON.stringify(d)).slice(0,300)));ok?pass++:fail++;};
 const T0=Date.now(); const say=(who,what)=>console.log(`     [${who} +${String(Math.round((Date.now()-T0)/1000)).padStart(3)}s] ${what}`);
 const PORT=+process.env.LOOP_PORT||8902;
+const WD=new Date(Date.now()+864e5).toLocaleDateString('en-US',{weekday:'short'});   // the session is proposed for tomorrow 7 PM
 const IPHONE="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 const HOST='canvas.asu.edu', CID='269886', UUID='k9XbQ2mV7pLtR4sWcE1nH8dJ3fA6gY0uZ5oT2iB4';   // a made-up course code: the proof is its hash
 const SID_A='a1b2c3d4'+'e'.repeat(24), SEC_A='s'.repeat(40), CODE_A=SID_A.slice(0,8);
@@ -165,7 +166,7 @@ const openDetails=(P,re)=>ev(P.ws,`(()=>{const d=[...document.querySelectorAll('
   const todayA=await A.text('#view-now'); const cardA=await A.text('#view-now .card .list');
   const diagA=JSON.parse(await ev(A.ws,`JSON.stringify({possible:roomsPossible(), list:ROOMS.list, bootAt:ROOMS.bootAt, view:Object.keys(ROOMS.view), member:!!(ROOMS.view[${JSON.stringify(CID)}]||{}).member, filter:courseFilter, seen:store.roomSeen||null, calls:window.__calls.map(c=>c.url), cardText:(document.querySelector('#view-now h2.sec + .card .list')||{innerText:''}).innerText.slice(0,200)})`));
   say('A','comes back the next day and looks at Today, nothing opened');
-  check('L22 A: Today says Sam joined MAT 210 with the Instagram link, and shows the session with both going and "you\'re in" — A knows who\'s in without opening the room', /Sam joined MAT 210/.test(todayA) && /@Sam\.K ↗/.test(todayA) && /MAT 210 study session · Fri/.test(todayA) && /2 going: Emiel, Sam/.test(todayA) && /you're in/i.test(todayA) && /~1\.5h\?/i.test(todayA) && (await ev(A.ws,`!!document.querySelector('#view-now .card .list a.rhandle.ig')`))===true, {diag:diagA, today:todayA.slice(0,200)});
+  check('L22 A: Today says Sam joined MAT 210 with the Instagram link, and shows the session with both going and "you\'re in" — A knows who\'s in without opening the room', /Sam joined MAT 210/.test(todayA) && /@Sam\.K ↗/.test(todayA) && new RegExp('MAT 210 study session · '+WD).test(todayA) && /2 going: Emiel, Sam/.test(todayA) && /you're in/i.test(todayA) && /~1\.5h\?/i.test(todayA) && (await ev(A.ws,`!!document.querySelector('#view-now .card .list a.rhandle.ig')`))===true, {diag:diagA, today:todayA.slice(0,200)});
   await A.click('.chip[data-course="MAT 210"]'); await sleep(1500); await A.click('.roomline [data-act="room-open"]'); await sleep(1800); r=await A.text('#roomModal');
   say('A','opens the room');
   check('L15 A: sees Sam on the roster (with Report, not Edit) and both going to the session', /Sam (@Sam\.K ↗ )?Report/.test(r) && /Emiel YOU/.test(r) && /2 going: Emiel, Sam/.test(r), r.slice(0,300));
@@ -173,7 +174,7 @@ const openDetails=(P,re)=>ev(P.ws,`(()=>{const d=[...document.querySelectorAll('
   check('L18 A: Sam\'s Instagram is a tappable link on A\'s roster — A sees it because A joined too', igA==='https://instagram.com/Sam.K' && /@Sam\.K ↗/.test(r), {igA,r:r.slice(0,200)});
   await A.click('[data-act="sess-share"]'); await sleep(600);
   const shared2=JSON.parse(await ev(A.ws,`JSON.stringify(window.__shared)`)); const sline=shared2[shared2.length-1]||'';
-  check('L23 A: Share on a session copies one line for the class chat — what, when, where, and the room\'s own invite link', /^Study session for MAT 210 — Fri, Sep \d+ · 7:00 PM · Library · Hayden Library 2nd floor\. Say you're in on LMK: https:\/\/lmktoday\.app\/app\/\?from=chat#join=canvas\.asu\.edu\.269886&c=MAT%20210$/.test(sline), sline);
+  check('L23 A: Share on a session copies one line for the class chat — what, when, where, and the room\'s own invite link', new RegExp('^Study session for MAT 210 — '+WD+', [A-Z][a-z]{2} \\d+ · 7:00 PM · Library · Hayden Library 2nd floor\\. Say you\'re in on LMK: https://lmktoday\\.app/app/\\?from=chat#join=canvas\\.asu\\.edu\\.269886&c=MAT%20210$').test(sline), sline);
   await A.click('[data-act="room-close"]'); await sleep(400); await ev(A.ws,`courseFilter = null; saveView(); render(); 1`); await sleep(400);
   const todayA2=await A.text('#view-now'); const seenA=JSON.parse(await ev(A.ws,`JSON.stringify(store.roomSeen||{})`));
   check('L24 A: opening the room marked it seen — the "joined" line is gone from Today, the session stays, and roomSeen is stamped for MAT 210', !/Sam joined/.test(todayA2) && /MAT 210 study session/.test(todayA2) && seenA[CID]>0, {seen:seenA, today:todayA2.slice(0,300)});
@@ -194,6 +195,7 @@ const openDetails=(P,re)=>ev(P.ws,`(()=>{const d=[...document.querySelectorAll('
   const stL=JSON.parse(await ev(L.ws,`JSON.stringify({handle:store.roomHandle, roomAt:store.roomAt||0})`));
   say('B-laptop','taps MAT 210 → Open → Edit, clears the Instagram field, Save');
   check('L20 B-laptop: the course line says you\'re in; Edit is prefilled with @Sam.K; clearing it and saving removes it on the worker and stamps the store', /you're in/.test(lineL) && preL==='@Sam.K' && handles()[1]==='' && !/@Sam\.K/.test(r) && /Sam YOU/.test(r) && stL.handle===undefined && stL.roomAt>0, {lineL,preL,h:handles(),stL});
+  check('L26 room_join counted each student once — A and Sam — not Sam\'s edit, not a join per class', state().hits.filter(h=>h==='room_join').length===2, state().hits);
   const L2=await L.ls(); L.close();
 
   /* ================= the phone, after the laptop's edit: the removal must arrive, not the old handle ================= */
