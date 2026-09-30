@@ -49,17 +49,17 @@ const READ = `JSON.stringify({
   await send(ws,'Page.addScriptToEvaluateOnNewDocument',{source:STUB});
   const errs=[]; ws.addEventListener('message',e=>{const m=JSON.parse(e.data); if(m.method==='Runtime.exceptionThrown') errs.push(String((m.params.exceptionDetails.exception||{}).description||'').slice(0,160));});
 
-  // A1 a free day, 2h budget: the hero is a head start on the essay, the block has the essay (90 of 2h) and the quiz
+  // A1 a free day, 2h budget (v70.7, closer first): the hero is this week's quiz; the block is the quiz, the problem set, then an hour on the essay
   await fresh(ws,{seed:seedFor(2)});
   let r=JSON.parse(await ev(ws,READ));
-  check('A1 the hero is a head start, labelled optional, on the essay', r.aheadHero && /head start, if you want/.test(r.kicker) && r.h1==='Essay draft' && r.optional && /Suggested, not due/.test(r.why) && /first pass/.test(r.why) && /Skipping it costs nothing/.test(r.why), r);
-  check('A1 today stays "clear" and the block holds the essay (1.5h of 2h) then the quiz (knock out)', r.todayCount==='clear' && r.block && r.rows.length===2 && r.rows[0].t==='Essay draft' && /1\.5h of 2h/.test(r.rows[0].est) && r.aheadMins.join()==='90,15' && r.rows[1].t==='Quiz 3' && /knock out/.test(r.rows[1].why), r.rows);
+  check('A1 the hero is a head start, labelled optional, on the nearest thing — the quiz due this week, not the essay two weeks out', r.aheadHero && /head start, if you want/.test(r.kicker) && r.h1==='Quiz 3' && r.optional && /Suggested, not due/.test(r.why) && /knock out now/.test(r.why) && /Skipping it costs nothing/.test(r.why), r);
+  check('A1 today stays "clear" and the block holds the quiz, the problem set, then an hour on the essay (1h of 2h) — this week first, the big thing still gets its slot', r.todayCount==='clear' && r.block && r.rows.length===3 && r.rows[0].t==='Quiz 3' && r.rows[1].t==='Problem set 2' && r.rows[2].t==='Essay draft' && /1h of 2h/.test(r.rows[2].est) && r.aheadMins.join()==='15,45,60' && /first pass/.test(r.rows[2].why), r.rows);
   check('A1 the empty-day line points below, and the week line says when work starts', /head start is just below/.test(r.note) && /Nothing needed until .* then ~/.test(r.note), r.note);
   check('A1 nothing leaked, no JS errors', !r.leaked && !errs.length, errs);
   // A2 Not today on the essay: the hero moves to the quiz, the store remembers the day, a reload keeps it
   await ev(ws,`document.querySelector('section.view [data-ahead] .item[data-id="a801"] [data-act="ahead-skip"]').click()`); await sleep(400);
   r=JSON.parse(await ev(ws,READ));
-  check('A2 "Not today" hides the essay for the day and the hero moves to the quiz', !r.rows.some(x=>x.t==='Essay draft') && r.h1==='Quiz 3' && /knock out/.test(r.why) && /^\d{4}-\d\d-\d\d$/.test(r.skip.a801||''), {rows:r.rows, h1:r.h1, skip:r.skip});
+  check('A2 "Not today" hides the essay for the day and the quiz stays the hero', !r.rows.some(x=>x.t==='Essay draft') && r.h1==='Quiz 3' && /knock out/.test(r.why) && /^\d{4}-\d\d-\d\d$/.test(r.skip.a801||''), {rows:r.rows, h1:r.h1, skip:r.skip});
   await send(ws,'Page.reload'); await sleep(2200); await ev(ws,`window.postMessage({lmk:'canvas-payload', payload:${PAYLOAD()}}, '*')`); await sleep(900); await ev(ws,`welcomeOverlay.classList.remove('open'); 1`);
   r=JSON.parse(await ev(ws,READ));
   check('A2 the dismissal survives a reload', r.aheadHero && r.h1!=='Essay draft' && !r.rows.some(x=>x.t==='Essay draft'), {h1:r.h1, rows:r.rows});
@@ -76,7 +76,7 @@ const READ = `JSON.stringify({
   // A5 a day with needed work: the normal hero, and a head start only fills what is left of the budget
   await fresh(ws,{seed:seedFor(2), payloadExtra:'mk("804","ECN 212","184221",1,"Reading response");'});
   r=JSON.parse(await ev(ws,READ));
-  check('A5 needed work keeps the normal hero; the head start sits below sized to the leftover (75 of 120 min)', !r.aheadHero && /Next up/.test(r.kicker) && r.h1==='Reading response' && r.block && r.rows[0].t==='Essay draft' && r.aheadMins.join()==='75', {kicker:r.kicker, h1:r.h1, rows:r.rows, mins:r.aheadMins});
+  check('A5 needed work keeps the normal hero; the head start sits below sized to the leftover (75 min: the quiz and the problem set, and no 15-minute sliver of the essay)', !r.aheadHero && /Next up/.test(r.kicker) && r.h1==='Reading response' && r.block && r.rows[0].t==='Quiz 3' && r.rows[1].t==='Problem set 2' && r.aheadMins.join()==='15,45', {kicker:r.kicker, h1:r.h1, rows:r.rows, mins:r.aheadMins});
   await fresh(ws,{seed:seedFor(1), payloadExtra:'mk("804","ECN 212","184221",1,"Reading response");'});
   r=JSON.parse(await ev(ws,READ));
   check('A5 a day already 75% full offers nothing extra', !r.aheadHero && !r.block, {rows:r.rows, block:r.block});
