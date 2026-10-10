@@ -2,6 +2,8 @@
    screen — the rooms nudge's row of class chips, once — made mobile browsers widen the whole layout to 664px, so every
    sheet was cut off at the right and the page could be dragged sideways and pinched (v70.3). Eight classes, an iPhone
    UA at 390px (below the headless floor for pixels, but widths and boxes are exact), every view driven to and measured.
+   Since v71.2 pinch zoom is ON (WCAG 1.4.4): the suite pinches in, pans, pinches out and checks the layout comes back
+   exactly, and that no text box is under 16px (iOS zooms in on focus below that and leaves the page zoomed).
    Run: node test-phone.js   (needs :8899 serving ~/lmk-web and headless Chrome on :9333) */
 const {execSync, spawn}=require('child_process'); const fs=require('fs'); const os=require('os'); let id=0;
 const send=(ws,m,p={})=>new Promise(r=>{const mid=++id;const h=e=>{const x=JSON.parse(e.data);if(x.id===mid){ws.removeEventListener('message',h);r(x.result)}};ws.addEventListener('message',h);ws.send(JSON.stringify({id:mid,method:m,params:p}))});
@@ -50,11 +52,14 @@ const OVER=`(()=>{const W=innerWidth, out=[]; const path=e=>{let p=[]; while(e&&
     ['the recap', `closeStudy({fromHistory:true}); openWrapped('semester'); 1`],
     ['the welcome overlay', `closeWrapped(); openWelcome(); 1`],
   ];
+  const smallBoxes=[];
   for (const [name, drive] of views) {
     await ev(ws, drive); await sleep(name.startsWith('the room') ? 1500 : 900);
     const r=await measure();
     check(`P: ${name} — layout viewport is the phone (${W}px) and nothing spills past its edge`, r.innerWidth===W && r.clientW===W && r.scrollW===W && r.over.length===0, r);
+    smallBoxes.push(...JSON.parse(await ev(ws, `JSON.stringify([...document.querySelectorAll('input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]),select,textarea')].filter(e=>e.offsetParent&&parseFloat(getComputedStyle(e).fontSize)<16).map(e=>(e.id||e.className||e.tagName)+':'+getComputedStyle(e).fontSize))`)).map(x=>name+' '+x));
   }
+  check('P: every text box on every view is at least 16px, so iOS never zooms in on focus and leaves the page zoomed', smallBoxes.length===0, smallBoxes.slice(0,8));
   // the course filter is remembered per device and hides the nudge: back to "All courses" first
   await ev(ws,`welcomeOverlay.classList.remove('open'); (document.querySelector('nav.bottombar button[data-tab="now"]')||{click(){}}).click(); courseFilter = null; saveView(); render(); window.scrollTo(0,document.body.scrollHeight); 1`); await sleep(600);
   const nudge=JSON.parse(await ev(ws,`JSON.stringify((()=>{const c=document.querySelector('.card.intro[data-i="2"] .chips'); if(!c) return null; const chips=[...c.querySelectorAll('.chip')].map(x=>x.getBoundingClientRect()); return {n:chips.length, rows:new Set(chips.map(r=>Math.round(r.top))).size, maxRight:Math.max(...chips.map(r=>Math.round(r.right))), wrap:getComputedStyle(c).flexWrap}})())`));
@@ -62,9 +67,47 @@ const OVER=`(()=>{const W=innerWidth, out=[]; const path=e=>{let p=[]; while(e&&
   const filt=JSON.parse(await ev(ws,`JSON.stringify((()=>{const c=document.getElementById('courseChips'); const cs=getComputedStyle(c); return {wrap:cs.flexWrap, ox:cs.overflowX, scrolls:c.scrollWidth>c.clientWidth}})())`));
   check('P: the course FILTER row is still the one sideways scroller', filt.wrap==='nowrap' && filt.ox==='auto' && filt.scrolls, filt);
   const root=JSON.parse(await ev(ws,`JSON.stringify({html:getComputedStyle(document.documentElement).overflowX, body:getComputedStyle(document.body).overflowX, ta:getComputedStyle(document.documentElement).touchAction, ob:getComputedStyle(document.body).overscrollBehaviorX})`));
-  check('P: the root clips sideways overflow without becoming the scroller, forbids pinch-zoom via touch-action, and never rubber-bands sideways', root.html==='clip' && root.body==='clip' && /pan-x/.test(root.ta) && /pan-y/.test(root.ta) && root.ob==='none', root);
+  check('P: the root clips sideways overflow without becoming the scroller, allows pinch (touch-action manipulation: no double-tap zoom), and never rubber-bands sideways', root.html==='clip' && root.body==='clip' && root.ta==='manipulation' && root.ob==='none', root);
+  const pk=JSON.parse(await ev(ws,`JSON.stringify({k: pushKey().length, box: !document.getElementById('setupPush').hidden, why: (document.getElementById('pushWhy')||{}).textContent||''})`));
+  check('P: the morning note finds its key on /config (top level since forever; v71.2 stopped reading it from the plans block) and never says "Not available"', pk.k > 80 && !/Not available/.test(pk.why), pk);
   const src=fs.readFileSync(os.homedir()+'/lmk-web/app/index.html','utf8');
-  check('P: the site wrapper\'s viewport meta forbids zoom, and Safari\'s pinch gesture is cancelled in script', /maximum-scale=1,user-scalable=no/.test(src) && /"gesturestart".*preventDefault/.test(src), null);
+  const meta=(src.match(/<meta name="viewport" content="([^"]*)"/)||[])[1]||'';
+  check('P: zoom is allowed (WCAG 1.4.4): the viewport meta has no maximum-scale or user-scalable=no, keeps minimum-scale=1, and no script cancels a pinch', !/maximum-scale|user-scalable/.test(meta) && /minimum-scale=1/.test(meta) && !/"gesturestart"/.test(src), meta);
+  /* A real pinch, in, a sideways pan while zoomed, and back out: the page must come back to exactly the phone's width,
+     on the same tab, with nothing shifted (Emiel, 2026-10-10: "make sure the screen doesn't get all out of order"). */
+  await ev(ws,`window.scrollTo(0,0); 1`); await sleep(300);
+  const vv=async()=>JSON.parse(await ev(ws,`JSON.stringify({scale:+visualViewport.scale.toFixed(2), vw:Math.round(visualViewport.width), inner:innerWidth, scrollW:document.documentElement.scrollWidth, tab:activeTab, offL:Math.round(visualViewport.offsetLeft), pageL:Math.round(visualViewport.pageLeft)})`));
+  const before=await vv();
+  /* gesture points are in the VISUAL viewport's CSS pixels: once zoomed, (200,400) is off screen ("Position out of bounds") */
+  const mid=async()=>JSON.parse(await ev(ws,`JSON.stringify({x:Math.round(visualViewport.width/2), y:Math.round(visualViewport.height/2)})`));
+  await send(ws,'Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
+  await send(ws,'Input.synthesizePinchGesture',{...(await mid()),scaleFactor:2.5,relativeSpeed:400,gestureSourceType:'touch'}); await sleep(700);
+  const zin=await vv();
+  check('P: a pinch zooms in', zin.scale>=1.8, {before, zin});
+  /* one finger dragged across the whole zoomed screen, right to left, quickly: on a phone that is reading sideways. The
+     tab swipe (touchend, dx > 70 CSS px in under 600 ms) used to fire on it and jump Now -> Plan mid-read. Points are
+     visual-viewport CSS px; clientX moves by the same amount, so a full-width drag at 2.5x is ~140 px. */
+  { const {x}=await mid(), x0=2*x-8, x1=8;
+    // a row of plain content (not a chip row or the grade strip, which the swipe ignores on purpose) to drag across
+    const y=await ev(ws,`(()=>{const h=visualViewport.height; for(let f=.15;f<.95;f+=.05){const e=document.elementFromPoint(visualViewport.width/2,h*f); if(e&&!e.closest('.chips,.gstrip,.radar,.overlay,textarea,input,.cal,.caprow,button,a')) return Math.round(h*f);} return -1})()`);
+    check('P: (harness) found plain content to drag across while zoomed', y>0, y);
+    /* While zoomed the page pans under the finger, so clientX barely moves until the view reaches its right edge; from
+       there the finger slides over the content and the old swipe fired. Three drags: the first two reach the edge. */
+    for (let d=0; d<3; d++) {
+      await send(ws,'Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:x0,y}]});
+      for (let k=1;k<=5;k++){ await send(ws,'Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x0+(x1-x0)*k/5,y}]}); await sleep(20); }
+      await send(ws,'Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]}); await sleep(500);
+    } }
+  const panned=await vv();
+  check('P: zoomed in, a sideways pan moves the view and does not switch the tab (it is reading, not a swipe)', panned.tab===before.tab && panned.inner===W && panned.scrollW===W, {before, panned});
+  await send(ws,'Input.synthesizePinchGesture',{...(await mid()),scaleFactor:0.2,relativeSpeed:400,gestureSourceType:'touch'}); await sleep(900);
+  const zout=await vv();
+  check('P: pinched back out, the page is exactly the phone again: scale 1, full width, same tab, no sideways offset', zout.scale===1 && zout.vw===W && zout.inner===W && zout.scrollW===W && zout.pageL===0 && zout.tab===before.tab, {before, zout});
+  await send(ws,'Input.synthesizePinchGesture',{...(await mid()),scaleFactor:0.5,relativeSpeed:400,gestureSourceType:'touch'}); await sleep(700);
+  const zmin=await vv();
+  check('P: pinching out further cannot shrink the page below the phone\'s width', zmin.scale===1 && zmin.vw===W, zmin);
+  const after=await measure();
+  check('P: after zooming, every view still fits: nothing spills past the edge', after.innerWidth===W && after.scrollW===W && after.over.length===0, after);
   done();
   console.log(`\n${fail?fail+' FAILED':'ALL OK'}  (${pass} passed)`);
   process.exit(fail?1:0);

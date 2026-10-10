@@ -5,8 +5,7 @@
    - axe-core 4.10.2 (wcag2a, wcag2aa, wcag21a, wcag21aa) reports zero violations on first run, the sample semester,
      Today, Plan, Semester, the settings sheet, the room sheet, Study, the recap and the welcome, light and dark,
      desktop 1100 and phone 390 (iPhone UA). axe cannot judge text over a gradient, so G-checks sample every stop.
-     KNOWN EXCEPTION: axe's `meta-viewport` (the pinch-zoom lock) is the owner's product decision, documented in
-     ~/lmk-docs/app.md "Accessibility (v71.1)"; it is reported, never counted.
+     No known exceptions since v71.2: pinch zoom is on, so axe's `meta-viewport` (1.4.4) is counted like everything else.
    - every sheet moves focus inside on open, makes the page behind inert, keeps Tab inside for 20 presses, closes on
      Escape and hands focus back to the control that opened it.
    - the recap scrolls at 1280x720; focus stays on a row after Mark done; a hidden toast's buttons are not focusable;
@@ -23,7 +22,7 @@ const IPHONE="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit
 const MAC="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36";
 const AXE_VER='4.10.2';
 const ONLY=(process.env.A11Y_ONLY||'').split(',').filter(Boolean), want=k=>!ONLY.length||ONLY.includes(k);   // A11Y_ONLY=F,M runs those sections only
-const KNOWN={'meta-viewport':'pinch-zoom lock (maximum-scale=1,user-scalable=no) — the owner\'s product decision, see app.md "Accessibility (v71.1)"'};
+const KNOWN={};   // was {'meta-viewport': the pinch-zoom lock} until v71.2 turned zoom on; add an entry only for an owner's decision
 function axeSource(){
   const p=process.env.AXE||path.join(os.tmpdir(),`axe-${AXE_VER}.min.js`);
   if(!fs.existsSync(p)) execSync(`curl -sfL -o "${p}" https://cdnjs.cloudflare.com/ajax/libs/axe-core/${AXE_VER}/axe.min.js`);

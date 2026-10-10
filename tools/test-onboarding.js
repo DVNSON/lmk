@@ -164,13 +164,15 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
   await fresh(ws); await ev(ws,`document.getElementById('wCloud').checked=false; document.getElementById('wSignin3').click()`); await sleep(400);
   r=JSON.parse(await ev(ws,`JSON.stringify({on: !!(store.cloud&&store.cloud.on), sid: !!(store.cloud&&store.cloud.sid)})`));
   check('T15b consent: unticked + Sign in with Google -> on:false kept', !r.on && r.sid, r);
-  // T17 a parent back from Stripe is not a student: the flag must survive its own declaration
-  // a fragment-only navigation never reloads the document, so leave the page first; then wait past the welcome delay
-  await send(ws,'Page.navigate',{url:'http://localhost:8899/app/'}); await sleep(400); await ev(ws,`localStorage.clear(); sessionStorage.clear();`);
-  await send(ws,'Page.navigate',{url:'about:blank'}); await sleep(300);
-  await send(ws,'Page.navigate',{url:'http://localhost:8899/app/#gift=ok'}); await sleep(10500);
-  r=JSON.parse(await ev(ws,`JSON.stringify({flag: GIFT_RETURN, overlay: welcomeOverlay.classList.contains('open')})`));
-  check('T17 gift return: GIFT_RETURN stays true after boot and the welcome overlay is not open', r.flag===true && !r.overlay, r);
+  // T17 an old Stripe return link (#gift=ok, #plus=ok) from before v71.2 just opens the app: no receipt sheet, no plans
+  // sheet, no error, and the first-run card is there. A fragment-only navigation never reloads, so leave the page first.
+  for (const h of ['gift=ok', 'plus=ok']) {
+    await send(ws,'Page.navigate',{url:'http://localhost:8899/app/'}); await sleep(400); await ev(ws,`localStorage.clear(); sessionStorage.clear();`);
+    await send(ws,'Page.navigate',{url:'about:blank'}); await sleep(300);
+    await send(ws,'Page.navigate',{url:'http://localhost:8899/app/#'+h}); await sleep(3500);
+    r=JSON.parse(await ev(ws,`JSON.stringify({open:[...document.querySelectorAll('body > .overlay.open')].map(o=>o.id), hero:!!document.querySelector('section.view .hero'), plans:/LMK Plus|per month|\\$[0-9]/.test(document.body.innerText), err:(window.__errs||[]).length})`));
+    check('T17 #'+h+' (an old Stripe return link) opens the app normally: no sheet, no price anywhere, the first-run card', r.open.length===0 && r.hero && !r.plans, r);
+  }
   // T16 before any school has answered, "Open Canvas" is ASU's and says so
   await fresh(ws); r=await ev(ws,`/opens ASU's Canvas/.test(document.querySelector('section.view .hero').textContent)`);
   check('T16 ASU note: shown on a fresh laptop', r===true, r);

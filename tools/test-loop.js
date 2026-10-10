@@ -185,7 +185,7 @@ const openDetails=(P,re)=>ev(P.ws,`(()=>{const d=[...document.querySelectorAll('
   await ev(L.ws,DRIVE(P2.duenorth_v1)); await ev(L.ws,`gdrivePull()`); await sleep(3000);
   r=JSON.parse(await ev(L.ws,`JSON.stringify({rooms:ROOMS.list.map(x=>String(x.cid)), sessions:mySessions().map(x=>({me:x.me,course:x.course})), handle:store.roomHandle, roomAt:store.roomAt||0})`));
   say('B-laptop','opens LMK the next morning; Drive brings the phone\'s store (real gdrivePull)');
-  check('L19 B-laptop: without opening anything, the laptop knows the room (via /plus/status), Sam\'s RSVP is on the calendar, and the handle typed on the phone is here', r.rooms.includes(CID) && r.sessions.length===1 && r.sessions[0].me && r.sessions[0].course==='MAT 210' && r.handle==='@Sam.K' && r.roomAt>0, r);
+  check('L19 B-laptop: without opening anything, the laptop knows the room (via roomsBoot), Sam\'s RSVP is on the calendar, and the handle typed on the phone is here', r.rooms.includes(CID) && r.sessions.length===1 && r.sessions[0].me && r.sessions[0].course==='MAT 210' && r.handle==='@Sam.K' && r.roomAt>0, r);
   const todayL=await L.text('#view-now');
   check('L25 B-laptop: Today shows the session under Classmates with both going and "you\'re in", from Drive alone', /MAT 210 study session/.test(todayL) && /2 going: Emiel, Sam/.test(todayL) && /you're in/i.test(todayL), todayL.slice(0,400));
   await L.click('.chip[data-course="MAT 210"]'); await sleep(1500); const lineL=await L.text('.roomline');
