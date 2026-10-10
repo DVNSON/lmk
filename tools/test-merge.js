@@ -99,6 +99,13 @@ check("planFirst keeps the earliest day per item", m.planFirst.a1 === "2026-10-0
 check("planScored unions", m.planScored.a1 === 1 && m.planScored.a2 === 2, m.planScored);
 m = merge({savedAt: 1}, {savedAt: 2});
 check("no scorecard data on either side stays absent", m.seenAt === undefined && m.planFirst === undefined, [m.seenAt, m.planFirst]);
+// 4f. the calendar connection: the newer change wins whole; a disconnect ({src:null}) travels
+m = merge({savedAt: 9, cal: {src: "google", write: true, calId: "x", at: 100}}, {savedAt: 1, cal: {src: null, at: 200}});
+check("a later disconnect on another device wins over an older connection", m.cal && m.cal.src === null && m.cal.at === 200, m.cal);
+m = merge({savedAt: 1, cal: {src: "ics", url: "https://calendar.google.com/x", at: 300}}, {savedAt: 9});
+check("a connection on one side only is kept", m.cal && m.cal.src === "ics", m.cal);
+m = merge({savedAt: 1}, {savedAt: 2});
+check("no calendar on either side stays absent", m.cal === undefined, m.cal);
 
 if (fail) { console.error(fail + " FAILED"); process.exit(1); }
 console.log("ALL OK (" + pass + ")");
