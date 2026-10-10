@@ -92,6 +92,13 @@ check("a later off wins over an earlier on", m.cloud.on === false && m.cloud.onA
 // 4d. two devices where nobody chose stay off
 m = merge({savedAt: 1, cloud: {sid: "a".repeat(16), secret: "x", on: false, onAt: 0, at: 1}}, {savedAt: 2, cloud: {sid: "b".repeat(16), secret: "y", on: false, onAt: 0, at: 2}});
 check("two unchosen records stay off", m.cloud.on === false && m.cloud.sid === "a".repeat(16), m.cloud);
+// 4e. the plan scorecard: first seen and first planned keep the EARLIEST across devices; scored is a union
+m = merge({savedAt: 2, seenAt: {a1: 500, a2: 900}, planFirst: {a1: "2026-10-05"}, planScored: {a1: 1}}, {savedAt: 1, seenAt: {a1: 300, a3: 700}, planFirst: {a1: "2026-10-03", a2: "2026-10-04"}, planScored: {a2: 2}});
+check("seenAt keeps the earliest instant per item and unions items", m.seenAt.a1 === 300 && m.seenAt.a2 === 900 && m.seenAt.a3 === 700, m.seenAt);
+check("planFirst keeps the earliest day per item", m.planFirst.a1 === "2026-10-03" && m.planFirst.a2 === "2026-10-04", m.planFirst);
+check("planScored unions", m.planScored.a1 === 1 && m.planScored.a2 === 2, m.planScored);
+m = merge({savedAt: 1}, {savedAt: 2});
+check("no scorecard data on either side stays absent", m.seenAt === undefined && m.planFirst === undefined, [m.seenAt, m.planFirst]);
 
 if (fail) { console.error(fail + " FAILED"); process.exit(1); }
 console.log("ALL OK (" + pass + ")");
