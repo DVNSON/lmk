@@ -10,14 +10,15 @@
 <body>
 
 <style>
-  :root{--bg:#f2f3f6;--surface:#fff;--ink:#14161a;--ink-2:#565b64;--muted:#8a8f98;--line:#e3e5ea;--accent:#e0489a;color-scheme:light}
-  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0f1013;--surface:#1a1c21;--ink:#f4f5f7;--ink-2:#b6bac2;--muted:#83878f;--line:#2a2d34;--accent:#e85fa2;color-scheme:dark}}
-  :root[data-theme="dark"]{--bg:#0f1013;--surface:#1a1c21;--ink:#f4f5f7;--ink-2:#b6bac2;--muted:#83878f;--line:#2a2d34;--accent:#e85fa2;color-scheme:dark}
+  :root{--bg:#f2f3f6;--surface:#fff;--ink:#14161a;--ink-2:#565b64;--muted:#686d76;--line:#e3e5ea;--accent:#e0489a;color-scheme:light}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0f1013;--surface:#1a1c21;--ink:#f4f5f7;--ink-2:#b6bac2;--muted:#8f939b;--line:#2a2d34;--accent:#e85fa2;color-scheme:dark}}
+  :root[data-theme="dark"]{--bg:#0f1013;--surface:#1a1c21;--ink:#f4f5f7;--ink-2:#b6bac2;--muted:#8f939b;--line:#2a2d34;--accent:#e85fa2;color-scheme:dark}
   body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.65 "Public Sans",-apple-system,BlinkMacSystemFont,sans-serif}
   .wrap{max-width:720px;margin:0 auto;padding:44px 22px 80px}
   h1{font-size:34px;line-height:1.1;margin:0 0 6px;letter-spacing:-.01em}
   h2{font-size:18px;margin:32px 0 8px;padding-top:14px;border-top:1px solid var(--line)}
   p,li{max-width:66ch} p{margin:0 0 12px} ul{padding-left:22px;margin:0 0 12px} li{margin:0 0 6px}
+  code{font-size:13.5px;overflow-wrap:anywhere}
   .sub{color:var(--muted);font-size:13px;margin-bottom:22px}
   .brand{display:inline-block;width:44px;height:6px;border-radius:99px;background:linear-gradient(115deg,#ff5d52,#e0489a 48%,#f7a521);margin-bottom:18px}
   b{font-weight:600}
@@ -25,76 +26,146 @@
 <div class="wrap">
   <span class="brand"></span>
   <h1>LMK — Privacy Policy</h1>
-  <div class="sub">Effective September 10, 2026 · Applies to the LMK app and the "LMK Today" browser extension</div>
+  <div class="sub">Effective October 10, 2026 · Applies to LMK at lmktoday.app and the "LMK Today" browser extension</div>
 
-  <p>LMK Today is a browser extension that reads your own Canvas or D2L Brightspace assignments and feeds them into LMK, your personal assignment planner. This page explains exactly what it reads, where that data goes, and what it never does.</p>
+  <p>LMK ("Let Me Know") is a planner for students. Its browser extension, LMK Today, reads your own Canvas or D2L Brightspace assignments, and the LMK app tells you what to do today. This page names everything LMK reads, everything that leaves your device, who handles it, how long it is kept, and how to delete it.</p>
+
+  <h2>In short</h2>
+  <ul>
+    <li>By default, your assignments, grades and work timings stay in your browser, and in your own Google Drive if you sign in with Google.</li>
+    <li>LMK's server holds your coursework only if you turn on <b>Sync from anywhere</b>, which is off unless you turn it on. It holds what you type only if you join a class's <b>classmates</b> list, and a push address only if you turn on the <b>morning note</b> on a phone.</li>
+    <li>Otherwise, what reaches LMK's server is an anonymous usage counter, crash reports, a random id for your device and, at Brightspace schools, a report on which parts of the school's site answer. None of it carries your name, your coursework or your grades.</li>
+    <li>LMK never submits work or changes your coursework, never sells or shares your data, shows no ads, and sends nothing to an AI model.</li>
+  </ul>
 
   <h2>Age</h2>
-  <p>LMK is for students <b>13 and over</b> and is not directed at children under 13. LMK does not knowingly collect anything from a child under 13; if you believe a child under 13 has used it, write to <a href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=hello%40lmktoday.app" target="_blank" rel="noopener">hello@lmktoday.app</a> and whatever is held under that random id will be deleted. Anyone under 18 needs a parent or guardian to agree to the <a href="terms.html">terms</a> and to make any purchase.</p>
+  <p>LMK is for students <b>13 and over</b> and is not directed at children under 13. LMK does not knowingly collect anything from a child under 13; if you believe a child under 13 has used it, write to <a href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=hello%40lmktoday.app" target="_blank" rel="noopener">hello@lmktoday.app</a> and whatever is held under that random id will be deleted. Anyone under 18 needs a parent or guardian to agree to the <a href="terms.html">terms</a>.</p>
 
-  <h2>Sync from anywhere</h2>
-  <p>So your phone stays current while your laptop is closed, LMK can read your Canvas for you from its own server. This exists for Canvas schools only: Brightspace offers students no access tokens, so LMK's server can never read a Brightspace account and the extension says so under the gear. It is offered as a ticked box on the welcome screen — on unless you untick it, and off any time under the gear — and it works like this:</p>
+  <h2>What the extension reads</h2>
   <ul>
-    <li>The extension creates an <b>access token in your own Canvas account</b> (the same thing you could make under Account → Settings → New Access Token). Canvas lists it under Approved Integrations as "LMK"; you can delete it there at any time, and it expires on its own after six months.</li>
-    <li>Our server stores that token <b>encrypted</b> (with a key that lives only in the server's secret store, never in the database), plus the same assignment rows the extension collects: titles, due dates, submission state, scores. It stores <b>no email and no Canvas user id</b>. Each student is a random sync id. The one place a name can reach the server is the optional classmates feature, described below, and only the name you type there.</li>
-    <li>Every couple of minutes the server reads a few courses for the student whose data is oldest, and it reads yours when you open LMK and its copy is stale.</li>
-    <li><b>Turn off</b> under the gear deletes the token and every row from our server and, on your next Canvas visit, removes the token from Canvas too.</li>
+    <li><b>From Canvas</b>, through Canvas's own API and the login session already in your browser: your active courses (name, course code, and Canvas's current and final grade for you); for each assignment its title, due and lock dates, points, assignment group and weight, submission type, link, the first 1,200 characters of the instructions and the rubric criteria; your own submission's state, time and score and whether Canvas marked it late, missing or excused; the most recent comment someone other than you left on your submission (first 400 characters); the time Canvas recorded on your quiz attempts; and each course's internal code, which Canvas shows only to people in the course (see Classmates).</li>
+    <li><b>From Brightspace</b>, the same kinds of things through Brightspace's API: your enrollments, assignments and quizzes, your grades and final grade, your submissions and the feedback on them, and how long your quiz attempts took.</li>
+    <li>If Canvas has signed your browser out, the extension may open your school's Canvas once in an unfocused background tab, so your school's sign-on can renew the session, and closes it as soon as the read finishes or after 90 seconds.</li>
+    <li>Your user number, which both systems use to mark which submissions are yours, is used only to pick out your own work. It is never stored or sent. The extension never sees or stores your password.</li>
+    <li><b>Time you spend working</b>: while an assignment page or a quiz on your school's Canvas or Brightspace is visible and you are active, the extension counts minutes toward that assignment. It records only a minute tally per assignment, never what you type, read or click. (A private build that LMK's author runs also times course tools such as MyEducator or Edfinity; the build in the Chrome Web Store does not.)</li>
   </ul>
-  <p>Students on a phone with no laptop can paste a token they made themselves; the rest is identical.</p>
+
+  <h2>Where it goes by default</h2>
+  <ul>
+    <li>Everything the extension collects is stored <b>in your own browser</b> (extension storage) and handed to the LMK page when you open it. The LMK page keeps your plan, your done marks and your timings in your browser too.</li>
+    <li>If you sign in with Google, LMK saves your data as a file named <b>LMK-data.json</b> in <b>your own Google Drive</b> so your phone and laptop stay in step. LMK uses Google's <code>drive.file</code> permission, which lets it see <b>only the files it created</b>; it can never read anything else in your Drive.</li>
+    <li>If you turn on <b>Keep your phone fresh</b>, the extension itself saves each sync as a second file, <b>LMK-canvas.json</b>, in your own Drive under the same <code>drive.file</code> permission, so your phone can pick it up without LMK being open on your laptop. It is off until you turn it on, the Google sign-in token stays inside the extension on your computer, and nothing in it reaches LMK's server.</li>
+    <li><b>Inside claude.ai only:</b> the copy of LMK that runs as a Claude artifact shares <b>anonymous course statistics</b> with other users of that copy: an assignment's Canvas ID, a median number of minutes, and a type vote (for example "done in class"). This never includes your name, your scores, your grades, or which assignments you completed. <b>The app at lmktoday.app shares nothing of the kind</b>: this sharing needs Claude's own storage, which a normal web page cannot reach, so on the website your timings never leave your device.</li>
+  </ul>
+
+  <h2>Sync from anywhere (optional, Canvas only)</h2>
+  <p>So your phone stays current while your laptop is closed, LMK's server can read Canvas for you. It is <b>off unless you turn it on</b>, and you can turn it off under the gear at any time. Brightspace offers students no access tokens, so it does not exist at Brightspace schools. When you turn it on:</p>
+  <ul>
+    <li>The extension creates <b>one Canvas access token, named "LMK"</b>, in your own Canvas account (the same kind you could make under Account → Settings → New Access Token) and sends it to LMK's server. <b>Canvas gives a token like this the same access as your account.</b> LMK uses it only to read: the server sends Canvas nothing but read requests with it, and LMK never submits work or changes your coursework. Canvas lists it under Account → Settings → Approved Integrations, where you can delete it at any time. It expires after six months; while the feature is on, the extension replaces it before then and deletes the old one.</li>
+    <li>LMK's server stores the token <b>encrypted</b>, with a key kept in the server's secret store and never in the database. Beside it, as ordinary database rows, it stores a copy of what it reads: <b>per course</b>, its name and Canvas's current and final grade; <b>per assignment</b>, the title, due and lock dates, points, link, submission state and time, score, late/missing/excused flags, the first 1,200 characters of the instructions, the rubric criteria, and the most recent comment someone other than you left on your submission (first 400 characters). It also keeps your school's Canvas address and the labels Canvas puts on each assignment (grading type, submission type, assignment group and its weight, quiz number).</li>
+    <li>It stores <b>no email, no Canvas user id and no name from your Canvas profile</b>. Each student is a random sync id. A comment someone left on your work is free text, though, and can contain your name.</li>
+    <li>Every few minutes the server reads a few courses for the student whose copy is oldest, and it reads yours when you open LMK and the copy is stale. Your devices read the copy back from the server.</li>
+    <li><b>How long it is kept:</b> until you turn Sync from anywhere off. That deletes the token, the course list and every assignment row from LMK's server at once, and removes the token from Canvas the next time you open Canvas with the extension. If you stop using LMK without turning it off, the copy stays until you turn it off or write to hello@lmktoday.app; Canvas itself expires the token after 180 days unless the extension renews it.</li>
+    <li><b>Turning it off does not take you out of your classes.</b> A classmates entry is kept separately (below): leave each class to remove it, or write to <a href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=hello%40lmktoday.app" target="_blank" rel="noopener">hello@lmktoday.app</a> to delete everything.</li>
+  </ul>
+  <p>Students on a phone with no laptop can paste a Canvas token they made themselves. Everything above applies to it, except that LMK cannot remove a token you made by hand from Canvas: delete it under Approved Integrations.</p>
+
+  <h2>Your calendar (optional)</h2>
+  <p>With Sync from anywhere on, the gear offers a private calendar link. If you subscribe to it in Google Calendar, Apple Calendar or Outlook, that service fetches the link from LMK's server from time to time and keeps what it receives under its own terms: for each unsubmitted assignment with a due date, its course, title, due time, points, submission type and Canvas link. It never includes a score or a grade. The link is its own key, so anyone who has it can read that list; treat it like a password. Turning Sync from anywhere off makes the link stop working.</p>
+
+  <h2>Classmates (optional)</h2>
+  <p>For each class you choose to join, LMK's server keeps: the <b>display name</b> you type; a <b>contact handle</b> if you add one, such as an Instagram username (any short line, up to 60 characters); <b>which class</b> it is, meaning your school's address and the course's number; when you joined; and the <b>study sessions</b> you post (a time, a kind of place, an optional note of up to 80 characters and an optional assignment) or say you're in on. A class can also hold one link to its own group chat, which any member can add or change and every member can see; it does not record who added it.</p>
+  <p><b>Who sees it:</b> only people who have joined the same class's list in LMK, after LMK confirmed they are in that course. Others in the course who open LMK see only how many have joined. On Canvas the confirmation is a code Canvas shows only to people in the course, read by the extension inside your own session and sent as a hash: never the code itself, never a password or a key. Brightspace has no such code, so there LMK uses the course's offering code, which is a weaker check. Classmates never see your sync id or support code, only a short public id made from a hash of it, and the list never includes your grades, scores, submissions or which assignments you have finished. When Sync from anywhere is connected, LMK's card on a Canvas course page asks the server how many classmates have joined; that request carries your school's address and the course number, nothing about you.</p>
+  <p><b>Reports:</b> if you report an entry or a session, the server keeps your random id, the public id of what you reported, up to 200 characters you write, the class and the time, so a person can read it. Write to hello@lmktoday.app to have a report you filed deleted.</p>
+  <p><b>How long:</b> until you leave. Leaving a class deletes your entry, the sessions you posted and your marks on other people's sessions the moment you tap. Turning off Sync from anywhere and removing the extension do not do this.</p>
+  <p>A classmate can send you an invite link that opens a class's list. The link carries no code, says nothing about who shared it, and earns nothing for anyone.</p>
+
+  <h2>The morning note on a phone (optional)</h2>
+  <p>If you turn it on, LMK's server holds one more thing about you, and it is an identifier: the address your browser's push service (Apple's, Google's or Mozilla's) hands out for that one browser on that one device, with the two keys that encrypt messages to it. It is a long random web address. Anyone holding it together with LMK's private key could make that device show a notification. It is stored against your device's random id (below) and nothing else: no name, no email, no account.</p>
+  <p>Beside it LMK stores, for each of up to four coming mornings worth waking you for, the moment to send the note, how many things are due and how many minutes they add up to. Your device works those moments out on its own clock, so LMK is never told your time zone or what time you get up, only instants in the future. They run out after four mornings, so a phone whose owner has stopped opening LMK goes quiet rather than being read a stale plan.</p>
+  <p>What the note says is put together on your phone. <b>No assignment title, no course name and no grade is ever sent to LMK's server or through the push service.</b> The headline ("Today: 3 things, ~2h 10m") travels encrypted; the line naming the first thing is added by your own browser from the plan it already has. Turning the note off in LMK deletes all of it at once. If you block LMK's notifications in your browser or phone settings, or remove the browser, the push service tells LMK the address is gone the next time a note is due and LMK deletes it then; it is also deleted after ten failed sends in a row, and when you turn off a connected Sync from anywhere.</p>
+  <p>The extension's morning notification on your computer is different: it is built on your computer from the plan the LMK page already showed you, and nothing about it is sent anywhere.</p>
+
+  <h2>What LMK counts</h2>
+  <p>To know whether LMK is used and where setup goes wrong, the web app at lmktoday.app sends LMK's server one word from a fixed list, plus the date in UTC. That is the whole message: no identifier, no cookie, no device details, and LMK does not record your network address, so a count can never be traced back to a person. The server refuses any word not on this list:</p>
+  <ul>
+    <li><b>Use:</b> <code>open</code> (once per device per day), <code>install</code> (the first time a device opens the app), <code>firstsync</code> (the first time your school's data arrives), <code>synced</code> (once a day from a device that holds that data) and <code>extension</code> (the first time the extension is detected).</li>
+    <li><b>Setup and coming back</b>, each once per device: each setup screen the device was shown (<code>step_fresh</code>, <code>step_waiting</code>, <code>step_stuck</code>, <code>step_empty</code>, <code>step_phone</code>); a return a day, a week or a month after starting (<code>back_d1</code>, <code>back_d7</code>, <code>back_d30</code>); and <code>sample_try</code> if you try the sample semester.</li>
+    <li><b>Which kind of link brought you:</b> if the address you first opened LMK from ends in <code>?from=</code> and one of chat, reddit, club, prof, card or search, the device sends <code>from_</code> plus that word once, and <code>act_</code> plus the same word when it first syncs: <code>from_chat</code>, <code>act_chat</code>, <code>from_reddit</code>, <code>act_reddit</code>, <code>from_club</code>, <code>act_club</code>, <code>from_prof</code>, <code>act_prof</code>, <code>from_card</code>, <code>act_card</code>, <code>from_search</code>, <code>act_search</code>. Anything else after <code>?from=</code> is ignored.</li>
+    <li><b>Features:</b> <code>ahead_go</code> (a head start taken on a free day), <code>room_share</code> (a share tap in a class), <code>join_seen</code> and <code>join_room</code> (an invite link opened, and the class it then opened), <code>room_nocode</code> and <code>room_denied</code> (a class this device could not open yet) and <code>wrapped_shared</code> (a semester recap shared).</li>
+  </ul>
+  <p>LMK's server also keeps tallies of its own in the same form, a word and a day, when one of its features is used: for example Sync from anywhere being connected, a calendar link being read, a morning note being sent or someone joining their first class. Inside claude.ai the counter is off entirely. When it opens, the app also fetches one small settings file from the same server (an announcement, the store link, whether classmates lists are on); that request carries nothing about you.</p>
+
+  <h2>Crash reports</h2>
+  <p>If the web app at lmktoday.app hits an error, it sends LMK's server the app's build number, a short label for the part of the app that failed, and the error message, cut to 300 characters. Nothing in it identifies you or your device. An error message is written by the code, not by you, but it can occasionally quote a few characters of the data being read. The server keeps them as a count of identical reports per day, so problems can be traced over time. Inside claude.ai nothing is sent.</p>
+
+  <h2>A random id for your device</h2>
+  <p>When you finish the welcome screen, the app makes a random id and a random secret for your device. LMK's server keeps the id, a one-way hash of the secret and the date it first saw them, so it can tell that a request about your classes or your morning note comes from you, and from your other devices once they share your synced LMK data. It carries no name, no email and no coursework.</p>
+
+  <h2>A school's Brightspace, about once a month</h2>
+  <p>When the extension reads a Brightspace school, it tells LMK's server, at most once every 30 days per school from each browser: the school's web address, the extension's version, which of Brightspace's API routes answered (each route with its numeric ids taken out, its status code, how many items it returned, and the names of its fields, never their values), and how many courses and assignments came back and how many of those have a due date, a submission or a grade. It carries no name, no id, no title, no grade and nothing that identifies you; the address identifies the school. The server keeps one row per school (the latest report, how many reports have arrived, and when the first and last came), read on the admin side only. That is how LMK gets fixed for a school nobody who builds it can log in to.</p>
 
   <h2>No AI, and no model ever sees your work</h2>
   <p>LMK does not send your assignments, your notes or your grades to an AI model. The grade maths, the estimates and the ranking all run on your own device from what your school's site already gave you. Where LMK offers to open Claude, ChatGPT or Gemini with a prepared prompt, nothing is sent by LMK: the prompt is shown to you first, and it travels only if you click, to the service you picked, under their terms.</p>
-  <h2>What the extension reads</h2>
-  <ul>
-    <li><b>Your Canvas or Brightspace course and assignment data</b>: course names, assignment titles, due dates, points, submission state, scores, your course grade as Canvas calculates it, comments your instructors left on your submissions, and the time Canvas recorded on your quiz attempts. It reads this through Canvas's own API using the login session already in your browser. It never sees or stores your password.</li>
-    <li><b>Time you spend working</b>: while a Canvas or Brightspace assignment page, its quiz, or the external course tool you launched from it (for example MyEducator or Edfinity) is visible and you are active, the extension counts minutes toward that assignment. It records only a minute tally per assignment. It does not record what you type, read, or click.</li>
-  </ul>
-
-  <h2>Where the data goes</h2>
-  <ul>
-    <li>Everything the extension collects is stored <b>in your own browser</b> (extension storage) and handed to the LMK page when you open it.</li>
-    <li>By default, everything stays <b>on the device you are using</b>. Nothing is uploaded.</li>
-    <li>If you choose to sign in with Google, LMK saves your data as a file named <b>LMK-data.json</b> in <b>your own Google Drive</b> so your phone and laptop stay in sync. LMK uses Google's <code>drive.file</code> permission, which lets it see <b>only the one file it created</b> — it can never read anything else in your Drive. Delete that file, or revoke LMK's access in your Google account, and the synced copy is gone.</li>
-    <li>If you turn on <b>Keep your phone fresh</b>, the extension itself saves each Canvas sync as a second file, <b>LMK-canvas.json</b>, in your own Google Drive, under the same <code>drive.file</code> permission, so your phone can pick it up without your laptop having LMK open. This is off until you turn it on, and the sign-in token stays inside the extension on your computer. It is never sent to us.</li>
-    <li><b>Inside claude.ai only:</b> the copy of LMK that runs as a Claude artifact shares <b>anonymous course statistics</b> with other users of that copy: an assignment's Canvas ID, a median number of minutes, and a type vote (for example "done in class"). This never includes your name, your scores, your grades, or which assignments you completed. <b>The app at lmktoday.app shares nothing of the kind</b> — this sharing needs Claude's own storage, which a normal web page cannot reach, so on the website your timings never leave your device.</li>
-  </ul>
-
-  <h2>Classmates (optional)</h2>
-  <p>For any class you choose to join, LMK's server keeps four things: the display name you typed, the contact line you typed (or nothing), your course's Canvas id, and any study sessions you propose or join. That is all of it. <b>Only students confirmed to be in that same class</b> can see it. The confirmation is a code that Canvas shows only to a class's own students, read by the extension inside your own Canvas session and sent as a hash — never the code itself, and never a Canvas password or key; nobody at the same school in a different class can, and nobody outside LMK can. It never includes your grades, scores, submissions, or which assignments you have finished, and other students never see your sync id or support code: they see a short public id made from a hash of it. Leave a class and that entry is deleted the moment you tap, along with any sessions you proposed. Joining is a choice per class; nothing is shown about you until you make it.</p>
-  <p>If a classmate invites you with a link and you join LMK, the server records that the two of you are connected so it can add a couple of weeks of LMK Plus to each of you, once. That record holds two random ids and a date. Invites and joins are counted the way everything else is: an event name and a day.</p>
 
   <h2>What it never does</h2>
   <ul>
-    <li>It never sends your data to the extension's developers or to any advertising or analytics service.</li>
-    <li>It never sells, rents, or shares personal information with anyone. The one thing you can choose to show to other people is the classmates entry described above, to students confirmed to be in the same class, and only after you join.</li>
-    <li>It never changes anything in Canvas or Brightspace. It only reads.</li>
-    <li>It never runs on sites other than Canvas, Brightspace, the course tools listed in its permissions, and the LMK page itself.</li>
+    <li>It never sends anything to LMK's server beyond what this page names, and never sends your data to any advertising or analytics service.</li>
+    <li>It never sells, rents, or shares personal information with anyone. The one thing you can choose to show to other people is the classmates entry described above, to people confirmed to be in the same course, and only after you join.</li>
+    <li>It never submits work or changes your coursework in Canvas or Brightspace. The one thing it ever creates is the "LMK" access token, and only while Sync from anywhere is on.</li>
+    <li>It never runs on sites other than your school's Canvas or Brightspace, a school address you approve yourself, and LMK's own pages.</li>
   </ul>
 
   <h2>Permissions, and why</h2>
+  <p>These are everything the extension in the Chrome Web Store asks Chrome for:</p>
   <ul>
     <li><b>storage</b>: to keep the collected assignment data and minute tallies in your browser between visits.</li>
-    <li><b>Canvas and Brightspace hosts</b> (canvas.asu.edu, instructure.com, brightspace.com, and any address you approve yourself in the extension): to read your assignments through the site's own API and to time work on assignment pages.</li>
-    <li><b>Course tool hosts</b> (MyEducator, Edfinity, McGraw-Hill Connect, Macmillan, Pearson, Cengage, zyBooks, WebAssign): only in the full build LMK's author runs, to time work you do there after launching from a Canvas assignment. The build in the Chrome Web Store does not ask for these and does not time course tools.</li>
-    <li><b>lmktoday.app</b>: to deliver the collected data to the LMK page. The full build also asks for claude.ai, where a private copy of the app runs; the Chrome Web Store build does not.</li>
+    <li><b>alarms</b>: to wake the extension to re-read your school's site in the background about every half hour, to show the morning notification, and to close the background tab described above if a sign-in does not finish.</li>
+    <li><b>notifications</b>: to show that morning notification on your computer.</li>
+    <li><b>identity</b>: to let you sign in with Google for Keep your phone fresh. The sign-in token stays in the extension.</li>
+    <li><b>scripting</b>: to run LMK's reader on a school address you approved yourself, and nowhere else.</li>
+    <li><b>canvas.asu.edu</b>, <b>instructure.com</b> and <b>brightspace.com</b> addresses: to read your assignments through the site's own API in your own session, to time work on assignment pages, and to show LMK's card on Canvas pages.</li>
+    <li><b>lmktoday.app</b>: to hand the collected data to the LMK page you open there.</li>
+    <li><b>dvnson.github.io</b>: LMK's old address. It now redirects to lmktoday.app, so the extension has nothing left to do there; the permission dates from before the move.</li>
+    <li><b>Optional access to other https sites</b>: Chrome lists this as an optional permission for all sites. LMK asks for it only when you choose to add your school's own Canvas or Brightspace address, and then only for that one address, after you type it on the extension's own page and Chrome shows you what it grants.</li>
+  </ul>
+  <p>The private build LMK's author runs also asks for claude.ai, where his own copy of the app runs, and for the course-tool sites named above. It is not distributed.</p>
+
+  <h2>Who processes data for LMK</h2>
+  <ul>
+    <li><b>Cloudflare</b> runs LMK's server and its database, and forwards mail sent to hello@lmktoday.app. Like any web host it sees the network address of each request; LMK does not store it.</li>
+    <li><b>Google</b>, for your Drive files and Google sign-in if you use them. Google also serves the web fonts on these pages and hosts the mailbox behind hello@lmktoday.app.</li>
+    <li><b>GitHub Pages</b> hosts the lmktoday.app website and app.</li>
+    <li><b>The Chrome Web Store</b> distributes the extension.</li>
+    <li><b>Browser push services</b> (Apple, Google, Mozilla) deliver the optional morning note on a phone.</li>
+    <li><b>Stripe</b>, only for subscriptions made before 14 September 2026. Stripe holds those subscribers' card details and email; LMK keeps only Stripe's reference numbers, the plan, its dates and the amounts paid, against the subscriber's random id.</li>
   </ul>
 
-  <h2>What LMK counts</h2>
-  <p>To know whether anyone uses it, the LMK web app sends five plain numbers to a server run by LMK: one <b>open</b> per device per day, one <b>install</b> the first time a device opens the app, one <b>first sync</b> the first time Canvas data arrives, one <b>synced</b> per day from a device that holds Canvas data, and one <b>extension</b> the first time the browser extension says hello. That is the whole message: an event name and the date, in UTC. No identifier, no cookie, no IP address is stored, so a count can never be traced back to a person. Inside claude.ai this counter is off entirely. The app also fetches one small settings file from the same server when it opens, holding an announcement and the store link; that request carries nothing about you.</p>
-  <p>Two more things reach that server. When you finish the welcome screen the app makes a random id for this device and the server keeps it with a first-seen date, so a plan you buy can follow you to another device; it carries no name, no email and no coursework. And when you use the tutor, a hashed form of your network address is kept for a day so the free allowance is shared fairly across a campus; the hash cannot be turned back into the address.</p>
-  <p>The extension's morning notification is built on your own computer from the plan the LMK page already showed you. Nothing about it is sent anywhere.</p>
-  <p><b>A school's Brightspace, once.</b> The first time the extension reads a Brightspace school it has not read before, it sends LMK's server that school's web address and which of Brightspace's API routes answered, as status codes and field names, plus how many courses and assignments came back. That is how LMK gets fixed for a school nobody who builds it can log in to. It carries no name, no id, no title, no grade and nothing that identifies you; the address identifies the school. It happens once per school per install and can be read on the admin side only.</p>
-  <p><b>The morning note on a phone.</b> If you turn that on, LMK's server holds one more thing about you, and it is an identifier: the address your browser's push service — Apple's, Google's or Mozilla's — hands out for that one browser on that one device. It is a long random web address. Anyone holding it together with LMK's private key could make that device show a notification. It is stored against the same random sync code as your Canvas data, and against nothing else: no name, no email, no account.</p>
-  <p>Beside it LMK stores up to four numbers: for each of the next four mornings worth waking you for, the moment to send the note, how many things are due, and how many minutes they add up to. Your device works those moments out on its own clock, so LMK is never told your time zone or what time you get up — only four instants in the future. They run out after four mornings, so a phone whose owner has stopped opening LMK goes quiet rather than being read a stale plan.</p>
-  <p>What the note says is put together on your phone. <b>No assignment title, no course name and no grade is ever sent to LMK's server or through the push service.</b> The headline — "Today: 3 things, ~2h 10m" — travels encrypted; the line naming the first thing is added by your own browser from the plan it already has. Three things delete all of it: turning the note off in LMK, blocking notifications for LMK in your browser or phone settings, or turning off Sync from anywhere. LMK also deletes the address the moment the push service says the browser is gone.</p>
+  <h2>How long things are kept</h2>
+  <ul>
+    <li><b>In your browser and your Drive:</b> until you delete them (see below).</li>
+    <li><b>Sync from anywhere:</b> until you turn it off, or write to hello@lmktoday.app.</li>
+    <li><b>Classmates entry and sessions:</b> until you leave the class. <b>Reports:</b> until a person has dealt with them; write to have yours deleted.</li>
+    <li><b>Morning note:</b> until you turn it off or the push service says the browser is gone.</li>
+    <li><b>Crash reports and usage counts:</b> kept as daily totals that identify no one.</li>
+    <li><b>Brightspace school report:</b> one row per school, replaced by each newer report.</li>
+  </ul>
 
   <h2>Deleting your data</h2>
-  <p>Removing the extension deletes everything it stored in your browser. Deleting the file named <b>LMK-data.json</b> from your Google Drive removes your synced LMK data. Turning off the morning note, or turning off Sync from anywhere, deletes the push address and the four instants stored with it. Anonymous course statistics, which exist only inside the claude.ai copy, cannot be traced back to you and are not deleted individually.</p>
+  <ul>
+    <li><b>In your browser:</b> removing the extension deletes everything it stored; clearing the site data for lmktoday.app deletes what the app stored.</li>
+    <li><b>In your Google Drive:</b> delete <b>LMK-data.json</b> and <b>LMK-canvas.json</b>, or revoke LMK's access in your Google account.</li>
+    <li><b>Sync from anywhere:</b> turn it off under the gear. <b>Removing the extension does not delete the server copy</b>, and the server keeps reading Canvas with the token until the token is deleted or stops working. So turn Sync from anywhere off first. If the extension is already gone, delete the "LMK" token in Canvas (Account → Settings → Approved Integrations) and email <a href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=hello%40lmktoday.app" target="_blank" rel="noopener">hello@lmktoday.app</a>.</li>
+    <li><b>Classmates:</b> leave each class you joined.</li>
+    <li><b>Morning note:</b> turn it off in LMK.</li>
+    <li><b>Anything else held under your random id</b>, or everything at once: email <a href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=hello%40lmktoday.app" target="_blank" rel="noopener">hello@lmktoday.app</a>. LMK holds no name or email, so include the support code the gear shows when Sync from anywhere is on, or describe what to look for (for example, the class you joined and the name you used there).</li>
+  </ul>
+  <p>Usage counts and anonymous course statistics (which exist only inside the claude.ai copy) cannot be traced back to you, so they are not deleted individually.</p>
 
   <h2>Changes and contact</h2>
   <p>If this policy changes, the date at the top changes with it. Questions: <a href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=hello%40lmktoday.app" target="_blank" rel="noopener">hello@lmktoday.app</a>.</p>
 </div>
 
-<div style="max-width:720px;margin:0 auto;padding:0 22px 60px"><a href="./" style="color:#8a8f98;font:14px/1 'Public Sans',sans-serif;text-decoration:none">← Back to LMK</a></div>
+<div style="max-width:720px;margin:0 auto;padding:0 22px 60px"><a href="./" style="color:var(--muted);font:14px/1 'Public Sans',sans-serif;text-decoration:none">← Back to LMK</a></div>
 </body>
 </html>

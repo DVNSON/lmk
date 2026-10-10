@@ -81,6 +81,17 @@ check("a newer removal beats an older done mark", !m.done.a9, m.done);
 // 4. cloud: earliest id wins, the newer save decides on/off
 m = merge({savedAt: t, cloud: {sid: "a".repeat(16), secret: "x", on: false, at: t - 10}}, {savedAt: t - 1, cloud: {sid: "b".repeat(16), secret: "y", on: true, at: t - 20}});
 check("cloud keeps the earlier id and the newer on/off", m.cloud.sid === "b".repeat(16) && m.cloud.on === false, m.cloud);
+// 4b. a new device's unchosen default never switches another device's sync off (v71.1 review)
+m = merge({savedAt: 1, cloud: {sid: "a".repeat(16), secret: "x", on: true, at: 1}}, {savedAt: 2, cloud: {sid: "b".repeat(16), secret: "y", on: false, onAt: 0, at: 2}});
+check("a fresh device's default off loses to an older device's on", m.cloud.sid === "a".repeat(16) && m.cloud.on === true, m.cloud);
+m = merge({savedAt: 2, cloud: {sid: "b".repeat(16), secret: "y", on: false, onAt: 0, at: 2}}, {savedAt: 1, cloud: {sid: "a".repeat(16), secret: "x", on: true, onAt: 5, at: 1}});
+check("...in either argument order, and with an explicit choice", m.cloud.sid === "a".repeat(16) && m.cloud.on === true, m.cloud);
+// 4c. turning it off on any device is a later choice and wins, even from the older save
+m = merge({savedAt: 9, cloud: {sid: "a".repeat(16), secret: "x", on: true, onAt: 5, at: 1}}, {savedAt: 8, cloud: {sid: "a".repeat(16), secret: "x", on: false, onAt: 7, at: 1}});
+check("a later off wins over an earlier on", m.cloud.on === false && m.cloud.onAt === 7, m.cloud);
+// 4d. two devices where nobody chose stay off
+m = merge({savedAt: 1, cloud: {sid: "a".repeat(16), secret: "x", on: false, onAt: 0, at: 1}}, {savedAt: 2, cloud: {sid: "b".repeat(16), secret: "y", on: false, onAt: 0, at: 2}});
+check("two unchosen records stay off", m.cloud.on === false && m.cloud.sid === "a".repeat(16), m.cloud);
 
 if (fail) { console.error(fail + " FAILED"); process.exit(1); }
 console.log("ALL OK (" + pass + ")");

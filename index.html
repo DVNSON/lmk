@@ -17,33 +17,38 @@
 <style>
   :root{
     --bg:#f2f3f6; --surface:#fff; --surface-2:#f7f8fa;
-    --ink:#14161a; --ink-2:#565b64; --muted:#8a8f98;
+    --ink:#14161a; --ink-2:#565b64; --muted:#686d76;
     --line:#e3e5ea; --line-strong:#c9ccd3;
     --good:#0ca30c; --good-text:#006300; --warn:#c98500;
-    --accent:#e0489a;
+    --accent:#e0489a; --accent-text:#c2307f;
     --splash:linear-gradient(115deg,#ff5d52,#e0489a 48%,#f7a521);
+    /* text on or in the brand gradient: every stop clears 4.5:1 (white on it, or it on --bg) */
+    --splash-strong:linear-gradient(115deg,#c8372d,#c2307f 48%,#a35a00);
+    --splash-text:var(--splash-strong);
     --shadow:0 1px 2px rgba(20,22,26,.06),0 10px 34px -12px rgba(20,22,26,.16);
     color-scheme:light;
   }
   @media (prefers-color-scheme:dark){
     :root:not([data-theme="light"]){
       --bg:#0f1013; --surface:#1a1c21; --surface-2:#22242a;
-      --ink:#f4f5f7; --ink-2:#b6bac2; --muted:#83878f;
+      --ink:#f4f5f7; --ink-2:#b6bac2; --muted:#8f939b;
       --line:#2a2d34; --line-strong:#3a3e47;
       --good:#0ca30c; --good-text:#3ecf3e; --warn:#fab219;
-      --accent:#e85fa2;
+      --accent:#e85fa2; --accent-text:#e85fa2;
       --splash:linear-gradient(115deg,#ff6b5e,#e85fa2 48%,#ffb02e);
+      --splash-text:var(--splash);
       --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 40px -14px rgba(0,0,0,.65);
       color-scheme:dark;
     }
   }
   :root[data-theme="dark"]{
     --bg:#0f1013; --surface:#1a1c21; --surface-2:#22242a;
-    --ink:#f4f5f7; --ink-2:#b6bac2; --muted:#83878f;
+    --ink:#f4f5f7; --ink-2:#b6bac2; --muted:#8f939b;
     --line:#2a2d34; --line-strong:#3a3e47;
     --good:#0ca30c; --good-text:#3ecf3e; --warn:#fab219;
-    --accent:#e85fa2;
+    --accent:#e85fa2; --accent-text:#e85fa2;
     --splash:linear-gradient(115deg,#ff6b5e,#e85fa2 48%,#ffb02e);
+    --splash-text:var(--splash);
     --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 40px -14px rgba(0,0,0,.65);
     color-scheme:dark;
   }
@@ -69,7 +74,9 @@
   .btn:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
   .btn:active{transform:scale(.98)}
   .btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-  .btn.grad{background:var(--splash);color:#fff;border:none}
+  .btn.grad{background:var(--splash-strong);color:#fff;border:none}
+  .btn.link{padding:5px 10px;font-size:13px;border-radius:8px;vertical-align:baseline;cursor:pointer}
+  [hidden]{display:none!important}
   .btn.sm{padding:9px 14px;font-size:14px}
 
   .hero{padding:70px 0 30px;position:relative;overflow:hidden}
@@ -77,7 +84,7 @@
   .eyebrow{display:inline-flex;align-items:center;gap:8px;font:600 12px "Spline Sans Mono";letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:6px 13px;margin-bottom:22px}
   .eyebrow b{color:var(--good-text);font-weight:600}
   h1{font-size:clamp(38px,6.4vw,68px);line-height:1.02;font-weight:800;margin-bottom:20px;max-width:15ch}
-  h1 em{font-style:normal;background:var(--splash);-webkit-background-clip:text;background-clip:text;color:transparent}
+  h1 em{font-style:normal;background:var(--splash-text);-webkit-background-clip:text;background-clip:text;color:transparent}
   .lede{font-size:clamp(17px,2.2vw,20px);color:var(--ink-2);max-width:56ch;margin:0 0 28px}
   .cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
   .ctanote{font-size:13.5px;color:var(--muted);margin-top:14px}
@@ -86,7 +93,7 @@
   .shot img{display:block;width:100%;height:auto}
 
   section{padding:64px 0;border-top:1px solid var(--line)}
-  .kicker{font:600 12px "Spline Sans Mono";letter-spacing:.11em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
+  .kicker{font:600 12px "Spline Sans Mono";letter-spacing:.11em;text-transform:uppercase;color:var(--accent-text);margin-bottom:12px}
   h2{font-size:clamp(26px,3.4vw,36px);font-weight:700;margin-bottom:14px;max-width:20ch}
   .sub{color:var(--ink-2);max-width:60ch;margin:0 0 30px;font-size:17px}
 
@@ -98,7 +105,7 @@
 
   .steps{counter-reset:st;display:grid;gap:14px;margin-top:8px}
   .step{display:flex;gap:16px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:20px 22px}
-  .step .n{flex:none;width:32px;height:32px;border-radius:9px;background:var(--splash);color:#fff;display:flex;align-items:center;justify-content:center;font:700 15px "Bricolage Grotesque"}
+  .step .n{flex:none;width:32px;height:32px;border-radius:9px;background:var(--splash-strong);color:#fff;display:flex;align-items:center;justify-content:center;font:700 15px "Bricolage Grotesque"}
   .step h3{font-size:17px;margin-bottom:5px}
   .step p{margin:0;color:var(--ink-2);font-size:15px}
 
@@ -146,13 +153,14 @@
   <h1>Know what to do <em>today.</em></h1>
   <p class="lede">Canvas tells you what's due. LMK tells you what to actually do today — one short list, sized to the hours you really have. It learns how long your work takes, so the plan gets more honest every week.</p>
   <div class="cta">
-    <a class="btn grad" id="ctaMain" href="https://chromewebstore.google.com/detail/lmk-for-canvas/efjeldekjgbggjedpboafbblcegmmdam" target="_blank" rel="noopener">Add to Chrome — it's free</a>
+    <a class="btn grad" id="ctaMain" href="https://chromewebstore.google.com/detail/lmk-today/efjeldekjgbggjedpboafbblcegmmdam" target="_blank" rel="noopener">Add to Chrome — it's free</a>
     <a class="btn" id="ctaAlt" href="app/">Open LMK</a>
   </div>
+  <p class="ctanote" id="browserNote" hidden>LMK's extension runs in Chrome, Edge, Brave or Arc, not Safari or Firefox. Open this page in one of those. <button type="button" class="btn link" id="copyLink">Copy link</button></p>
   <p class="ctanote">No account required. Built at ASU; works at any school that uses Canvas or Brightspace.</p>
 
   <div class="shot">
-    <img src="assets/screenshot-app.jpg" alt="The LMK Now view: a Next Up card, a daily budget bar reading about four hours of your four hours, and a short list of today's assignments with time estimates.">
+    <img src="assets/screenshot-app.jpg" alt="LMK's Today view: one next step and today's plan sized to your hours">
   </div>
 </div>
 
@@ -160,11 +168,11 @@
   <div class="wrap">
     <div class="kicker">How it works</div>
     <h2>Three minutes to set up. Then it runs itself.</h2>
-    <p class="sub">No tokens, no passwords, no copying assignment lists by hand.</p>
+    <p class="sub">Nothing to paste, no password to type, no copying assignment lists by hand.</p>
     <div class="steps">
       <div class="step"><div class="n">1</div><div>
         <h3>Add the Chrome extension</h3>
-        <p><b>This is the step that makes LMK work:</b> the extension is how it reads your school's site, so there is nothing to plan until it's added. <a href="https://chromewebstore.google.com/detail/lmk-for-canvas/efjeldekjgbggjedpboafbblcegmmdam" target="_blank" rel="noopener">Get it on the Chrome Web Store</a>, then open Canvas or Brightspace once like you normally would. LMK reads your courses, every assignment, what you've already submitted, and your scores — and opens your plan for you.</p>
+        <p><b>This is the step that makes LMK work:</b> the extension is how it reads your school's site, so there is nothing to plan until it's added. <a href="https://chromewebstore.google.com/detail/lmk-today/efjeldekjgbggjedpboafbblcegmmdam" target="_blank" rel="noopener">Get it on the Chrome Web Store</a>, then open Canvas or Brightspace once like you normally would. LMK reads your courses, every assignment, what you've already submitted, and your scores — and opens your plan for you.</p>
       </div></div>
       <div class="step"><div class="n">2</div><div>
         <h3>Answer one question</h3>
@@ -228,7 +236,7 @@
       <div class="card"><span class="ic">🧯</span><h3>No wall of red</h3><p>After a rough week, one tap decides what's still worth points and what to let go. No shame, no badge counts.</p></div>
       <div class="card"><span class="ic">🔔</span><h3>One notification a day</h3><p>The extension says good morning on your laptop with today's short list. Silence when there's nothing worth saying.</p></div>
       <div class="card"><span class="ic">🏫</span><h3>Knows in-class work</h3><p>Attendance quizzes and participation stop being treated like homework you have to start early.</p></div>
-      <div class="card"><span class="ic">📱</span><h3>Phone and laptop</h3><p>Set it up once on a computer, since the extension is a Chrome extension. Then sign in with Google and your plan follows you to your phone. Your data lives in your own Drive, private to you.</p></div>
+      <div class="card"><span class="ic">📱</span><h3>Phone and laptop</h3><p>Set it up once on a computer in Chrome, Edge, Brave or Arc, since LMK reads your classes through a browser extension. Then sign in with Google and your plan follows you to your phone through a file in your own Google Drive.</p></div>
     </div>
   </div>
 </section>
@@ -251,7 +259,7 @@
   <div class="wrap">
     <div class="kicker">Bring it to your school</div>
     <h2>One person per campus.</h2>
-    <p class="sub">LMK works at any school that uses Canvas or D2L Brightspace: an instructure.com, ASU or brightspace.com address syncs the moment the extension is in, and any other address takes one approval click in the extension. If yours isn't ASU, be the person who brings it there: try it for a week, sit with ten friends while they install it, and tell us where they get stuck. You get LMK Plus for the whole school year and your name here as the person who did it.</p>
+    <p class="sub">LMK works at any school that uses Canvas or D2L Brightspace: an instructure.com, ASU or brightspace.com address syncs the moment the extension is in, and any other address takes one approval in the extension. If yours isn't ASU, be the person who brings it there: try it for a week, sit with ten friends while they install it, and tell us where they get stuck.</p>
     <div class="cta">
       <a class="btn" href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=hello%40lmktoday.app&amp;su=LMK%20at%20my%20school" target="_blank" rel="noopener">Tell us your school</a>
     </div>
@@ -263,7 +271,7 @@
     <h2>Stop guessing what tonight looks like.</h2>
     <p class="sub">Free, all of it. Built at ASU, works at any school that uses Canvas or Brightspace. Every remaining assignment ranked by what each hour is worth, and what you need to finish each class.</p>
     <div class="cta">
-      <a class="btn grad" href="https://chromewebstore.google.com/detail/lmk-for-canvas/efjeldekjgbggjedpboafbblcegmmdam" target="_blank" rel="noopener">Add to Chrome</a>
+      <a class="btn grad" href="https://chromewebstore.google.com/detail/lmk-today/efjeldekjgbggjedpboafbblcegmmdam" target="_blank" rel="noopener">Add to Chrome</a>
       <a class="btn" href="app/">Open LMK</a>
       <a class="btn" href="privacy.html">Read the privacy policy</a>
     </div>
@@ -284,11 +292,47 @@
 </footer>
 
 <script>
-/* Phones cannot add a Chrome extension, so lead with the app there. */
-if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) {
+(function(){
+  var ua = navigator.userAgent || "";
+  /* Phones cannot add a browser extension, so lead with the app there. iPadOS asks for the desktop site and
+     reports itself as a Mac; a Mac with a touch screen is an iPad, which is how the app tells them apart too. */
+  var phone = /Android|iPhone|iPad|iPod|Mobile/i.test(ua) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua));
+  /* The extension installs in Chromium browsers only (Chrome, Edge, Brave, Arc, Opera). */
+  var brands = (navigator.userAgentData && navigator.userAgentData.brands) || [];
+  var chromium = (brands.some(function(b){ return /Chromium/.test(b.brand); }) || /Chrome\/|Chromium\/|Edg\//.test(ua)) && !/Firefox|FxiOS|CriOS/.test(ua);
   var m = document.getElementById("ctaMain"), a = document.getElementById("ctaAlt");
-  if (m && a) { m.textContent = "Open LMK — it's free"; m.href = "app/"; m.removeAttribute("target"); a.textContent = "See how it works"; a.href = "#how"; }
-}
+  function toApp(label){
+    m.textContent = label; m.href = "app/"; m.removeAttribute("target"); m.removeAttribute("rel");
+    a.textContent = "See how it works"; a.href = "#how";
+  }
+  function fallback(text){
+    try { var t = document.createElement("textarea"); t.value = text; t.style.cssText = "position:fixed;opacity:0"; document.body.appendChild(t); t.select();
+      var ok = document.execCommand("copy"); t.remove(); return ok; } catch(_) { return false; }
+  }
+  if (m && a) {
+    if (phone) toApp("Set up on your laptop");   // the app offers to send the link to a laptop
+    else if (!chromium) {
+      toApp("Open LMK");
+      var note = document.getElementById("browserNote"), btn = document.getElementById("copyLink");
+      if (note) note.hidden = false;
+      if (btn) btn.addEventListener("click", function(){
+        var url = location.href, done = function(ok){ btn.textContent = ok ? "Copied" : "Copy failed: lmktoday.app"; };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(function(){ done(true); }, function(){ done(fallback(url)); });
+        else done(fallback(url));
+      });
+    }
+  }
+  /* An instructor's or a club's link says where it came from (?from=prof). The app counts that word once, so
+     every way into the app from here carries it. */
+  var from = ""; try { from = new URLSearchParams(location.search).get("from") || ""; } catch(_){}
+  if (from) {
+    var links = document.querySelectorAll("a[href]");
+    for (var i = 0; i < links.length; i++) {
+      var h = links[i].getAttribute("href");
+      if (h === "app/" || h === "/app/") links[i].setAttribute("href", h + "?from=" + encodeURIComponent(from));
+    }
+  }
+})();
   const hdr = document.getElementById("hdr");
   addEventListener("scroll", () => hdr.classList.toggle("stuck", scrollY > 8), {passive:true});
 </script>

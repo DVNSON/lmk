@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#0f1013" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#f2f3f6" media="(prefers-color-scheme: light)">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="LMK">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="../assets/icon-192.png">
@@ -28,13 +29,19 @@
 <style>
   :root{
     --bg:#f2f3f6; --surface:#ffffff; --surface-2:#f7f8fa;
-    --ink:#14161a; --ink-2:#565b64; --muted:#8a8f98;
+    --ink:#14161a; --ink-2:#565b64; --muted:#686d76;   /* muted was #8a8f98: 2.9:1 on --bg. #686d76 is 4.7:1 on --bg, 5.2:1 on white (WCAG 1.4.3, v71.1) */
     --line:#e3e5ea; --line-strong:#c9ccd3;
+    --ctl-line:#80858e;   /* the edge of a control (check ring, text box): 3.3:1+ on --bg, --surface and --surface-2 (1.4.11). --line stays for dividers */
     --btn-bg:#14161a; --btn-ink:#ffffff;
     --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --critical:#d03b3b;
     --good-text:#006300; --critical-text:#b12a2a; --warn-text:#8a5a00;
     --c1:#2a78d6; --c2:#eb6834; --c3:#1baf7a; --c4:#eda100; --c5:#e87ba4; --c6:#008300; --c7:#4a3aa7;
     --splash:linear-gradient(115deg,#ff5d52,#e0489a 48%,#f7a521);
+    /* Text ON the splash fill is ink, not white: white was 2.0:1 at the orange stop; ink is 4.8:1 at its worst point (the
+       pink) in light and 5.7:1 in dark. Text CUT from the splash (background-clip:text) uses --splash-text, whose
+       stops are deep enough for 3:1 against the card at every point (large text). Logos (.lmkmark) are exempt. */
+    --on-splash:#14161a;
+    --splash-text:linear-gradient(115deg,#e8473c,#e0489a 48%,#c26a00);
     --blob1:rgba(224,72,154,.09);--blob2:rgba(42,120,214,.09);--blob3:rgba(247,165,33,.11);
     --shadow:0 1px 2px rgba(20,22,26,.06),0 6px 24px -8px rgba(20,22,26,.10);
     --card-hi:rgba(255,255,255,.65);
@@ -44,13 +51,13 @@
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
       --bg:#0f1013; --surface:#1a1c21; --surface-2:#22242a;
-      --ink:#f4f5f7; --ink-2:#b6bac2; --muted:#83878f;
-      --line:#2a2d34; --line-strong:#3a3e47;
+      --ink:#f4f5f7; --ink-2:#b6bac2; --muted:#8e929a;
+      --line:#2a2d34; --line-strong:#3a3e47; --ctl-line:#727782;
       --btn-bg:#f4f5f7; --btn-ink:#14161a;
       --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --critical:#d03b3b;
-      --good-text:#0ca30c; --critical-text:#ff6b6b; --warn-text:#ffc94d;
+      --good-text:#2fbf2f; --critical-text:#ff6b6b; --warn-text:#ffc94d;
       --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500; --c5:#d55181; --c6:#008300; --c7:#9085e9;
-      --splash:linear-gradient(115deg,#ff6b5e,#e85fa2 48%,#ffb02e);
+      --splash:linear-gradient(115deg,#ff6b5e,#e85fa2 48%,#ffb02e); --splash-text:var(--splash);
     --blob1:rgba(213,81,129,.17);--blob2:rgba(57,135,229,.15);--blob3:rgba(201,133,0,.13);
     --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 24px -8px rgba(0,0,0,.5);
     --card-hi:rgba(255,255,255,.05);
@@ -60,13 +67,13 @@
   }
   :root[data-theme="dark"]{
     --bg:#0f1013; --surface:#1a1c21; --surface-2:#22242a;
-    --ink:#f4f5f7; --ink-2:#b6bac2; --muted:#83878f;
-    --line:#2a2d34; --line-strong:#3a3e47;
+    --ink:#f4f5f7; --ink-2:#b6bac2; --muted:#8e929a;
+    --line:#2a2d34; --line-strong:#3a3e47; --ctl-line:#727782;
     --btn-bg:#f4f5f7; --btn-ink:#14161a;
     --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --critical:#d03b3b;
-    --good-text:#0ca30c; --critical-text:#ff6b6b; --warn-text:#ffc94d;
+    --good-text:#2fbf2f; --critical-text:#ff6b6b; --warn-text:#ffc94d;
     --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500; --c5:#d55181; --c6:#008300; --c7:#9085e9;
-    --splash:linear-gradient(115deg,#ff6b5e,#e85fa2 48%,#ffb02e);
+    --splash:linear-gradient(115deg,#ff6b5e,#e85fa2 48%,#ffb02e); --splash-text:var(--splash);
     --blob1:rgba(213,81,129,.17);--blob2:rgba(57,135,229,.15);--blob3:rgba(201,133,0,.13);
     --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 24px -8px rgba(0,0,0,.5);
     --card-hi:rgba(255,255,255,.05);
@@ -79,6 +86,9 @@
      right and the page could be dragged sideways and pinched. clip (not hidden) so html stays the scroller and
      position:sticky keeps working; pan-x pan-y forbids pinch-zoom where touch-action is honoured. */
   html{overflow-x:clip;touch-action:pan-x pan-y;-webkit-text-size-adjust:100%}
+  /* Focus must never scroll under the sticky header or the phone's fixed bottom bar (2.4.7). The sizes are measured
+     (padSync() sets them from the bars' real heights); the fallbacks are the 390px phone's. */
+  html{scroll-padding-top:var(--pad-top,96px);scroll-padding-bottom:var(--pad-bottom,0px)}
   body{overflow-x:clip;overscroll-behavior-x:none}
   body{
     margin:0; background:var(--bg); color:var(--ink);
@@ -94,6 +104,7 @@
   button,a,.chip,.cbx,.cal-day{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
   [hidden]{display:none!important}
   button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--c1);outline-offset:2px;border-radius:4px}
+  [data-focus-head]:focus{outline:none}   /* a sheet's heading takes focus when it opens (tabindex=-1, never a tab stop) */
   .wrap{max-width:980px;margin:0 auto;padding:0 20px 80px}
 
   /* ---------- header ---------- */
@@ -103,7 +114,7 @@
   .wordmark{display:flex;align-items:baseline;gap:10px}
   .lmkmark{background:var(--splash);color:#fff;font:800 21px/1 "Bricolage Grotesque","Public Sans",sans-serif;letter-spacing:.02em;padding:7px 11px 8px;border-radius:11px;box-shadow:var(--shadow)}
   .lmksub{font:700 15px/1 "Bricolage Grotesque",sans-serif;letter-spacing:-.01em;color:var(--ink)}
-  .today-line{font:500 12px/1.4 "Spline Sans Mono",monospace;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;flex:1 1 0;min-width:0;padding-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .today-line{font:500 12px/1.4 "Spline Sans Mono",monospace;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;flex:1 1 0;min-width:0;padding-top:4px;overflow-wrap:anywhere}   /* wraps; an ellipsis hid the sync age at 320px (1.4.10) */
   .streak{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 14px;font-weight:600;font-size:13px;box-shadow:var(--shadow)}
   .streak .n{font:700 16px/1 "Bricolage Grotesque",sans-serif}
   .streak.lit{border-color:color-mix(in srgb,#ff6b5e 45%,var(--line));background:linear-gradient(120deg,rgba(255,93,82,.13),rgba(247,165,33,.13)),var(--surface)}
@@ -126,8 +137,8 @@
   nav.tabs{display:flex;gap:4px;margin:16px 0 0;border-bottom:1px solid var(--line)}
   nav.tabs button{position:relative;padding:9px 16px 11px;font-weight:600;font-size:14px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;border-radius:6px 6px 0 0}
   nav.tabs button:hover{color:var(--ink);background:var(--surface-2)}
-  nav.tabs button[aria-selected="true"]{color:var(--ink)}
-  nav.tabs button[aria-selected="true"]::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:3px;border-radius:3px;background:var(--splash)}
+  nav.tabs button[aria-current="page"]{color:var(--ink)}
+  nav.tabs button[aria-current="page"]::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:3px;border-radius:3px;background:var(--splash)}
   .chips{display:flex;gap:8px;flex-wrap:wrap;padding:14px 0 4px}
   .chip{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
   .chip .dot{width:9px;height:9px;border-radius:50%;flex:none}
@@ -149,7 +160,7 @@
   .hero .kicker::before{content:"";width:7px;height:7px;margin-top:4px;flex:none;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 20%,transparent)}
   .hero h1{margin:0;font:700 clamp(21px,4vw,30px)/1.18 "Bricolage Grotesque",sans-serif;letter-spacing:-.02em;text-wrap:balance}
   .hero::before{z-index:2}
-  .hero.clear h1{background:var(--splash);-webkit-background-clip:text;background-clip:text;color:transparent;width:fit-content}
+  .hero.clear h1{background:var(--splash-text);-webkit-background-clip:text;background-clip:text;color:transparent;width:fit-content}
   .hero .meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--ink-2)}
   .hero .why{font-size:13.5px;color:var(--ink-2)}
   .hero .why b{color:var(--ink)}
@@ -182,7 +193,7 @@
   .list{display:flex;flex-direction:column}
   .card .list .item:first-child{border-top:none}
   .item{display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--line)}
-  .item .cbx{width:24px;height:24px;flex:none;border-radius:50%;border:2px solid var(--line-strong);display:grid;place-items:center;transition:border-color .15s}
+  .item .cbx{width:24px;height:24px;flex:none;border-radius:50%;border:2px solid var(--ctl-line);display:grid;place-items:center;transition:border-color .15s}
   .item .cbx:hover{border-color:var(--good)}
   .item .cbx svg{width:13px;height:13px;opacity:0}
   .item.done .cbx{background:var(--good);border-color:var(--good)}
@@ -196,7 +207,7 @@
   .cdot{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block}
   .ccode{font:600 11.5px/1 "Spline Sans Mono",monospace;letter-spacing:.03em;color:var(--ink-2)}
   .etag{border:1px solid var(--line);border-radius:5px;padding:1.5px 6px;font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
-  .duelbl{font:500 12px/1 "Spline Sans Mono",monospace;white-space:nowrap;color:var(--ink-2)}
+  .duelbl{font:500 12px/1.25 "Spline Sans Mono",monospace;color:var(--ink-2)}   /* wraps when it must: nowrap cut it off at 320px (1.4.10) */
   .duelbl.hot{color:var(--critical-text);font-weight:600}
   .item .side{display:flex;align-items:center;gap:6px;flex:none}
   .iconbtn{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
@@ -302,8 +313,8 @@
   .wk.worst .cell{box-shadow:0 0 14px color-mix(in srgb, var(--critical) 55%, transparent)}
   @media (prefers-reduced-motion: no-preference){
     .wk .cell{transition:height .35s ease}
-    .wk.worst .cell{animation:heatpulse 1.7s ease-in-out infinite}
-    @keyframes heatpulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--critical) 45%, transparent)}50%{box-shadow:0 0 0 9px transparent}}
+    section.view.alive .wk.worst .cell{animation:heatpulse 1.6s ease-in-out 3}   /* 4.8 s, when the view opens (2.2.2) */
+    @keyframes heatpulse{0%{box-shadow:0 0 0 0 color-mix(in srgb, var(--critical) 45%, transparent)}50%{box-shadow:0 0 0 9px transparent}100%{box-shadow:0 0 14px color-mix(in srgb, var(--critical) 55%, transparent)}}
   }
   .wk .cell:hover{outline:2px solid var(--ink);outline-offset:1px}
   .wk.cur .cell::after{content:"";position:absolute;inset:-4px;border:2px solid var(--ink);border-radius:10px;pointer-events:none}
@@ -330,7 +341,7 @@
   .hcard .hd{display:flex;align-items:center;gap:9px;font-weight:700;font-size:14px}
   .hcard .pill{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.03em;border-radius:999px;padding:3px 9px;border:1px solid var(--line)}
   .pill.ok{color:var(--good-text);border-color:color-mix(in srgb,var(--good) 40%,var(--line))}
-  .pill.watch{color:color-mix(in srgb,var(--warn) 70%,var(--ink));border-color:color-mix(in srgb,var(--warn) 50%,var(--line))}
+  .pill.watch{color:var(--warn-text);border-color:color-mix(in srgb,var(--warn) 50%,var(--line))}
   .pill.risk{color:var(--critical-text);border-color:color-mix(in srgb,var(--critical) 45%,var(--line))}
   .bar{height:7px;border-radius:99px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden}
   .bar i{display:block;height:100%;border-radius:99px}
@@ -364,8 +375,8 @@
   .modal ol{margin:10px 0 14px;padding-left:20px;font-size:13.5px;color:var(--ink-2);display:flex;flex-direction:column;gap:6px}
   .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .field{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:600;color:var(--ink-2)}
-  .field input,.field select{border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:9px 10px;font:inherit;font-size:14px;width:100%}
-  .modal textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink);padding:10px;font:12px/1.5 "Spline Sans Mono",monospace;resize:vertical}
+  .field input,.field select{border:1px solid var(--ctl-line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:9px 10px;font:inherit;font-size:14px;width:100%}
+  .modal textarea{width:100%;min-height:90px;border:1px solid var(--ctl-line);border-radius:10px;background:var(--surface-2);color:var(--ink);padding:10px;font:12px/1.5 "Spline Sans Mono",monospace;resize:vertical}
   .drop{border:1.5px dashed var(--line-strong);border-radius:10px;padding:16px;text-align:center;color:var(--muted);font-size:13px;margin-bottom:10px;cursor:pointer}
   .drop:hover,.drop.over{border-color:var(--ink);color:var(--ink)}
   .modal .row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
@@ -376,13 +387,13 @@
   .privacy{font-size:11.5px;color:var(--muted);margin-top:14px;line-height:1.6}
   .wstep{display:flex;gap:13px;padding:13px 0;border-top:1px solid var(--line);font-size:13.5px;line-height:1.55}
   .wstep:first-of-type{border-top:none}
-  .wstep .wnum{flex:none;width:26px;height:26px;border-radius:50%;background:var(--splash);color:#fff;font:700 13px/26px "Bricolage Grotesque",sans-serif;text-align:center}
+  .wstep .wnum{flex:none;width:26px;height:26px;border-radius:50%;background:var(--splash);color:var(--on-splash);font:700 13px/26px "Bricolage Grotesque",sans-serif;text-align:center}
   .wstep div > b:first-child{display:block;margin-bottom:2px}
   .wstep .whint{color:var(--ink-2)}
   .wstep label.wopt{display:flex;grid-template-columns:none;gap:10px;align-items:flex-start;margin:10px 0 0;padding:0;font-size:13px;font-weight:400;line-height:1.45;color:var(--ink-2);cursor:pointer}
   .wstep label.wopt input{margin:3px 0 0;width:auto;flex:none;accent-color:var(--c1)}
   .wstep label.wopt span{flex:1 1 auto;min-width:0}
-  .wstep input{border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:8px 10px;font:inherit;font-size:14px;width:100%;max-width:240px;margin-top:6px}
+  .wstep input{border:1px solid var(--ctl-line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:8px 10px;font:inherit;font-size:14px;width:100%;max-width:240px;margin-top:6px}
   .finditem{display:flex;gap:10px;width:100%;text-align:left;padding:10px 12px;border-top:1px solid var(--line);align-items:center;border-radius:8px}
   .finditem:hover{background:var(--surface-2)}
   .finditem:first-child{border-top:none}
@@ -397,15 +408,22 @@
   }
   .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:11px 18px;border-radius:999px;font-size:13px;font-weight:600;z-index:140;box-shadow:var(--shadow);opacity:0;transition:opacity .25s;pointer-events:none;max-width:86vw;text-align:center}
   .toast.show{opacity:1}
-  .toast.actionable{pointer-events:auto}
+  .toast.actionable.show{pointer-events:auto}   /* .show too: a faded toast kept catching taps over the page */
   .toast button{color:inherit;text-decoration:underline;font-weight:700;margin-left:10px;font-size:13px}
+  /* A faded toast's buttons leave the tab order with it (2.4.7); visibility waits for the fade. Every path that hides the
+     toast (toast(), askDuration(), a button's own click) just drops .show, so this covers all of them. */
+  .toast button{transition:visibility 0s .25s}
+  .toast:not(.show) button{visibility:hidden}
+  .toast.show button{transition:none}
   #srcFix{color:var(--warn-text);text-decoration:underline dotted;text-underline-offset:3px}
   #syncedAgo.old{color:var(--warn-text)}
   @media (max-width: 640px){ #syncedAgo .syn-w{display:none} }   /* "Canvas 1h ago" fits a 390px phone where "Canvas synced 1h ago" would not */
   .srconly{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .samplebar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 16px;margin-bottom:12px;font-size:13.5px;color:var(--ink-2)}
+  .samplebar > span{flex:1 1 240px;min-width:0}
 
   /* ---------- setup & welcome ---------- */
-  .btn.grad{background:var(--splash);color:#fff;border-color:transparent;box-shadow:0 6px 18px -8px rgba(224,72,154,.6)}
+  .btn.grad{background:var(--splash);color:var(--on-splash);border-color:transparent;box-shadow:0 6px 18px -8px rgba(224,72,154,.6)}
   .btn.grad:hover{filter:brightness(1.06)}
   .wact{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
   .modal .h4{margin:0 0 4px;font:700 16px/1.2 "Bricolage Grotesque",sans-serif}
@@ -434,30 +452,34 @@
 
   /* ---------- alive: motion that means something ---------- */
   @media (prefers-reduced-motion: no-preference){
-    body::before{animation:blobs 38s ease-in-out infinite alternate;will-change:transform}
+    /* Nothing here loops (2.2.2: moving content must stop within 5 s). The background settles once on load; the hero's
+       drift and pulses play when a view opens (section.view.alive, set with animNext and dropped 5 s later), so the
+       minute-by-minute render never restarts them. Each ends where it started, so dropping the class never jumps. */
+    body::before{animation:blobs 4.8s cubic-bezier(.22,.8,.3,1) 1 both}
     @keyframes blobs{from{transform:translate(0,0) scale(1)}to{transform:translate(-2.5%,2%) scale(1.07)}}
     /* a view settles in piece by piece when opened — never on the quiet minute-by-minute refresh */
     section.view.anim > *{animation:rise .46s cubic-bezier(.22,.8,.3,1) both;animation-delay:calc(var(--i,0) * 45ms)}
     @keyframes rise{from{opacity:0;transform:translateY(12px) scale(.992)}to{opacity:1;transform:none}}
     .hero{isolation:isolate}
     .hero::after{content:"";position:absolute;inset:-40%;z-index:0;pointer-events:none;opacity:.42;
-      background:radial-gradient(closest-side at 72% 38%,var(--hero-tint,transparent),transparent 72%);animation:drift 16s ease-in-out infinite alternate}
+      background:radial-gradient(closest-side at 72% 38%,var(--hero-tint,transparent),transparent 72%)}
+    section.view.alive .hero::after{animation:drift 4.8s ease-in-out 1}
     .hero > *{position:relative;z-index:1}
-    @keyframes drift{from{transform:translate(0,0) rotate(0)}to{transform:translate(-7%,6%) rotate(9deg)}}
-    .hero .kicker::before{animation:breathe 2.8s ease-in-out infinite}
-    .hero.waiting .kicker::before,.checks li.now::before{animation:breathewarn 1.6s ease-in-out infinite}
+    @keyframes drift{0%,100%{transform:none}50%{transform:translate(-7%,6%) rotate(9deg)}}
+    section.view.alive .hero .kicker::before{animation:breathe 2.4s ease-in-out 2}
+    section.view.alive .hero.waiting .kicker::before,section.view.alive .checks li.now::before{animation:breathewarn 1.6s ease-in-out 3}
     @keyframes breathewarn{0%,100%{box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 25%,transparent)}50%{box-shadow:0 0 0 9px color-mix(in srgb,var(--warn) 5%,transparent)}}
     .hero.celebrate .synced-in{animation:rise .5s cubic-bezier(.22,.8,.3,1) both}
     @keyframes breathe{0%,100%{box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 22%,transparent)}50%{box-shadow:0 0 0 8px color-mix(in srgb,var(--good) 6%,transparent)}}
     .item.popping .cbx{animation:checkpop .5s cubic-bezier(.34,1.56,.64,1)}
     @keyframes checkpop{0%{transform:scale(.6)}55%{transform:scale(1.22)}100%{transform:scale(1)}}
-    .streak.lit > span:first-child{display:inline-block;animation:flicker 2.2s ease-in-out infinite;transform-origin:50% 95%}
-    @keyframes flicker{0%,100%{transform:scale(1) rotate(-3deg)}50%{transform:scale(1.14) rotate(4deg)}}
+    .streak.lit > span:first-child{display:inline-block;animation:flicker 2.2s ease-in-out 2;transform-origin:50% 95%}
+    @keyframes flicker{0%,100%{transform:none}50%{transform:scale(1.14) rotate(4deg)}}
     .toast{transform:translateX(-50%) translateY(10px);transition:opacity .25s,transform .32s cubic-bezier(.22,.8,.3,1)}
     .toast.show{transform:translateX(-50%) translateY(0)}
     .overlay.open{animation:scrim .22s ease}
     @keyframes scrim{from{background:rgba(10,11,13,0)}to{background:rgba(10,11,13,.5)}}
-    nav.bottombar button[aria-selected="true"]{animation:tabpop .34s cubic-bezier(.34,1.56,.64,1)}
+    nav.bottombar button[aria-current="page"]{animation:tabpop .34s cubic-bezier(.34,1.56,.64,1)}
     @keyframes tabpop{from{transform:scale(.9)}to{transform:scale(1)}}
     .budget .bar i{transition:width .9s cubic-bezier(.22,.8,.3,1)}
     .gpill,.chip{transition:transform .14s ease,border-color .2s,background .2s}
@@ -491,8 +513,8 @@
       font-size:10.5px;font-weight:700;letter-spacing:.04em;color:var(--muted);
       padding:7px 4px 6px;border-radius:14px;border-bottom:none;margin:0}
     nav.bottombar button svg{width:21px;height:21px}
-    nav.bottombar button[aria-selected="true"]{color:#fff;background:var(--splash)}
-    nav.bottombar button[aria-selected="true"]::after{display:none}
+    nav.bottombar button[aria-current="page"]{color:var(--on-splash);background:var(--splash)}
+    nav.bottombar button[aria-current="page"]::after{display:none}
     .wrap{padding-bottom:120px}
     .toast{bottom:calc(84px + env(safe-area-inset-bottom))}
     .today-line{display:block;flex:1 1 100%;order:10;padding:2px 0 0;font-size:10.5px;letter-spacing:.06em}
@@ -562,12 +584,13 @@
   @media (max-width:640px){ .plus-hero{margin:-18px -20px 16px;padding:22px 20px 18px;border-radius:24px 24px 0 0} }
   /* ---------- the Study screen: one assignment, full page ---------- */
   .studypage{position:fixed;inset:0;z-index:90;background:var(--bg);display:flex;flex-direction:column;overflow:auto;-webkit-overflow-scrolling:touch}
-  .sp-head{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent);position:sticky;top:0;z-index:2;
+  .sp-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent);position:sticky;top:0;z-index:2;
     background:color-mix(in srgb,var(--bg) 78%,transparent);backdrop-filter:blur(16px) saturate(1.3);-webkit-backdrop-filter:blur(16px) saturate(1.3)}
   .sp-back{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 13px;font-weight:600;font-size:13px;white-space:nowrap;box-shadow:var(--shadow)}
-  .sp-title{flex:1;min-width:0}
+  .sp-title{flex:1 1 12em;min-width:0}   /* a basis, so at 200% text or 320px the title takes its own row instead of shrinking to 4px */
   .sp-title b{display:block;font:700 16px/1.25 "Bricolage Grotesque",sans-serif;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .sp-title span{font:500 11.5px/1.4 "Spline Sans Mono",monospace;color:var(--muted);letter-spacing:.03em}
+  #recapPage .sp-title b{white-space:normal}   /* the recap's title is short and must never be cut */
   /* grid-template-rows:minmax(0,1fr) is the load-bearing bit. A grid row defaults to auto, so it grew to the
      tallest child — a long Canvas description made .sp-brief 1154px inside a 686px box, its overflow-y:auto
      never engaged, and the whole page overflowed a container set to overflow:hidden, pushing the top of the
@@ -596,14 +619,14 @@
   .sp-block h4{margin:0 0 6px;font:600 11px/1 "Spline Sans Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
   .sp-scroll{max-height:220px;overflow-y:auto;font-size:13.5px;line-height:1.55;color:var(--ink-2);white-space:pre-line}
   .sp-block ul{margin:0;padding-left:18px;font-size:13px;color:var(--ink-2);line-height:1.5}
-  .sp-block textarea{width:100%;min-height:80px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:9px 10px;font:inherit;font-size:13.5px;resize:vertical}
+  .sp-block textarea{width:100%;min-height:80px;border:1px solid var(--ctl-line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:9px 10px;font:inherit;font-size:13.5px;resize:vertical}
   .sp-chat{flex:1 1 auto;display:flex;flex-direction:column;min-width:0;min-height:0;gap:8px}
   .sp-chat .chat{flex:1 1 auto;max-height:none;min-height:0;margin:0;padding:6px 4px;overscroll-behavior:contain}
   .modes{display:flex;gap:6px;flex-wrap:wrap}
   .mode.make{border-color:color-mix(in srgb,var(--c5) 45%,var(--line))}
   .sp-scope{display:block;margin-top:2px}
-  .sp-scope select{max-width:100%;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink-2);padding:3px 8px;font:500 12px/1.4 "Public Sans",system-ui,sans-serif}
-  @media (min-width:801px){ .studypage{overflow:hidden} }
+  .sp-scope select{max-width:100%;border:1px solid var(--ctl-line);border-radius:8px;background:var(--surface);color:var(--ink-2);padding:3px 8px;font:500 12px/1.4 "Public Sans",system-ui,sans-serif}
+  @media (min-width:801px){ #studyPage{overflow:hidden} }   /* Study's panes scroll on their own; the recap is one long page and scrolls (was .studypage, which caught #recapPage too) */
   @media (max-width:800px){
     .studypage{padding-bottom:env(safe-area-inset-bottom)}
     .sp-body{flex-direction:column;padding:14px 16px 28px;flex:none;min-height:auto;overflow:visible}
@@ -628,7 +651,7 @@
   .wr-body{display:flex;flex-direction:column;gap:14px;width:100%;max-width:640px;margin:0 auto;padding:18px 20px 48px}
   .wr{padding:18px 20px;display:flex;flex-direction:column;gap:6px}
   .wr .kicker{font:600 11px/1 "Spline Sans Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
-  .wr .big{font:800 clamp(30px,6vw,44px)/1.05 "Bricolage Grotesque",sans-serif;letter-spacing:-.02em;background:var(--splash);-webkit-background-clip:text;background-clip:text;color:transparent;width:fit-content;max-width:100%}
+  .wr .big{font:800 clamp(30px,6vw,44px)/1.05 "Bricolage Grotesque",sans-serif;letter-spacing:-.02em;background:var(--splash-text);-webkit-background-clip:text;background-clip:text;color:transparent;width:fit-content;max-width:100%}
   .wr .line{font-size:14px;color:var(--ink-2)} .wr .line b{color:var(--ink)}
   .wr-bars{display:flex;align-items:flex-end;gap:6px;height:96px;margin-top:8px}
   .wr-bars div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;height:100%;font:500 10px/1 "Spline Sans Mono",monospace;color:var(--muted)}
@@ -647,7 +670,7 @@
   details.ownai summary::after{content:"›";margin-left:auto;font-size:18px;color:var(--muted);transition:transform .2s}
   details.ownai[open] summary::after{transform:rotate(90deg)}
   .intro{padding:16px 18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:14px 0 4px;border:1px solid color-mix(in srgb,var(--c5) 40%,var(--line));background:linear-gradient(120deg,color-mix(in srgb,var(--c5) 10%,var(--surface)),color-mix(in srgb,var(--c4) 9%,var(--surface)))}
-  .intro .ic{flex:none;width:42px;height:42px;border-radius:12px;background:var(--splash);color:#fff;display:grid;place-items:center;font-size:20px}
+  .intro .ic{flex:none;width:42px;height:42px;border-radius:12px;background:var(--splash);color:var(--on-splash);display:grid;place-items:center;font-size:20px}
   .intro .txt{flex:1 1 260px;min-width:0;font-size:13.5px;line-height:1.45;color:var(--ink-2)}   /* min-width:0: a flex item defaults to its content width, and a row of class chips is wider than a phone */
   .intro .txt b{display:block;color:var(--ink);font-size:15px;margin-bottom:2px}
   .roomline{margin:14px 0 4px}
@@ -659,7 +682,7 @@
   .roster .rhandle{color:var(--ink-2);flex:1 1 auto;overflow-wrap:anywhere}
   .roster a.rhandle.ig{color:var(--ink);text-decoration:underline dotted var(--muted) 1.5px;text-underline-offset:3px}
   .roster .rrep{margin-left:auto;font-size:11.5px;padding:3px 8px;color:var(--muted)}
-  .roomin{border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:8px 10px;font:inherit;font-size:14px;width:100%;box-sizing:border-box}
+  .roomin{border:1px solid var(--ctl-line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:8px 10px;font:inherit;font-size:14px;width:100%;box-sizing:border-box}
   .sesslist{list-style:none;margin:0 0 12px;padding:0;display:flex;flex-direction:column;gap:6px}
   .sesslist li{display:flex;flex-direction:column;gap:4px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);font-size:13.5px}
   .sesslist .when{font-weight:700;color:var(--ink)}
@@ -699,7 +722,7 @@
   .tile .of{font-size:14px;color:var(--muted)}
   .attn{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
   .attn li{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:12px;border:1px solid color-mix(in srgb,var(--warn) 45%,var(--line));background:color-mix(in srgb,var(--warn) 8%,var(--surface));font-size:13.5px}
-  .adm-in{border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:8px 10px;font:inherit;font-size:14px}
+  .adm-in{border:1px solid var(--ctl-line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:8px 10px;font:inherit;font-size:14px}
   .adm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px 16px;align-items:end}
   .adm-grid .fld{display:flex;flex-direction:column;gap:5px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
   .adm-grid .fld.wide{grid-column:1 / -1}
@@ -731,13 +754,13 @@
   .legend{display:flex;gap:16px;font-size:12px;color:var(--ink-2);margin-top:8px;flex-wrap:wrap}
   .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
   .adm-form{display:grid;gap:10px}
-  .adm-form input[type=text],.adm-form input[type=url],.adm-form input[type=date],.adm-form textarea{width:100%;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:9px 10px;font:inherit;font-size:14px}
+  .adm-form input[type=text],.adm-form input[type=url],.adm-form input[type=date],.adm-form textarea{width:100%;border:1px solid var(--ctl-line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:9px 10px;font:inherit;font-size:14px}
   .adm-form textarea{min-height:66px;resize:vertical;font-family:inherit}
   .adm-form label.ck{display:flex;gap:8px;align-items:center;font-size:13.5px}
   .adm-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .adm-links{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
-  .adm-links a{display:block;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);font-size:13.5px;font-weight:600;text-decoration:none}
-  .adm-links a:hover{border-color:var(--line-strong)}
+  .adm-links a,.adm-links .adm-link{display:block;text-align:left;font-family:inherit;color:inherit;cursor:pointer;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);font-size:13.5px;font-weight:600;text-decoration:none}
+  .adm-links a:hover,.adm-links .adm-link:hover{border-color:var(--line-strong)}
   .adm-links a small{display:block;font-weight:400;color:var(--muted);font-size:12px;margin-top:2px}
   .checklist label{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line);font-size:14px;cursor:pointer}
   .checklist label:first-child{border-top:none}
@@ -764,7 +787,7 @@
 <div class="wrap">
   <header class="top">
     <h1 class="srconly">LMK — your assignment planner</h1>
-    <div class="wordmark" aria-label="LMK — Let Me Know">
+    <div class="wordmark" role="img" aria-label="LMK — Let Me Know">
       <span class="lmkmark" aria-hidden="true">LMK</span>
       <span class="lmksub" id="lmkSub">let me know.</span>
     </div>
@@ -788,11 +811,11 @@
   </header>
 
   <main id="views">
-  <nav class="tabs topnav" role="tablist" aria-label="Views">
-    <button role="tab" data-tab="now" aria-selected="true">Now</button>
-    <button role="tab" data-tab="plan" aria-selected="false">Plan</button>
-    <button role="tab" data-tab="semester" aria-selected="false">Semester</button>
-    <button role="tab" data-tab="admin" aria-selected="false" id="tabAdminTop" hidden>Admin</button>
+  <nav class="tabs topnav" aria-label="Views">
+    <button data-tab="now" aria-current="page">Now</button>
+    <button data-tab="plan">Plan</button>
+    <button data-tab="semester">Semester</button>
+    <button data-tab="admin" id="tabAdminTop" hidden>Admin</button>
   </nav>
   <div class="announce" id="announce" hidden></div>
   <div class="announce syncnote" id="syncNote" role="status" hidden></div>
@@ -812,11 +835,11 @@
   </footer>
 </div>
 
-<nav class="tabs bottombar" role="tablist" aria-label="Views">
-  <button role="tab" data-tab="now" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M13 2 4.1 13.2h6L11 22l8.9-11.2h-6z"/></svg>Now</button>
-  <button role="tab" data-tab="plan" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>Plan</button>
-  <button role="tab" data-tab="semester" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Semester</button>
-  <button role="tab" data-tab="admin" aria-selected="false" id="tabAdminBottom" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20a8 8 0 1 1 8-8"/><path d="M12 12l5-3"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>Admin</button>
+<nav class="tabs bottombar" aria-label="Views">
+  <button data-tab="now" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M13 2 4.1 13.2h6L11 22l8.9-11.2h-6z"/></svg>Now</button>
+  <button data-tab="plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>Plan</button>
+  <button data-tab="semester"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Semester</button>
+  <button data-tab="admin" id="tabAdminBottom" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20a8 8 0 1 1 8-8"/><path d="M12 12l5-3"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>Admin</button>
   </nav>
 
 <div class="tooltip" id="tooltip"></div>
@@ -868,7 +891,7 @@
 
     <details class="setupway" id="cloudTokenWay" hidden>
       <summary class="h4">Connect any school's Canvas with a token</summary>
-      <p class="sub2">Two reasons to use this: your phone has no laptop around, or your school's Canvas lives at its own address — <b>canvas.uw.edu</b>, <b>bruinlearn.ucla.edu</b> and most large universities — which the extension can't read yet. This route works at <b>every</b> school. In Canvas open Account → Settings → <b>New Access Token</b>, copy it, paste it here, and LMK's server keeps your assignments fresh by itself. Delete the token in Canvas any time to stop.</p>
+      <p class="sub2">Two reasons to use this: your phone has no laptop around, or your school's Canvas lives at its own address — <b>canvas.uw.edu</b>, <b>bruinlearn.ucla.edu</b> and most large universities — which the extension can add with one approval. This route needs no extension at all, so it suits a phone or a computer where you can't install one. In Canvas open Account → Settings → <b>New Access Token</b>, copy it, paste it here, and LMK's server keeps your assignments fresh by itself. Delete the token in Canvas any time to stop.</p>
       <div class="fgrid">
         <label class="field">Your Canvas address<input id="ctHost" placeholder="canvas.uw.edu" autocomplete="off"></label>
         <label class="field">Access token<input id="ctToken" placeholder="paste it here" autocomplete="off"></label>
@@ -887,7 +910,7 @@
         <a class="btn ghost" id="bmkLinkD2L" draggable="true" style="margin-top:8px;display:inline-flex">⇱ LMK sync (Brightspace)</a>
         <span class="parse-msg" id="bmkMsg" role="status"></span></p>
       <label class="field" style="margin-bottom:10px">Which course is that page from?<input id="impCourse" list="courseList2" placeholder="BIO 101"><datalist id="courseList2"></datalist></label>
-      <textarea id="impPaste" placeholder="Paste the LMK sync from your phone, or a whole Assignments page — messy is fine, I’ll sort it out."></textarea>
+      <textarea id="impPaste" aria-label="Paste an LMK sync or a whole Assignments page" placeholder="Paste the LMK sync from your phone, or a whole Assignments page — messy is fine, I’ll sort it out."></textarea>
       <div class="row">
         <button class="btn primary" id="impBtn">Import</button>
         <span class="parse-msg" id="impMsg" role="status"></span>
@@ -911,7 +934,7 @@
         Drop your <b>.ics</b> file here, or click to browse
         <input type="file" id="fileInput" accept=".ics,text/calendar" class="srconly">
       </div>
-      <textarea id="icsPaste" placeholder="…or paste the .ics file contents here (starts with BEGIN:VCALENDAR)"></textarea>
+      <textarea id="icsPaste" aria-label="Paste the .ics file contents" placeholder="…or paste the .ics file contents here (starts with BEGIN:VCALENDAR)"></textarea>
       <div class="row">
         <button class="btn primary" id="loadBtn">Load my semester</button>
         <span class="parse-msg" id="parseMsg" role="status"></span>
@@ -939,8 +962,8 @@
       <span class="lmkmark" aria-hidden="true" style="font-size:25px;padding:10px 14px 11px">LMK</span>
       <div><h2 id="wTitle" style="margin:0;font:700 20px/1.2 'Bricolage Grotesque',sans-serif">Let Me Know</h2><p class="sub2" style="margin:2px 0 0">Know what to do today. Nothing more.</p></div>
     </div>
-    <div class="wstep"><span class="wnum">1</span><div><b>What should LMK call you?</b>
-      <input id="wName" placeholder="First name" autocomplete="off"></div></div>
+    <div class="wstep"><span class="wnum">1</span><div><b id="wNameLbl">What should LMK call you?</b>
+      <input id="wName" aria-labelledby="wNameLbl" placeholder="First name" autocomplete="off"></div></div>
     <div class="wstep"><span class="wnum">2</span><div><b id="wHead2">Get your classes in.</b>
       <span class="whint" id="wBody2">That's the card right behind this window: one click adds the LMK Today extension, and it brings your classes here by itself. About a minute, once.</span>
       <div class="wchips" id="wClasses" hidden></div>
@@ -951,7 +974,7 @@
       </div></div></div>
     <div class="wstep"><span class="wnum">3</span><div><b id="wHead3">Private by design.</b>
       <span class="whint" id="wBody3">No account, no password. Everything saves on this device; sign in with Google and it follows you to your phone through your own Drive. LMK times your work quietly so its estimates get honest — no names, no grades, ever.</span>
-      <label class="wopt" id="wCloudRow" hidden><input type="checkbox" id="wCloud" checked><span><b>Keep my phone fresh while my laptop is closed (Canvas schools).</b> LMK's server reads Canvas for you with an access key the extension makes in your own Canvas account. The key is stored encrypted; your assignment list, scores included, in plain form. Off any time under the gear.</span></label>
+      <label class="wopt" id="wCloudRow" hidden><input type="checkbox" id="wCloud"><span><b>Optional: Sync from anywhere (Canvas schools).</b> LMK's server reads Canvas for you, so your phone stays fresh while your laptop is closed. The extension makes an access token named "LMK" in your Canvas account; the server stores it encrypted, plus a copy of your assignments, scores and instructors' comments. Off any time under the gear.</span></label>
       <div class="wact" id="wAct3" hidden><button class="btn grad" id="wSignin3">Sign in with Google</button><span class="whint" style="font-size:12.5px">Already used LMK on another device? This brings it back.</span></div></div></div>
     <div class="row" style="margin-top:16px"><button class="btn primary" id="wGo">Let's go →</button></div>
   </div>
@@ -960,14 +983,14 @@
 <div class="overlay" id="celebrateOverlay" role="dialog" aria-modal="true"><div class="modal" id="celebrateModal" style="max-width:440px;text-align:center;position:relative;overflow:hidden"></div></div>
 <div class="overlay" id="findOverlay" role="dialog" aria-modal="true" aria-label="Search assignments">
   <div class="modal" style="max-width:560px;padding:16px">
-    <input id="findQ" placeholder="Search assignments…  (esc to close)" autocomplete="off" style="width:100%;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink);padding:12px 14px;font:inherit;font-size:15px">
+    <input id="findQ" aria-label="Search assignments" placeholder="Search assignments…  (esc to close)" autocomplete="off" style="width:100%;border:1px solid var(--ctl-line);border-radius:10px;background:var(--surface-2);color:var(--ink);padding:12px 14px;font:inherit;font-size:15px">
     <div id="findResults" style="margin-top:10px;max-height:52vh;overflow-y:auto"></div>
   </div>
 </div>
 <div class="overlay" id="detailOverlay" role="dialog" aria-modal="true" aria-labelledby="ddTitle"><div class="modal" id="detailModal"></div></div>
 <div class="overlay" id="planOverlay" role="dialog" aria-modal="true" aria-labelledby="ppTitle"><div class="modal" id="planModal"></div></div>
 <div class="studypage" id="studyPage" role="region" aria-labelledby="aiTitle" hidden></div>
-<div class="studypage" id="recapPage" role="region" aria-label="Your recap" hidden></div>
+<div class="studypage" id="recapPage" role="region" aria-labelledby="wrTitle" hidden></div>
 <div class="overlay" id="plusOverlay" role="dialog" aria-modal="true" aria-labelledby="plusTitle"><div class="modal" id="plusModal" style="max-width:540px"></div></div>
 <div class="overlay" id="roomOverlay" role="dialog" aria-modal="true" aria-labelledby="roomTitle"><div class="modal" id="roomModal" style="max-width:520px"></div></div>
 <div class="overlay" id="recapOverlay" role="dialog" aria-modal="true" aria-labelledby="recapTitle"><div class="modal" id="recapModal" style="max-width:520px"></div></div>
@@ -1074,6 +1097,53 @@ try {
     if (c) { const p = JSON.parse(c); if (Array.isArray(p) && p.length >= 50) SAFE_SEED = p; }
   }
 } catch(e){}
+/* The sample semester (v71.1). "Try a sample semester" read SEED_ROWS, which the public build blanks on purpose (it is the
+   owner's own classes), so on lmktoday.app the button toasted "This is a sample semester" over an empty page — dead since
+   v69.1 and the first thing a skeptic or a phone visitor would press. This is a made-up semester instead: five invented
+   courses, dated from today so it never goes stale, with no links. It lives only behind a flag in this browser's
+   localStorage (never the store, so it never syncs), and it gives way the moment real classes arrive. Ids are 12 digits
+   starting 99900000 — digits only (invariant 2) and far from any real Canvas id. */
+const SAMPLE_PREFIX = "99900000";
+function sampleOn(){ try { return localStorage.getItem("lmk_sample") === "1"; } catch(_) { return false; } }
+function sampleShown(){ return SEED_EMPTY && !store.custom && !store.ext && sampleOn(); }
+function sampleRows(){
+  const p = x => String(x).padStart(2, "0");
+  const at = (days, h, m) => { const t = new Date(); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() + days); t.setHours(h, m || 0, 0, 0);
+    return `${t.getFullYear()}${p(t.getMonth() + 1)}${p(t.getDate())}T${p(t.getHours())}${p(t.getMinutes())}00`; };
+  return [
+    ["Reading quiz: Chapter 7", "BIO 101", 0, 23, 59, "quick"],
+    ["Lab 4: Cellular respiration worksheet", "BIO 101", 1, 23, 59, "medium"],
+    ["Lab report 3", "BIO 101", 5, 23, 59, "big"],
+    ["Midterm 1", "BIO 101", 9, 10, 0, "big"],
+    ["Discussion: response to \"The Lottery\"", "ENG 102", 0, 23, 59, "quick"],
+    ["Essay 2 draft", "ENG 102", 6, 23, 59, "big"],
+    ["Peer review: Essay 2", "ENG 102", 8, 23, 59, "medium"],
+    ["Homework 5", "STAT 120", 2, 23, 59, "medium"],
+    ["Quiz 3", "STAT 120", 3, 12, 0, "quick"],
+    ["Homework 6", "STAT 120", 9, 23, 59, "medium"],
+    ["Project proposal", "STAT 120", 12, 23, 59, "big"],
+    ["Chapter 6 reading notes", "PSY 100", 1, 23, 59, "quick"],
+    ["Exam 2", "PSY 100", 16, 9, 0, "big"],
+    ["Research participation (1 credit)", "PSY 100", 14, 23, 59, "quick"],
+    ["Weekly reflection 7", "HIST 110", -1, 23, 59, "quick"],
+    ["Primary source analysis", "HIST 110", 4, 23, 59, "medium"],
+    ["Map quiz", "HIST 110", 7, 23, 59, "quick"],
+  ].map((r, i) => [r[0], r[1], at(r[2], r[3], r[4]), "", SAMPLE_PREFIX + String(i + 1).padStart(4, "0"), "", r[5], "", "", ""]);
+}
+/* Leaving the sample takes everything made up with it. A sample checkmark leaves a tombstone (`deleted["done:" + id]`),
+   so a Drive copy saved during the sample cannot union it back; a sample item never earned a streak day, a timing or a
+   celebration in the first place (toggleDone, maybeCelebrate). */
+function sampleLeave(){
+  try { localStorage.removeItem("lmk_sample"); } catch(_){}
+  const pre = "a" + SAMPLE_PREFIX, t = Date.now();
+  store.deleted = store.deleted || {};
+  for (const id of Object.keys(store.done || {})) if (id.startsWith(pre)) store.deleted["done:" + id] = t;
+  for (const k of ["done", "dropped", "starred", "triaged", "handDone", "spent", "tab", "effortOv", "dur", "itemNotes", "leadOv", "kindOv"]) {
+    const o = store[k]; if (!o || typeof o !== "object") continue;
+    for (const id of Object.keys(o)) if (id.startsWith(pre)) delete o[id];
+  }
+  save();
+}
 function save(){
   store.savedAt = Date.now();
   try { localStorage.setItem(LS_KEY, JSON.stringify(store)); }
@@ -1115,11 +1185,12 @@ function readView(){
     return v && typeof v === "object" && Date.now() - (+v.at || 0) < VIEW_TTL ? v : null;
   } catch(_) { return null; }
 }
-/* Set the tab and the nav highlight together. renderInner never writes aria-selected, so a restore that only
-   assigned the variable would paint the Plan view under a highlighted Now. */
+/* Set the tab and the nav highlight together. renderInner never writes aria-current, so a restore that only
+   assigned the variable would paint the Plan view under a highlighted Now. The views are plain buttons with
+   aria-current="page" on the active one (v71.1): role="tab" promised tabpanels and arrow keys that never existed. */
 function applyTab(name){
   activeTab = name;
-  document.querySelectorAll("nav.tabs [data-tab]").forEach(x => x.setAttribute("aria-selected", x.dataset.tab === name ? "true" : "false"));
+  document.querySelectorAll("nav.tabs [data-tab]").forEach(x => { if (x.dataset.tab === name) x.setAttribute("aria-current", "page"); else x.removeAttribute("aria-current"); });
 }
 function setTab(name){ applyTab(name); saveView(); }
 /* Called once at boot, after loadData() so COURSES exists to check against, and before the first render() so
@@ -1383,7 +1454,9 @@ function applyCanvasPayload(p, opts = {}){
   try { if (absorbTracking.quizTimes) absorbTracking.quizTimes(); } catch(_){}   // EVENTS is current now, so the prediction is real
   render();
   if (firstSync) {
-    ping("firstsync"); ping("synced"); pingChannel("act");                  // act_<channel>: the door that produced a working install try { localStorage.setItem("lmk_ping_synced", utcDayKey()); } catch(_){}
+    if (typeof welcomeAfterSync === "function") welcomeAfterSync();   // the welcome waited for this on a computer (v71.1)
+    ping("firstsync"); ping("synced"); pingChannel("act");                  // act_<channel>: the door that produced a working install
+    try { localStorage.setItem("lmk_ping_synced", utcDayKey()); } catch(_){}   // was inside the comment above until v71.1, so the minute tick sent a second "synced"
     /* The first payload of a store install lands in a HIDDEN tab: the extension focused Canvas, then
        openApp() reloads this tab, and the re-delivered payload hits the `same` return above. So the "it
        worked" moment has to survive that reload — localStorage, never a store key (invariant 3). */
@@ -1430,7 +1503,7 @@ function cloudFetch(path, opts, bearer){
 }
 function cloudEnsure(){
   if (!cloudPossible() || !store.onboarded) return;
-  if (!store.cloud || !store.cloud.sid || !store.cloud.secret) { store.cloud = {sid: randHex(16), secret: randB64(32), on: true, at: Date.now()}; save(); }
+  if (!store.cloud || !store.cloud.sid || !store.cloud.secret) { store.cloud = {sid: randHex(16), secret: randB64(32), on: false, onAt: 0, at: Date.now()}; save(); }   // off until the student turns it on (v71.1); onAt 0 = nobody chose, so a merge never lets it switch another device off
   // a merge can swap in another device's id; the id this device registered before is then unneeded
   let prev = null; try { prev = JSON.parse(localStorage.getItem("lmk_cloud_prev") || "null"); } catch(_){}
   if (prev && prev.sid && prev.sid !== store.cloud.sid && MODE === "web") cloudFetch("/sync/forget", {method:"POST", body:"{}"}, prev.sid + "." + prev.secret).catch(() => {});
@@ -1478,7 +1551,7 @@ async function cloudRegisterToken(host, token){
   if (token.length < 20) return say("Paste the whole token.", false);
   if (!store.onboarded) { store.onboarded = 1; }
   if (!store.cloud || !store.cloud.sid) { store.cloud = {sid: randHex(16), secret: randB64(32), on: true, at: Date.now()}; }
-  store.cloud.on = true; save();
+  store.cloud.on = true; store.cloud.onAt = Date.now(); save();
   say("Checking with Canvas…", true);
   try {
     const r = await fetch(apiUrl("/sync/register"), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"}, body: JSON.stringify({sid: store.cloud.sid, secret: store.cloud.secret, host, token})});
@@ -1491,11 +1564,11 @@ async function cloudRegisterToken(host, token){
     say("Done. This phone now stays fresh by itself.", true);
   } catch(_) { say("Couldn't reach LMK's server. Try again in a minute.", false); }
 }
-function cloudTurnOn(){ if (!store.cloud) cloudEnsure(); if (store.cloud) { store.cloud.on = true; save(); postCloudSet(); } renderCloudStatus(); cloudPull("force"); }
+function cloudTurnOn(){ if (!store.cloud) cloudEnsure(); if (store.cloud) { store.cloud.on = true; store.cloud.onAt = Date.now(); save(); postCloudSet(); } renderCloudStatus(); cloudPull("force"); }
 function cloudTurnOff(){
   if (!store.cloud) return;
   const bearer = cloudBearer();
-  store.cloud.on = false; save();
+  store.cloud.on = false; store.cloud.onAt = Date.now(); save();
   try { window.postMessage({lmk:"cloud-forget"}, "*"); } catch(_){}
   if (MODE === "web") cloudFetch("/sync/forget", {method:"POST", body:"{}"}, bearer).catch(() => {});
   CLOUD.registered = false; renderCloudStatus();
@@ -1759,7 +1832,8 @@ function loadData(){
   LEARN = null; GRADES = null; WORTH = null;   // a new sync can move points, weights or whole assignments; the grade maths must be rebuilt with them
   const fixed = repairInProgress();
   if (fixed) { save(); repairToast += fixed; setTimeout(() => { if (repairToast) { toast(`${repairToast} in-progress assignment${repairToast > 1 ? "s" : ""} unchecked — they'll check themselves when finished.`); repairToast = 0; } }, 600); }
-  const base = (store.custom ? store.custom.rows : SAFE_SEED).concat(store.customRows || []);
+  if (store.ext && sampleOn()) sampleLeave();                       // real classes arrived: the made-up ones go
+  const base = (store.custom ? store.custom.rows : sampleShown() ? sampleRows() : SAFE_SEED).concat(store.customRows || []);
   const rows = base.concat(extRows(new Set(base.map(r => r[4]))));
   EVENTS = buildEvents(rows);
   COURSES = [...new Set(EVENTS.map(e => e.course))].sort();
@@ -1775,7 +1849,7 @@ function loadData(){
   document.getElementById("srcLabel").textContent = fresh
     ? "No classes connected yet"
     : (SEED_OK ? "" : "⚠ bad sync detected — showing cached data · ") +
-      (store.custom ? store.custom.label : (SEED_EMPTY ? "Your classes" : SEED_LABEL)) + ` · ${EVENTS.length} assignments` +
+      (store.custom ? store.custom.label : sampleShown() ? "Sample semester (made up)" : (SEED_EMPTY ? "Your classes" : SEED_LABEL)) + ` · ${EVENTS.length} assignments` +
       (store.custom ? (store.custom.loadedAt ? ` · uploaded ${store.custom.loadedAt}` : "") : (SEED_EMPTY ? "" : ` · auto-synced ${SYNCED_AT}`)) +
       (store.ext ? ` · ${lmsName()} via extension ${extAgo()}` : "");
   srcFixPaint();
@@ -1838,7 +1912,7 @@ function dueLabel(e){
   // finished work is never "overdue": say when it was done, calmly
   if (store.done[e.id]) { const at = new Date(store.done[e.id]); return {txt: isFinite(at) ? `done ${FMT_DAY.format(at)}` : "done", hot:false}; }
   const n = now(), ms = e.due - n;
-  const days = Math.floor((startOfDay(e.due) - startOfDay(n)) / 864e5);
+  const days = Math.round((startOfDay(e.due) - startOfDay(n)) / 864e5);
   const t = FMT_TIME.format(e.due);
   if (ms < 0) return {txt: (days === 0 ? `was due ${t}` : `${-days}d overdue`), hot:true};
   if (days === 0) return {txt: `today ${t}`, hot:true};
@@ -2264,7 +2338,14 @@ function measureOnDone(id){
   // no sensor caught it: ask, but only once every few days, and only when unsure
   const lastAsk = +(localStorage.getItem("lmk_askedAt") || 0);
   if (learnedMins(e).learned || Date.now() - lastAsk < 3 * 864e5) return;
-  setTimeout(() => askDuration(e, pred), 900);
+  /* Wait for "Marked done · Undo" to go away. Asking after 900 ms replaced that toast, so Undo vanished in under a second
+     on a student's first check and every three days after (runtime audit, 2026-10-10). */
+  const later = (tries) => {
+    if (!store.done[id]) return;                                                 // they undid it: nothing to ask
+    if (document.getElementById("toast").classList.contains("show") && tries < 30) { setTimeout(() => later(tries + 1), 500); return; }
+    askDuration(e, pred);
+  };
+  setTimeout(() => later(0), 900);
 }
 function askDuration(e, pred){
   try { localStorage.setItem("lmk_askedAt", String(Date.now())); } catch(_){}
@@ -2285,8 +2366,7 @@ function toggleDone(id, el, doneMsg){
     store.deleted = store.deleted || {}; delete store.deleted["done:" + id];
     store.done[id] = Date.now();
     store.handDone = store.handDone || {}; store.handDone[id] = 1;
-    measureOnDone(id);
-    markDoneToday();
+    if (!id.startsWith("a" + SAMPLE_PREFIX)) { measureOnDone(id); markDoneToday(); }   // made-up work earns no streak day and no timing
     if (el) { el.classList.add("popping"); burstAt(el.querySelector(".cbx")); }
     toast(doneMsg || "Marked done.", {label: "Undo", fn: () => {
       delete store.done[id]; delete (store.handDone || {})[id];
@@ -2307,13 +2387,13 @@ function maybeCelebrate(){
   if (store.celebrated[k]) return;
   const dueToday = EVENTS.filter(e => !store.dropped[e.id] && e.kind !== "fyi" && dayKey(e.due) === k);
   if (!dueToday.length || dueToday.some(e => !store.done[e.id])) return;
-  store.celebrated[k] = 1; save();
+  if (!sampleShown()) { store.celebrated[k] = 1; save(); }   // a cleared sample day must not use up today's real celebration
   const doneToday = Object.values(store.done).filter(ts => dayKey(new Date(ts)) === k).length;
   const tmrw = EVENTS.filter(open).filter(e => dayKey(e.due) === dayKey(addDays(now(), 1))).length;
   const s = streakCount();
   document.getElementById("celebrateModal").innerHTML = `
     <div class="confetti" aria-hidden="true">${Array.from({length: 14}, (_, i) => `<i style="--i:${i}"></i>`).join("")}</div>
-    <div style="font:800 42px/1.1 'Bricolage Grotesque',sans-serif;background:var(--splash);-webkit-background-clip:text;background-clip:text;color:transparent;margin:8px 0 6px">Day cleared.</div>
+    <div style="font:800 42px/1.1 'Bricolage Grotesque',sans-serif;background:var(--splash-text);-webkit-background-clip:text;background-clip:text;color:transparent;margin:8px 0 6px">Day cleared.</div>
     <p style="margin:0 0 18px;color:var(--ink-2)">Everything due today is done. That's how semesters get won.</p>
     <div style="display:flex;justify-content:center;gap:22px;font-size:12.5px;color:var(--muted);margin-bottom:20px">
       <span><b style="font:700 22px 'Bricolage Grotesque',sans-serif;display:block;color:var(--ink)">${doneToday}</b>done today</span>
@@ -2331,7 +2411,7 @@ function toggleStar(id){ if (store.starred[id]) { delete store.starred[id]; tomb
 const SEMESTER_WEEK1_MON = new Date(2026, 7, 17);   // Monday of ASU Fall C week 1
 let briefWeek = null;
 function currentWeekNum(){
-  const diff = Math.floor((startOfDay(now()) - SEMESTER_WEEK1_MON) / 6048e5);
+  const diff = Math.floor(Math.round((startOfDay(now()) - SEMESTER_WEEK1_MON) / 864e5) / 7);   // whole days first: a week holding a clock change is 167 or 169 hours
   return Math.min(17, Math.max(1, diff + 1));
 }
 /* Week numbers follow ASU's calendar (SEMESTER_WEEK1_MON). Another school's term starts on its own Monday, so there
@@ -2369,7 +2449,7 @@ function weekPrepPrompt(course, n, seg){
 
 /* ================= study-with-AI ================= */
 function studyPrompt(e){
-  const days = Math.max(0, Math.floor((startOfDay(e.due) - startOfDay(now())) / 864e5));
+  const days = Math.max(0, Math.round((startOfDay(e.due) - startOfDay(now())) / 864e5));
   const when = days === 0 ? "due today" : days === 1 ? "due tomorrow" : `due ${FMT_DAY.format(e.due)}, ${days} days from now`;
   const kindWord = e.kind === "quiz" ? "quiz" : e.kind === "discussion" ? "discussion post" : e.exam ? "exam" : "assignment";
   const dueSoFar = EVENTS.filter(x => x.course === e.course && x.due < now() && x.kind !== "fyi"), doneIn = dueSoFar.filter(x => store.done[x.id]).length;
@@ -2745,7 +2825,7 @@ function giftThanks(){
    how long it usually takes, today's budget, what else is due this week, and the course standing. Nothing here
    names the student. */
 function studyFacts(e){
-  const n = now(), days = Math.max(0, Math.floor((startOfDay(e.due) - startOfDay(n)) / 864e5));
+  const n = now(), days = Math.max(0, Math.round((startOfDay(e.due) - startOfDay(n)) / 864e5));
   const x = e.ext || {};
   if (e.isCourse) {
     let grade = "";
@@ -2812,7 +2892,7 @@ function openStudy(id, opts = {}){
         ${order.map(t => `<a class="btn ${t.id === pref || (!pref && t.id === "claude") ? "primary" : "ghost"}" data-ai="${t.id}" href="${esc(t.url(prompt))}" target="_blank" rel="noopener">${t.name}${t.id === pref ? " · your usual" : ""}</a>`).join("")}
         <button class="btn ghost" data-ai="copy">Copy prompt</button>
       </div>
-      <textarea id="aiPrompt" aria-label="The prompt LMK prepared; edit it if you like" style="margin-top:12px;min-height:120px;width:100%;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink);padding:10px;font:13px/1.5 'Public Sans',system-ui,sans-serif;resize:vertical">${esc(prompt)}</textarea>
+      <textarea id="aiPrompt" aria-label="The prompt LMK prepared; edit it if you like" style="margin-top:12px;min-height:120px;width:100%;border:1px solid var(--ctl-line);border-radius:10px;background:var(--surface-2);color:var(--ink);padding:10px;font:13px/1.5 'Public Sans',system-ui,sans-serif;resize:vertical">${esc(prompt)}</textarea>
       <p class="privacy" style="margin-top:6px">Edit it first if you want to add what you've tried. Gemini can't take a prompt from a link, so it's copied for you to paste. LMK sends nothing anywhere this way.</p></details>`;
   const facts = e.isCourse ? [
     ["Next up", f.up && f.up.length ? `${esc(f.up[0].title.slice(0, 40))} · ${FMT_DAY.format(f.up[0].due)}` : "nothing scheduled"],
@@ -2848,7 +2928,7 @@ function openStudy(id, opts = {}){
         ${e.isCourse ? `<div class="card sp-block"><h4>Coming up</h4>${f.up && f.up.length ? `<ul>${f.up.map(y => `<li>${esc(y.title.slice(0, 60))} · ${FMT_DAY.format(y.due)}</li>`).join("")}</ul>` : `<p class="privacy" style="margin:0">Nothing else is due in this course.</p>`}</div>`
         : `<div class="card sp-block"><h4>Instructions from ${lmsName()}</h4>${e.desc ? `<div class="sp-scroll">${esc(e.desc)}</div>` : `<p class="privacy" style="margin:0">Nothing came through for this one yet. Open it in ${lmsName()} and paste what matters into your notes.</p>`}</div>`}
         ${rub.length ? `<div class="card sp-block"><h4>Rubric</h4><ul>${rub.map(r => `<li>${esc(r)}</li>`).join("")}</ul></div>` : ""}
-        <div class="card sp-block"><h4>${e.isCourse ? "Syllabus and course notes" : "Your notes"}</h4><textarea id="spNotes" placeholder="${e.isCourse ? "Paste the syllabus, the exam format, the chapters covered…" : "What you've tried, what the professor said, where you got stuck…"}">${esc(notes)}</textarea></div>
+        <div class="card sp-block"><h4 id="spNotesLbl">${e.isCourse ? "Syllabus and course notes" : "Your notes"}</h4><textarea id="spNotes" aria-labelledby="spNotesLbl" placeholder="${e.isCourse ? "Paste the syllabus, the exam format, the chapters covered…" : "What you've tried, what the professor said, where you got stuck…"}">${esc(notes)}</textarea></div>
         <div class="row" style="margin:0">${e.url ? `<a class="btn ghost" href="${esc(e.url)}" target="_blank" rel="noopener">Open in ${lmsName()} ↗</a>` : ""}${e.isCourse ? "" : `<button class="btn ghost" id="spDone">${store.done[e.id] ? "Not done after all" : "Done ✓"}</button>`}</div>
       </aside></details>
       <section class="sp-chat">
@@ -3511,7 +3591,7 @@ function recapEnd(){
   if (!end || end.getTime() - Date.now() > 150 * 864e5) end = addDays(SEMESTER_WEEK1_MON, 16 * 7 + 4 + 3);
   return end;
 }
-function recapDays(){ const end = recapEnd(); return end ? Math.ceil((end.getTime() - startOfDay(now()).getTime()) / 864e5) : null; }
+function recapDays(){ const end = recapEnd(); return end ? Math.round((end.getTime() - startOfDay(now()).getTime()) / 864e5) : null; }   // round: across a clock change a day is 23 or 25 hours
 /* pos: "top" is the two weeks before the date (under the hero), "bottom" the rest of the semester */
 function recapCountdownHtml(pos){
   const days = recapDays(); if (days === null) return "";
@@ -3630,7 +3710,7 @@ function renderWrapped(){
   if (S.milestones.length) cards.push(card("milestones", "Milestones", `${S.milestones[S.milestones.length - 1].n}th`, S.milestones.map(m => `<div class="wr-row"><span>${m.n}th finish</span><b>${FMT_DAY.format(new Date(m.at))}</b></div>`)));
   if (S.months.length) { const mx = Math.max(1, ...S.months.map(m => m.n)); cards.push(card("months", "Month by month", `${S.months.reduce((t, m) => Math.max(t, m.n), 0)}`, [`your busiest month, in finishes`, `<div class="wr-bars">${S.months.map(m => `<div><i style="height:${Math.max(3, Math.round(m.n / mx * 78))}px" title="${m.n}"></i>${m.label}</div>`).join("")}</div>`])); }
   cards.push(`<div class="card wr" data-card="share"><div class="kicker">The card</div><div class="line">Five numbers on one image. Yours to post, or not.</div><canvas id="wrCanvas" width="1080" height="1920" class="wr-card" aria-label="Your recap card"></canvas><div class="wr-share">${MODE === "web" ? `<button class="btn grad" data-act="wr-share">Share</button><button class="btn ghost" data-act="wr-download">Save image</button>` : `<span class="line">Open lmktoday.app to save or share it.</span>`}</div></div>`);
-  recapPage.innerHTML = `<div class="sp-head"><button class="sp-back" data-act="wr-close">← Plan</button><div class="sp-title"><b>${esc(win.label)}</b><span>${esc(win.sub)} · built on this device</span></div><div class="wr-modes"><button class="mode" data-act="wr-mode" data-mode="semester" aria-pressed="${WR.mode === "semester"}">Semester</button><button class="mode" data-act="wr-mode" data-mode="year" aria-pressed="${WR.mode === "year"}">Year</button></div></div><div class="wr-body">${cards.join("")}</div>`;
+  recapPage.innerHTML = `<div class="sp-head"><button class="sp-back" data-act="wr-close">← Plan</button><div class="sp-title"><b id="wrTitle">${esc(win.label)}</b><span>${esc(win.sub)} · built on this device</span></div><div class="wr-modes"><button class="mode" data-act="wr-mode" data-mode="semester" aria-pressed="${WR.mode === "semester"}">Semester</button><button class="mode" data-act="wr-mode" data-mode="year" aria-pressed="${WR.mode === "year"}">Year</button></div></div><div class="wr-body">${cards.join("")}</div>`;
   drawWrappedCard(S, win);
 }
 function drawWrappedCard(S, win){
@@ -3758,7 +3838,7 @@ function renderRoom(){
       <ul class="roster">${v.roster.map(r => `<li><span class="rname">${esc(r.name)}${r.me ? ' <span class="etag">you</span>' : ""}</span>${r.handle ? contactHtml(r.handle) : ""}${r.me ? `<button class="minibtn rrep" data-act="room-edit">Edit</button>` : `<button class="minibtn rrep" data-act="room-report" data-mid="${esc(r.id)}" title="Report this entry">Report</button>`}</li>`).join("")}</ul>
       ${sessionsBlockHtml(v, c)}
       ${v.chat ? `<p style="margin:0 0 12px"><a class="btn ghost" href="${esc(v.chat)}" target="_blank" rel="noopener">Class chat ↗</a></p>`
-               : `<details class="setupway" style="margin:0 0 12px"><summary>Add the class chat link (GroupMe, Discord…)</summary><div class="row" style="margin-top:8px"><input id="roomChat" class="roomin" placeholder="https://…" style="flex:1 1 200px"><button class="minibtn" data-act="room-chat-set">Save</button></div></details>`}
+               : `<details class="setupway" style="margin:0 0 12px"><summary>Add the class chat link (GroupMe, Discord…)</summary><div class="row" style="margin-top:8px"><input id="roomChat" class="roomin" aria-label="Class chat link" placeholder="https://…" style="flex:1 1 200px"><button class="minibtn" data-act="room-chat-set">Save</button></div></details>`}
       <div class="row"><button class="btn grad" data-act="room-share">Share ${esc(c)}</button>${close}<button class="minibtn" data-act="room-leave" style="margin-left:auto;color:var(--muted)">Leave</button></div>`;
   }
   document.getElementById("roomModal").innerHTML = head + body;
@@ -3813,7 +3893,7 @@ roomOverlay.addEventListener("click", e => {
   else if (a === "room-resync") roomResync();
   else if (a === "room-retry") { ROOMS.view[ROOMS.cid] = null; ROOMS.at[ROOMS.cid] = 0; renderRoom(); roomFetch(ROOMS.cid, true); }
 });
-document.addEventListener("keydown", e => { if (e.key !== "Escape") return; if (roomOverlay.classList.contains("open")) closeRoom(); if (recapOverlay.classList.contains("open")) closeRecap(); if (!recapPage.hidden) closeWrapped(); });
+/* Escape for the room sheet, the recap sheet and the recap page lives with every other sheet's: sheetClose() (v71.1). */
 /* The reward, claimed after a verified sync. "cloud" means the server has not seen this student's sync yet
    (the extension registers the key on its next Canvas visit) — keep the invite and try after the next one. */
 /* A pending invite opens its room the moment this device can read it: onboarded, the extension's classes in, a
@@ -3864,6 +3944,7 @@ function joinWhyHtml(){
 function renderNow(root){
   const n = now(), today = startOfDay(n);
   let html = gradesStrip();
+  if (sampleShown() && EVENTS.length) html = `<div class="card samplebar" role="note"><span><b>This is a made-up semester</b>, so you can see how LMK plans. Your own classes replace it the moment your school's site answers.</span><button class="btn ghost" data-act="sample-leave">Set up mine</button></div>` + html;
 
   // overdue work waits for a decision below today's plan — it is never the first thing on screen
   const overdue = EVENTS.filter(open).filter(e => e.due < n && !store.triaged[e.id] && e.kind !== "inclass" && e.kind !== "fyi");
@@ -3926,11 +4007,11 @@ function renderNow(root){
       if (state === "phone" || state === "artifact") {
         html += `<div class="card hero" style="--hero-tint:color-mix(in srgb, var(--c1) 20%, transparent)">
           <div class="kicker">First run</div>
-          <h1>${phone ? "Start on a computer, not here." : "Let's get your classes in."}</h1>
-          <div class="why">${phone ? "LMK reads Canvas or Brightspace through a Chrome extension, and a phone can't install one. On a computer, add the <b>LMK Today</b> extension to Chrome and open your school's site once. Then sign in with Google here and your plan arrives on this phone by itself." : "Three steps, about a minute: <b>1.</b> Add the <b>LMK</b> extension to Chrome — required, it's how LMK reads your school's site. <b>2.</b> Open Canvas or Brightspace once like you normally would. <b>3.</b> Come back here; your classes appear by themselves. LMK stays empty until you've opened it, and the first refresh or two can still show nothing while it syncs. That's normal."}</div>
+          <h1>${phone ? "Set up LMK on your laptop." : "Let's get your classes in."}</h1>
+          <div class="why">${phone ? "LMK reads Canvas or Brightspace through a browser extension, and a phone can't install one. Send this link to your laptop, add the <b>LMK Today</b> extension in Chrome, Edge, Brave or Arc, and open your school's site once. Then sign in with Google here and your plan arrives on this phone by itself." : "Three steps, about a minute: <b>1.</b> Add the <b>LMK</b> extension to Chrome — required, it's how LMK reads your school's site. <b>2.</b> Open Canvas or Brightspace once like you normally would. <b>3.</b> Come back here; your classes appear by themselves. LMK stays empty until you've opened it, and the first refresh or two can still show nothing while it syncs. That's normal."}</div>
           ${joinWhyHtml()}
           <div class="actions">
-            ${phone ? (gdReady() ? `<button class="btn grad" data-act="web-signin">Sign in with Google</button>` : "") : `<a class="btn grad" href="${LMK_CONFIG.storeUrl}" target="_blank" rel="noopener">Add to Chrome →</a><a class="btn ghost" href="${esc(canvasHref())}" target="_blank" rel="noopener">Already added it? Open ${openLbl} →</a>`}
+            ${phone ? `<button class="btn grad" data-act="send-laptop">Send this link to my laptop</button><button class="btn ghost" data-act="try-sample">See a sample semester</button>${gdReady() ? `<button class="btn ghost" data-act="web-signin" title="Restores the plan another device of yours already synced">Set up already? Sign in</button>` : ""}` : `<a class="btn grad" href="${esc(LMK_CONFIG.storeUrl)}" target="_blank" rel="noopener">Add to Chrome →</a><a class="btn ghost" href="${esc(canvasHref())}" target="_blank" rel="noopener">Already added it? Open ${openLbl} →</a>`}
             ${phone ? `<button class="btn ghost" data-act="open-token" title="A Canvas access token lets LMK's server read Canvas for you — Canvas schools only">No laptop? Use a Canvas token</button>` : ""}
             <button class="btn ghost" data-act="open-gear">Other ways</button>
           </div>
@@ -3956,10 +4037,13 @@ function renderNow(root){
               ? `LMK builds a plan out of a student's own coursework — what is due, what is submitted, what it is worth. The ${taughtOnly()} course${taughtOnly() === 1 ? "" : "s"} on this account ${taughtOnly() === 1 ? "is one you teach" : "are ones you teach"}, so there is nothing here to plan. If you want to see what your students see, sign in to ${LMSW} with a student account.`
               : "That usually means " + LMSW + " was signed in to a different account, or this term's courses aren't published yet.")
           : isD2L ? `<b>The extension is how LMK reads Brightspace</b> — the one required step, and nothing lands here until it's in. One click in Chrome; keep your school's Brightspace open in another tab and the extension finds it there and reads it. About a minute, once.`
-          : `<b>The extension is how LMK reads ${LMSW}</b> — the one required step, and nothing lands here until it's in. One click in Chrome, then it opens your school's site by itself and brings your classes back. About a minute, once.`;
+          : !IS_CHROMIUM ? `<b>LMK's extension runs in Chrome, Edge, Brave or Arc, not in this browser.</b> Open this page in one of those to set it up; it takes about a minute, once. No way to switch browsers? A Canvas token works from any browser: see Other ways.`
+          : `<b>The extension is how LMK reads ${LMSW}</b> — the one required step, and nothing lands here until it's in. One click in Chrome, then it opens your school's site by itself; if it asks you to sign in, sign in, and your classes come back here on their own. About a minute, once.`;
       const tokenBtn = (label, title) => isD2L ? "" : `<button class="btn ghost" data-act="open-token"${title ? ` title="${title}"` : ""}>${label}</button>`;
-      const actions = state === "fresh"
-          ? `<a class="btn grad" href="${LMK_CONFIG.storeUrl}" target="_blank" rel="noopener">Add to Chrome →</a>${openBtn("ghost")}${gdReady() ? `<button class="btn ghost" data-act="web-signin" title="Only if another computer of yours has already synced — it restores that plan, it does not read ${LMSW}">Used LMK before? Sign in</button>` : ""}`
+      const actions = state === "fresh" && !IS_CHROMIUM
+          ? `<button class="btn grad" data-act="copy-applink">Copy this link</button>${tokenBtn("Use a Canvas token instead", "Works in any browser, at any school whose Canvas allows student tokens")}`
+        : state === "fresh"
+          ? `<a class="btn grad" href="${esc(LMK_CONFIG.storeUrl)}" target="_blank" rel="noopener">Add to Chrome →</a>${openBtn("ghost")}${gdReady() ? `<button class="btn ghost" data-act="web-signin" title="Only if another computer of yours has already synced — it restores that plan, it does not read ${LMSW}">Used LMK before? Sign in</button>` : ""}`
         : state === "checking" ? ""
         : state === "stuck"
           ? `${openBtn("grad")}${extCanAdopt() ? `<button class="btn grad" data-act="host-add" title="Chrome will ask you to approve your school's site">Add my school's ${isD2L ? "Brightspace" : "Canvas"} →</button>${tokenBtn("Or use a Canvas token")}` : tokenBtn("Use a Canvas token instead", "Works on any school's Canvas, whatever its address")}`
@@ -4184,9 +4268,9 @@ function renderSemester(root){
     const hpx = w.load === 0 ? 10 : Math.round(14 + 50 * frac);
     const fill = w.load === 0 ? "" : `background:${RAMP[Math.min(RAMP.length-1, Math.max(0, Math.ceil(frac * RAMP.length) - 1))]};border-color:transparent`;
     html += `<div class="wk ${cur?"cur":""} ${w===worst&&w.load>0?"worst":""}">
-      <div class="cellslot"><button class="cell" style="height:${hpx}px;${fill}" data-act="week" data-wk="${i}"
+      <div class="cellslot"><button class="cell" style="height:${hpx}px;${fill}" data-act="week" data-wk="${i}" aria-pressed="${selWeek === i}"
         data-tip="Week of ${FMT_DAY.format(w.s)} — ${w.evs.length} assignments${w.evs.some(e=>e.exam)?", includes an EXAM":""}${w===worst?" — heaviest week of the semester":""}"
-        aria-label="Week of ${FMT_DAY.format(w.s)}, ${w.evs.length} assignments"></button></div>
+        aria-label="Week of ${FMT_DAY.format(w.s)}, ${w.evs.length} assignment${w.evs.length === 1 ? "" : "s"}${w.evs.some(e=>e.exam) ? ", includes an exam" : ""}${w===worst&&w.load>0 ? ", heaviest week of the semester" : ""}${cur ? ", this week" : ""}"></button></div>
       <span class="n">${w.evs.length||""}</span>
       <span class="lbl">${(w.s.getMonth()+1)+"/"+w.s.getDate()}${w===worst&&w.load>0?"<br>🔥 worst":""}${cur?"<br>now":""}</span>
     </div>`;
@@ -4205,7 +4289,7 @@ function renderSemester(root){
   html += `<h2 class="sec">Exam runway <span class="count">${exams.length}</span></h2>`;
   if (exams.length){
     html += `<div class="card runway">` + exams.map(e=>{
-      const days = Math.max(0, Math.floor((startOfDay(e.due)-startOfDay(n))/864e5));
+      const days = Math.max(0, Math.round((startOfDay(e.due)-startOfDay(n))/864e5));
       return `<div class="exam ${days<=3?"imminent":""}" data-id="${e.id}" style="box-shadow:inset 3px 0 0 ${COLOR[e.course]}">
         <div class="days">${days}<small>days</small></div>
         <div class="body"><div class="t" style="font-weight:600">${esc(e.title)}</div>
@@ -4282,8 +4366,8 @@ function renderSemester(root){
 /* ================= chips / tabs / header ================= */
 function renderChips(){
   const el = document.getElementById("courseChips");
-  el.innerHTML = [`<button class="chip" aria-pressed="${courseFilter===null}" data-course="">All courses</button>`]
-    .concat(COURSES.map(c=>`<button class="chip" aria-pressed="${courseFilter===c}" data-course="${esc(c)}" style="--chip-c:${COLOR[c]};--chip-bg:color-mix(in srgb, ${COLOR[c]} 13%, var(--surface))"><span class="dot" style="background:${COLOR[c]}"></span>${esc(c)}</button>`)).join("");
+  keepFocus(el, () => el.innerHTML = [`<button class="chip" aria-pressed="${courseFilter===null}" data-course="">All courses</button>`]
+    .concat(COURSES.map(c=>`<button class="chip" aria-pressed="${courseFilter===c}" data-course="${esc(c)}" style="--chip-c:${COLOR[c]};--chip-bg:color-mix(in srgb, ${COLOR[c]} 13%, var(--surface))"><span class="dot" style="background:${COLOR[c]}"></span>${esc(c)}</button>`)).join(""));
 }
 function renderHeader(){
   const n = now();
@@ -4478,7 +4562,7 @@ function cachePlanLine(days, today){
 /* The sync bookmarklet, generated from ~/lmk-extension/bookmarklet.txt — regenerate both together.
    It works on ANY school's Canvas, which is the whole point: it takes the origin from the page it runs on. */
 const LMK_SYNC_BOOKMARKLET = "javascript:(function(){%0A  let BASE = \"\";%0A  const sleep = ms => new Promise(r => setTimeout(r, ms));%0A  /* Bounded-concurrency map. Canvas answers one request about as fast as six, so the old one-at-a-time%0A     walk spent almost all of its time waiting: 1 + 3 per course + up to 40 quiz reads, strictly in series,%0A     is ~70 round trips deep and took tens of seconds on a full course load. LIMIT is deliberately modest %E2%80%94%0A     Canvas rate-limits on a leaky bucket per session and answers 403 when it runs dry. */%0A  const LIMIT = 6;%0A  /* The ceiling has to be on requests actually in flight, not on tasks: fanning out five courses that each%0A     fire three reads is fifteen at once, which is how you empty Canvas's bucket and start collecting 403s.%0A     Every hop passes through this gate, so the fan-out above can be as wide as it likes. */%0A  let live = 0; const waiting = [];%0A  const acquire = () => live < LIMIT ? (live++, Promise.resolve()) : new Promise(r => waiting.push(r));%0A  const release = () => { const w = waiting.shift(); if (w) w(); else live--; };   // hand the slot straight on%0A  async function pool(list, n, fn){%0A    const out = new Array(list.length); let i = 0;%0A    await Promise.all(Array.from({length: Math.min(n, list.length)}, async () => {%0A      for (;;){ const k = i++; if (k >= list.length) return; out[k] = await fn(list[k], k); }%0A    }));%0A    return out;%0A  }%0A  async function getJSON(path){%0A    const out = [];%0A    let url = BASE + path + (path.includes(\"?\") ? \"&\" : \"?\") + \"per_page=100\";%0A    for (let hop = 0; url && hop < 20; hop++){%0A      let r = null;%0A      /* A 403 here is usually the rate-limit bucket, not a permission problem, and it only started%0A         happening once LMK asked for several courses at once. Backing off and trying again is the%0A         difference between a full sync and a course going silently missing. */%0A      for (let tryN = 0; tryN < 3; tryN++){%0A        const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000);%0A        await acquire();%0A        try { r = await fetch(url, {credentials:\"include\", headers:{\"Accept\":\"application/json\"}, signal: ctl.signal}); }%0A        finally { clearTimeout(timer); release(); }%0A        if (r.ok || (r.status !== 403 && r.status !== 429 && r.status < 500)) break;%0A        await sleep(300 * (tryN + 1));%0A      }%0A      if (!r || !r.ok) throw new Error(((r && r.status) || \"net\") + \" \" + path);%0A      let txt = await r.text();%0A      if (txt.startsWith(\"while(1);\")) txt = txt.slice(9);%0A      const data = JSON.parse(txt);%0A      if (Array.isArray(data)) out.push(...data); else return data;%0A      const link = r.headers.get(\"Link\") || \"\";%0A      const m = link.match(/<([^>]+)>;%5Cs*rel=\"next\"/);%0A      url = m ? m[1] : null;%0A    }%0A    return out;%0A  }%0A  const strip = h => (h || \"\").replace(/<[^>]+>/g, \" \").replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/%5Cs+/g, \" \").trim();%0A  /* Canvas's own grade for this course: exactly what the student sees, with group weights, drop rules,%0A     late policies and excused work already applied. Null when the instructor hides totals. */%0A  function courseScores(c){%0A    const num = v => (v === null || v === undefined || v === \"\" || !isFinite(+v)) ? null : +v;%0A    const es = (c.enrollments || []).filter(e => /student/i.test(e.type || e.role || \"\"));%0A    const e = es.find(x => x.computed_current_score != null) || es[0] || {};%0A    return {cur: num(e.computed_current_score), fin: num(e.computed_final_score)};%0A  }%0A  function courseTag(c){%0A    const s = (c.course_code || c.name || \"\");%0A    if (/asuready/i.test(s)) return \"ASU Ready\";%0A    const m = s.match(/([A-Z]{2,4})%5Cs?-?(%5Cd{2,3}[A-Z]?)/);%0A    return m ? m[1] + \" \" + m[2] : s.slice(0, 18);%0A  }%0A  function rubricText(a){%0A    const r = Array.isArray(a.rubric) ? a.rubric : [];%0A    return r.slice(0, 12).map(c => String(c.description || \"\").replace(/%5Cs+/g, \" \").trim().slice(0, 80) + (c.points != null ? \" (\" + c.points + \" pts)\" : \"\")).filter(x => x.trim() && x.trim() !== \"(0 pts)\").join(\"; \").slice(0, 900);%0A  }%0A  function kindHint(a){%0A    const st = a.submission_types || [];%0A    if (a.grading_type === \"not_graded\" || (a.points_possible === 0 && !st.includes(\"online_quiz\"))) return \"fyi\";%0A    if (st.includes(\"none\") || st.includes(\"on_paper\")) return \"inclass\";%0A    if (/attendance|participation|in.?class|clicker/i.test(a.name || \"\")) return \"inclass\";%0A    if (st.includes(\"online_quiz\")) return \"quiz\";%0A    if (st.includes(\"discussion_topic\")) return \"discussion\";%0A    return \"\";%0A  }%0A  (typeof window !== \"undefined\" ? window : self).lmkCollect = async function(base, prev){%0A    BASE = (base || location.origin).replace(/%5C/$/, \"\");%0A    const HOST = BASE.replace(/^https?:%5C/%5C//, \"\");%0A    /* LMK plans a STUDENT's work, and `enrollment_state=active` happily returns the courses someone%0A       teaches as well. With `include[]=submission` those come back with no submission %E2%80%94 because it is not%0A       their work to hand in %E2%80%94 so every assignment a professor has ever set would arrive looking like%0A       unfinished homework due tomorrow. A course is only dropped when every enrolment in it is positively%0A       a teaching one; a course whose roles Canvas does not report is kept, because guessing wrong in that%0A       direction hides a student's real work. */%0A    const rolesOf = c => (c.enrollments || []).map(e => String(e.type || e.role || \"\").toLowerCase()).filter(Boolean);%0A    const teachesOnly = c => { const r = rolesOf(c); return r.length > 0 && r.every(x => /teacher|^ta$|ta_|designer|grader/.test(x)); };%0A    const allCourses = (await getJSON(\"/api/v1/courses?enrollment_state=active&include[]=term&include[]=total_scores\")).filter(c => c.name && !c.access_restricted_by_date);%0A    const taught = allCourses.filter(teachesOnly).length;%0A    const courses = allCourses.filter(c => !teachesOnly(c));%0A    const items = {};%0A    const groups = {};%0A    /* The three reads a course needs know nothing about each other, and neither do the courses, so they%0A       all go out together. The results are folded back in course order afterwards, so `items`, `groups`%0A       and every id in them come out exactly as the one-at-a-time version produced them. */%0A    const fetched = await pool(courses, 8, async c => {%0A      const [list, subs, g] = await Promise.all([%0A        getJSON(`/api/v1/courses/${c.id}/assignments?include[]=submission&order_by=due_at`).then(x => x, () => null),%0A        /* What the instructor actually wrote back. One request per course, only this student's submissions,%0A           only comments from someone who is not the student. It is the most useful thing LMK can know. */%0A        getJSON(`/api/v1/courses/${c.id}/students/submissions?student_ids[]=self&include[]=submission_comments&per_page=100`).then(x => x, () => []),%0A        getJSON(`/api/v1/courses/${c.id}/assignment_groups`).then(x => x, () => null),%0A      ]);%0A      return {list, subs, g};%0A    });%0A    for (let ci = 0; ci < courses.length; ci++){%0A      const c = courses[ci], tag = courseTag(c), got = fetched[ci] || {};%0A      const list = got.list;%0A      if (!list) continue;                                   // the course's assignments failed: skip it whole, as before%0A      const fb = {};%0A      for (const sub of (Array.isArray(got.subs) ? got.subs : [])) {%0A        const mine = String(sub.user_id || \"\");%0A        const notes = (sub.submission_comments || []).filter(x => x && x.comment && String(x.author_id || \"\") !== mine);%0A        if (notes.length) fb[String(sub.assignment_id)] = strip(notes[notes.length - 1].comment).slice(0, 400);%0A      }%0A      if (got.g) groups[c.id] = got.g.map(x => ({id:x.id, name:x.name, w:x.group_weight}));%0A      for (const a of list){%0A        if (a.only_visible_to_overrides && !a.due_at && !a.has_overrides) continue;%0A        const s = a.submission || {};%0A        items[String(a.id)] = {%0A          t: a.name, c: tag, cid: String(c.id),%0A          due: a.due_at || \"\", lock: a.lock_at || \"\",%0A          pts: a.points_possible, gt: a.grading_type, st: (a.submission_types || []).join(\",\"),%0A          grp: a.assignment_group_id, k: kindHint(a),%0A          sub: s.workflow_state || \"\", subAt: s.submitted_at || \"\", score: s.score == null ? null : s.score,%0A          late: !!s.late, missing: !!s.missing, excused: !!s.excused,%0A          url: a.html_url || \"\",%0A          desc: strip(a.description).slice(0, 1200),%0A          rub: rubricText(a),%0A          fb: fb[String(a.id)] || \"\",%0A          qid: a.quiz_id ? String(a.quiz_id) : \"\",%0A        };%0A      }%0A    }%0A    // Canvas keeps seconds spent on every quiz attempt %E2%80%94 exact durations, no sensor needed.%0A    /* This was the other half of the wait: up to forty one-at-a-time reads, every single sync, re-measuring%0A       quizzes that were finished weeks ago. A submitted quiz's time_spent never changes, so anything the%0A       last payload already measured is carried straight over and never asked for again %E2%80%94 after the first%0A       sync this is usually zero requests %E2%80%94 and whatever is genuinely new goes out in parallel. */%0A    const quizTime = {}, quizMap = {};%0A    const known = (prev && prev.quizTime) || {};%0A    const submitted = Object.entries(items).filter(([aid, x]) => x.qid && /^(submitted|graded|pending_review)$/.test(x.sub));%0A    for (const [aid, x] of submitted){%0A      quizMap[x.cid + \"/\" + x.qid] = aid;%0A      if (known[aid] != null) quizTime[aid] = known[aid];%0A    }%0A    const fresh = submitted.filter(([aid]) => known[aid] == null).slice(0, 40);%0A    await pool(fresh, 12, async ([aid, x]) => {%0A      try {%0A        const r = await getJSON(`/api/v1/courses/${x.cid}/quizzes/${x.qid}/submissions`);%0A        const subs = (r && r.quiz_submissions) || [];%0A        const secs = subs.map(q => +q.time_spent || 0).filter(v => v > 0);%0A        if (secs.length) quizTime[aid] = Math.round(Math.max(...secs) / 60);%0A      } catch(e){}%0A    });%0A    for (const aid in items) if (items[aid].qid) quizMap[items[aid].cid + \"/\" + items[aid].qid] = aid;%0A    // apply_assignment_group_weights is the course-level switch: when it is false Canvas ignores%0A    // the group weights entirely and grades on total points, however the weights are set.%0A    return {lmk:\"canvas\", v:3, at: Date.now(), host: HOST, taught,%0A      courses: courses.map(c => Object.assign({id:String(c.id), tag:courseTag(c), name:c.name, wt: !!c.apply_assignment_group_weights, uuid: String(c.uuid || \"\")}, courseScores(c))),   // uuid: Canvas shows it only to the enrolled; it is what proves a classmate is a classmate (rooms), hashed before it leaves the browser%0A      groups, items, quizTime, quizMap};%0A  };%0A})();%0A%0A(async()=>{try{const p=await window.lmkCollect();const s=JSON.stringify(p);const n=Object.keys(p.items).length;%0Alet ok=false;try{await navigator.clipboard.writeText(s);ok=true}catch(e){}%0Aif(!ok){const ta=document.createElement(\"textarea\");ta.value=s;ta.style.cssText=\"position:fixed;top:8px;left:8px;width:90vw;height:40vh;z-index:99999;font-size:12px\";document.body.appendChild(ta);ta.focus();ta.select();try{ok=document.execCommand(\"copy\")}catch(e){}if(ok)ta.remove();else alert(\"Select all + copy the box, then paste it into LMK (gear %E2%86%92 Paste from Canvas).\")}%0Aif(ok)alert(\"LMK: copied \"+n+\" assignments. Open LMK %E2%86%92 gear %E2%86%92 Paste from Canvas %E2%86%92 paste.\")}catch(e){alert(\"LMK: could not read Canvas %E2%80%94 are you logged in on this tab? \"+e)}})();";
-const APP_BUILD = "v71.0";
+const APP_BUILD = "v71.1";
 const LMK_SYNC_BOOKMARKLET_D2L = "javascript:(function(){%0A  let BASE = \"\", XSRF = \"\", LP = \"1.0\", LE = \"1.0\", ME = \"\";%0A  const DIAG = [];%0A  const mask = p => p.replace(/%5C/%5Cd{2,}(?=%5C/|$|%5C?)/g, \"/#\");   // ids out of the path names%0A  async function getJSON(path, soft){%0A    const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000);%0A    let r;%0A    try {%0A      const headers = {\"Accept\": \"application/json\"};%0A      if (XSRF) headers[\"X-Csrf-Token\"] = XSRF;%0A      r = await fetch(BASE + path, {credentials: \"include\", headers, signal: ctl.signal});%0A    } catch(e) { clearTimeout(timer); DIAG.push({p: mask(path), s: 0, err: String(e && e.message || e).slice(0, 60)}); if (soft) return null; throw e; }%0A    finally { clearTimeout(timer); }%0A    const rec = {p: mask(path), s: r.status};%0A    if (!r.ok) { DIAG.push(rec); if (soft) return null; throw new Error(r.status + \" \" + path); }%0A    let data = null;%0A    try { data = await r.json(); } catch(e) { rec.err = \"not json\"; DIAG.push(rec); if (soft) return null; throw e; }%0A    const list = Array.isArray(data) ? data : data && Array.isArray(data.Items) ? data.Items : data && Array.isArray(data.Objects) ? data.Objects : null;%0A    rec.n = list ? list.length : 1;%0A    rec.k = Object.keys((list ? list[0] : data) || {}).slice(0, 40);%0A    DIAG.push(rec);%0A    return data;%0A  }%0A  /* Brightspace pages two ways: PagedResultSet {PagingInfo:{Bookmark,HasMoreItems}, Items} and%0A     ObjectListPage {Objects, Next}. Both are walked here; twenty hops is more than any student has. */%0A  async function getAll(path, soft){%0A    const out = []; let next = path;%0A    for (let hop = 0; next && hop < 20; hop++){%0A      const d = await getJSON(next, soft);%0A      if (!d) break;%0A      if (Array.isArray(d)) { out.push(...d); break; }%0A      if (Array.isArray(d.Items)) { out.push(...d.Items); const pi = d.PagingInfo || {}; next = pi.HasMoreItems && pi.Bookmark ? path + (path.includes(\"?\") ? \"&\" : \"?\") + \"bookmark=\" + encodeURIComponent(pi.Bookmark) : null; continue; }%0A      if (Array.isArray(d.Objects)) { out.push(...d.Objects); next = typeof d.Next === \"string\" && d.Next ? d.Next.replace(/^https?:%5C/%5C/[^/]+/, \"\") : null; continue; }%0A      break;%0A    }%0A    return out;%0A  }%0A  const strip = h => (h || \"\").replace(/<[^>]+>/g, \" \").replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/%5Cs+/g, \" \").trim();%0A  const rich = o => o && typeof o === \"object\" ? (o.Html ? strip(o.Html) : strip(o.Text || \"\")) : strip(typeof o === \"string\" ? o : \"\");%0A  const num = v => (v === null || v === undefined || v === \"\" || !isFinite(+v)) ? null : +v;%0A  const iso = v => { const t = Date.parse(v || \"\"); return isNaN(t) ? \"\" : new Date(t).toISOString(); };%0A  function courseTag(ou){%0A    const s = String(ou.Code || ou.Name || \"\");%0A    const m = s.match(/([A-Z]{2,4})[%5Cs_-]?(%5Cd{2,3}[A-Z]?)(?![0-9])/);%0A    return m ? m[1] + \" \" + m[2] : String(ou.Name || s).slice(0, 18);%0A  }%0A  /* D2L ids are org-wide database ids, but a dropbox folder and a quiz can share a number, and progress is%0A     keyed by id alone. One leading digit per kind keeps them apart and keeps the id all digits (invariant 2). */%0A  const idOf = (kind, id) => (kind === \"quiz\" ? \"2\" : \"1\") + String(id).replace(/%5CD/g, \"\");%0A  const pct = (n, d) => (num(n) != null && num(d) > 0) ? Math.round(n / d * 1000) / 10 : null;%0A%0A  (typeof window !== \"undefined\" ? window : self).lmkD2LDiag = DIAG;%0A  (typeof window !== \"undefined\" ? window : self).lmkCollectD2L = async function(base){%0A    BASE = (base || location.origin).replace(/%5C/$/, \"\");%0A    const HOST = BASE.replace(/^https?:%5C/%5C//, \"\");%0A    DIAG.length = 0;%0A    try { XSRF = String((typeof localStorage !== \"undefined\" && localStorage.getItem(\"XSRF.Token\")) || \"\").replace(/^\"|\"$/g, \"\"); } catch(_) { XSRF = \"\"; }%0A    // the API is versioned per product; ask which versions this school runs rather than guessing%0A    const versions = await getJSON(\"/d2l/api/versions/\", true);%0A    for (const v of (Array.isArray(versions) ? versions : [])) { if (v.ProductCode === \"lp\" && v.LatestVersion) LP = v.LatestVersion; if (v.ProductCode === \"le\" && v.LatestVersion) LE = v.LatestVersion; }%0A    const me = await getJSON(`/d2l/api/lp/${LP}/users/whoami`, true);%0A    ME = me && me.Identifier != null ? String(me.Identifier) : \"\";%0A    const now = Date.now();%0A    const enr = await getAll(`/d2l/api/lp/${LP}/enrollments/myenrollments/?orgUnitTypeId=3`, false);%0A    const courses = enr.map(e => e || {}).filter(e => {%0A      const ou = e.OrgUnit || {}, a = e.Access || {};%0A      if (!ou.Id || !ou.Name) return false;%0A      if (a.IsActive === false || a.CanAccess === false) return false;%0A      const end = Date.parse(a.EndDate || \"\"), start = Date.parse(a.StartDate || \"\");%0A      if (!isNaN(end) && end < now - 14 * 864e5) return false;       // a course that ended a fortnight ago%0A      if (!isNaN(start) && start > now + 30 * 864e5) return false;   // one that has not started%0A      return true;%0A    }).map(e => e.OrgUnit);%0A    const items = {}, groups = {}, quizTime = {}, quizMap = {};%0A    let subCalls = 0, attCalls = 0;%0A    const out = [];%0A    for (const ou of courses){%0A      const cid = String(ou.Id), tag = courseTag(ou);%0A      // grades first: a released score is the strongest evidence, and the id map is needed by both lists%0A      const gv = {};%0A      for (const g of (await getAll(`/d2l/api/le/${LE}/${cid}/grades/values/myGradeValues/`, true) || [])) if (g && g.GradeObjectIdentifier != null) gv[String(g.GradeObjectIdentifier)] = g;%0A      const fin = await getJSON(`/d2l/api/le/${LE}/${cid}/grades/final/values/myGradeValue`, true);%0A      const cur = fin ? (pct(fin.WeightedNumerator, fin.WeightedDenominator) ?? pct(fin.PointsNumerator, fin.PointsDenominator)) : null;%0A      // categories carry the weights; these two routes are often instructor-only, and that is fine (points-based grading then)%0A      const setup = await getJSON(`/d2l/api/le/${LE}/${cid}/grades/setup/`, true);%0A      const cats = await getAll(`/d2l/api/le/${LE}/${cid}/grades/categories/`, true);%0A      const gobjs = await getAll(`/d2l/api/le/${LE}/${cid}/grades/`, true);%0A      const catOf = {}; for (const g of gobjs || []) if (g && g.Id != null && g.CategoryId != null) catOf[String(g.Id)] = String(g.CategoryId);%0A      if (Array.isArray(cats) && cats.length) groups[cid] = cats.map(c => ({id: String(c.Id), name: c.Name, w: num(c.Weight)}));%0A      const wt = !!(setup && /weight/i.test(String(setup.GradingSystem || \"\")));%0A      out.push({id: cid, tag, name: ou.Name, wt, cur, fin: null, uuid: ou.Code ? \"d2l:\" + String(ou.Code) : \"\"});   // Brightspace has no course uuid; the offering code is the nearest thing an outsider does not see%0A      // dropbox folders = assignments%0A      const folders = (await getAll(`/d2l/api/le/${LE}/${cid}/dropbox/folders/`, true) || []).filter(f => f && f.Id != null && f.Name && !f.IsHidden);%0A      folders.sort((a, b) => (Date.parse(b.DueDate || (b.Availability || {}).EndDate || \"\") || 0) - (Date.parse(a.DueDate || (a.Availability || {}).EndDate || \"\") || 0));%0A      for (const f of folders){%0A        const av = f.Availability || {}, as = f.Assessment || {};%0A        const due = iso(f.DueDate) || iso(av.EndDate);          // Brightspace instructors often set only \"Ends\"; the student treats that as the deadline%0A        const g = f.GradeItemId != null ? gv[String(f.GradeItemId)] : null;%0A        const stype = ({0: \"online_upload\", 1: \"online_text_entry\", 2: \"on_paper\", 3: \"none\"})[f.SubmissionType] || \"online_upload\";%0A        const pts = num(as.ScoreDenominator) ?? (g ? num(g.PointsDenominator) : null);%0A        let sub = \"\", subAt = \"\", score = g ? num(g.PointsNumerator) : null, fb = \"\";%0A        /* The learner's own submissions: the one call that turns \"graded\" into \"handed in on <date>\". Read for%0A           the recent and coming work only, capped, and never trusted blindly %E2%80%94 a 403 here just means no%0A           auto-check for this school until we know its rules. */%0A        const dueMs = Date.parse(due) || 0;%0A        if (subCalls < 40 && (!dueMs || dueMs > now - 60 * 864e5) && stype !== \"none\") {%0A          subCalls++;%0A          const ent = await getJSON(`/d2l/api/le/${LE}/${cid}/dropbox/folders/${f.Id}/submissions/`, true);%0A          const mine = (Array.isArray(ent) ? ent : []).filter(e => e && e.Entity && (!ME || String(e.Entity.EntityId) === ME || e.Entity.EntityType === \"Group\"));%0A          for (const e of mine){%0A            const subs = Array.isArray(e.Submissions) ? e.Submissions : [];%0A            const latest = subs.map(s => iso(s.SubmissionDate)).filter(Boolean).sort().pop();%0A            if (latest) { sub = \"submitted\"; subAt = latest; }%0A            const fbk = e.Feedback || null;%0A            if (fbk) { if (num(fbk.Score) != null) { score = num(fbk.Score); sub = \"graded\"; } const t = rich(fbk.Feedback); if (t) fb = t.slice(0, 400); }%0A          }%0A        }%0A        if (!sub && score != null) sub = \"graded\";%0A        items[idOf(\"dropbox\", f.Id)] = {%0A          t: f.Name, c: tag, cid, due, lock: iso(av.EndDate),%0A          pts, gt: (pts > 0 || f.GradeItemId != null) ? \"points\" : \"not_graded\", st: stype,%0A          grp: f.GradeItemId != null && catOf[String(f.GradeItemId)] ? catOf[String(f.GradeItemId)] : \"\",%0A          k: stype === \"on_paper\" || stype === \"none\" ? \"inclass\" : (!(pts > 0) && f.GradeItemId == null) ? \"fyi\" : \"\",%0A          sub, subAt, score, late: false, missing: false, excused: false,%0A          url: `${BASE}/d2l/lms/dropbox/user/folder_submit_files.d2l?ou=${cid}&db=${f.Id}`,%0A          desc: rich(f.CustomInstructions).slice(0, 1200),%0A          rub: (Array.isArray(as.Rubrics) ? as.Rubrics : []).map(r => String(r.Name || \"\").trim()).filter(Boolean).slice(0, 12).join(\"; \").slice(0, 900),%0A          fb, qid: \"\",%0A        };%0A      }%0A      // quizzes%0A      const quizzes = (await getAll(`/d2l/api/le/${LE}/${cid}/quizzes/`, true) || []).filter(q => q && q.QuizId != null && q.Name && q.IsActive !== false);%0A      for (const q of quizzes){%0A        const due = iso(q.DueDate) || iso(q.EndDate);%0A        const g = q.GradeItemId != null ? gv[String(q.GradeItemId)] : null;%0A        let sub = \"\", subAt = \"\", score = g ? num(g.PointsNumerator) : null;%0A        const dueMs = Date.parse(due) || 0;%0A        const aid = idOf(\"quiz\", q.QuizId);%0A        if (attCalls < 20 && (!dueMs || dueMs > now - 60 * 864e5)) {%0A          attCalls++;%0A          const att = await getAll(`/d2l/api/le/${LE}/${cid}/quizzes/${q.QuizId}/attempts/`, true);%0A          const mine = (att || []).filter(a => a && (!ME || a.UserId == null || String(a.UserId) === ME));%0A          const done = mine.map(a => ({at: iso(a.TimeCompleted), mins: (Date.parse(a.TimeCompleted || \"\") - Date.parse(a.TimeStarted || \"\")) / 60e3})).filter(a => a.at);%0A          if (done.length) { sub = \"submitted\"; subAt = done.map(a => a.at).sort().pop(); const m = Math.max(...done.map(a => a.mins).filter(v => v > 0 && v < 600)); if (isFinite(m) && m > 0) quizTime[aid] = Math.round(m); }%0A        }%0A        if (score != null) sub = subAt ? \"graded\" : \"graded\";%0A        quizMap[cid + \"/\" + q.QuizId] = aid;%0A        items[aid] = {%0A          t: q.Name, c: tag, cid, due, lock: iso(q.EndDate),%0A          pts: g ? num(g.PointsDenominator) : null, gt: q.GradeItemId != null ? \"points\" : \"not_graded\", st: \"online_quiz\",%0A          grp: q.GradeItemId != null && catOf[String(q.GradeItemId)] ? catOf[String(q.GradeItemId)] : \"\",%0A          k: \"quiz\",%0A          sub, subAt, score, late: false, missing: false, excused: false,%0A          url: `${BASE}/d2l/lms/quizzing/user/quiz_summary.d2l?ou=${cid}&qi=${q.QuizId}`,%0A          desc: (rich(q.Description) + \" \" + rich(q.Instructions)).trim().slice(0, 1200),%0A          rub: \"\", fb: \"\", qid: String(q.QuizId),%0A        };%0A      }%0A    }%0A    return {lmk: \"canvas\", lms: \"d2l\", v: 3, at: Date.now(), host: HOST, courses: out, groups, items, quizTime, quizMap, diag: DIAG.slice(0, 200)};%0A  };%0A})();%0A%0A(async()=>{try{const p=await window.lmkCollectD2L();delete p.diag;const s=JSON.stringify(p);const n=Object.keys(p.items).length;%0Alet ok=false;try{await navigator.clipboard.writeText(s);ok=true}catch(e){}%0Aif(!ok){const ta=document.createElement(\"textarea\");ta.value=s;ta.style.cssText=\"position:fixed;top:8px;left:8px;width:90vw;height:40vh;z-index:99999;font-size:12px\";document.body.appendChild(ta);ta.focus();ta.select();try{ok=document.execCommand(\"copy\")}catch(e){}if(ok)ta.remove();else alert(\"Select all + copy the box, then paste it into LMK (gear %E2%86%92 Paste from Canvas).\")}%0Aif(ok)alert(\"LMK: copied \"+n+\" assignments from Brightspace. Open LMK %E2%86%92 gear %E2%86%92 Paste from Canvas %E2%86%92 paste.\")}catch(e){alert(\"LMK: could not read Brightspace %E2%80%94 are you signed in on this tab? \"+e)}})();";   // embedded by ~/lmk-backend/tools/build-d2l.py from collect-d2l.js
 let lastErr = null;
 function reportErr(e, where){
@@ -4503,7 +4587,15 @@ function reportErr(e, where){
     el.hidden = false;
   } catch(_){}
 }
-window.addEventListener("error", ev => reportErr(ev.error || ev.message, "window"));
+/* Only LMK's own faults draw the card and reach /err. Anything a browser add-on or an in-app browser injects into this page
+   throws here too: "Cannot read properties of undefined (reading 'errorMessage')", 7 reports and none of them LMK's,
+   each drawing "Something went wrong" over the hero (2026-10-10). An error with no Error object, or from another file,
+   is someone else's. Ours come from this document's own <script>, so the file is this page; its line goes in the label. */
+window.addEventListener("error", ev => {
+  const page = String(location.href).split(/[?#]/)[0], file = String(ev.filename || "").split(/[?#]/)[0];
+  if (!ev.error || !file || file !== page) { try { console.warn("LMK: ignored an error from outside the app", ev.filename || "", ev.message || ""); } catch(_){} return; }
+  reportErr(ev.error, "window@" + (ev.lineno || 0) + ":" + (ev.colno || 0));
+});
 window.addEventListener("unhandledrejection", ev => { try { lastErr = {where:"promise", msg:String(ev.reason && (ev.reason.message || ev.reason)).slice(0, 300)}; console.warn("LMK promise", ev.reason); } catch(_){} });
 
 let animNext = true;   // stagger the entrance when a view opens or the filter changes — not on the quiet refresh
@@ -4530,14 +4622,18 @@ function renderInner(){
   const root = document.getElementById("view-"+activeTab);
   const scratch = document.createElement("section");
   views[activeTab](scratch);
-  if (scratch.innerHTML !== root.innerHTML) root.innerHTML = scratch.innerHTML;   // an unchanged view keeps its open piles, selection and taps
+  let swapped = false;
+  keepFocus(root, () => { if (scratch.innerHTML !== root.innerHTML) { root.innerHTML = scratch.innerHTML; swapped = true; } });   // an unchanged view keeps its open piles, selection and taps
+  /* .alive gates the hero's drift and pulses and the radar's heat pulse: they play for under 5 s when a view opens
+     (2.2.2), and a view swapped in during that window gets the window extended so its pulse ends on its own. */
+  const alive = () => { clearTimeout(root._alive); root._alive = setTimeout(() => root.classList.remove("alive"), 5000); };
   if (animNext) {
     animNext = false;
-    root.classList.add("anim");
+    root.classList.add("anim", "alive"); alive();
     [...root.children].forEach((c, i) => c.style.setProperty("--i", Math.min(i, 8)));
     requestAnimationFrame(() => requestAnimationFrame(() => root.querySelectorAll("[data-w]").forEach(el => { el.style.width = el.dataset.w; })));
     setTimeout(() => root.classList.remove("anim"), 900);
-  }
+  } else if (swapped && root.classList.contains("alive")) alive();
   postPlanToExtension();
 }
 /* A little burst from the checkbox when something gets finished. The one moment that should feel good. */
@@ -4570,6 +4666,183 @@ function maybeHomeScreenHint(){
   if (installEvt) toast("Put LMK on your home screen?", {label:"Install", fn: () => { installEvt.prompt(); installEvt = null; renderInstall(); }});
   else if (/iPhone|iPad|iPod/.test(navigator.userAgent)) toast("Tip: Share → “Add to Home Screen” makes LMK a real app on this phone.");
 }
+
+/* ================= sheets: focus, inert, Escape (v71.1 — WCAG 2.4.3, 4.1.2, 2.1.2) =================
+   Twelve layers cover the page — the .overlay sheets and the two .studypage screens (Study, the recap) — and they are
+   opened and closed from some forty places, several with no click behind them: boot, a #study= link, a toast's button,
+   the first sync (welcomeAfterSync -> maybeWelcome -> openWelcome). Instead of threading a call through each, ONE
+   observer watches the layers' class/hidden attributes and runs layerSync() on every open and close, so an opener
+   added later is covered without anyone remembering to:
+   - open: remember the trigger (the focused control; or, when a sheet closed in the same tick to open this one, that
+     sheet's trigger), make everything behind the top layer `inert` (.wrap, nav.bottombar, a sheet underneath), and
+     move focus to the sheet's heading (tabindex=-1) or first control, unless the opener already put it inside;
+   - close: lift inert (or move it under the layer now on top) and hand focus back to the trigger — found again by its
+     id / data-act / data-id when a render replaced it (focusKey);
+   - Tab and Shift+Tab cycle inside the top layer (plus a showing toast's buttons); Escape closes the top layer through
+     its own close function (sheetClose; the welcome's is "Let's go").
+   The toast is never inert: it is a live status that sits above every sheet. */
+const SHEET = {stack: [], made: new Set(), lastOut: null, prev: null, prevKey: "", lastIn: null, lastInKey: ""};
+const sheetLayers = () => [...document.querySelectorAll("body > .overlay, body > .studypage")];
+function layerIsOpen(el){ return el.classList.contains("studypage") ? !el.hidden : el.classList.contains("open"); }
+function canFocus(el){
+  if (!el || !el.isConnected || el.disabled || (el.closest && el.closest("[inert]")) || !el.getClientRects().length) return false;
+  const cs = getComputedStyle(el); return cs.visibility !== "hidden" && cs.display !== "none";
+}
+/* A selector that finds "the same control" after a render replaced it: its id, else its data-* attributes inside its row. */
+function focusKey(el){
+  if (!el || el === document.body || !el.closest || !el.dataset) return "";
+  if (el.id) return "#" + CSS.escape(el.id);
+  const attrs = ["act", "id", "tab", "course", "cid", "mode", "wk", "fid", "sp", "ai", "day"].filter(k => el.dataset[k] != null)
+    .map(k => `[data-${k}="${CSS.escape(el.dataset[k])}"]`).join("");
+  if (!attrs) return "";
+  const row = el.dataset.id == null && el.parentElement ? el.parentElement.closest("[data-id]") : null;
+  return (row ? `[data-id="${CSS.escape(row.dataset.id)}"] ` : "") + el.tagName.toLowerCase() + attrs;
+}
+function refocus(el, key, scope, scroll){
+  let t = canFocus(el) ? el : null;
+  if (!t && key) { try { t = (scope || document).querySelector(key); } catch(_) { t = null; } if (!canFocus(t)) t = null; }
+  if (!t) return false;
+  try { t.focus({preventScroll: !scroll}); } catch(_){}
+  return document.activeElement === t;
+}
+/* Keep focus where it was across an innerHTML swap (renderInner every 60 s, Mark done, the chips): the same control
+   if it is still on screen, else the row now in its place. Mark done used to drop focus on <body> (2.4.3). */
+function keepFocus(root, swap){
+  const a = document.activeElement;
+  if (!a || a === document.body || !root.contains(a)) { swap(); return; }
+  const key = focusKey(a), row = a.closest(".item[data-id]"), at = row ? [...root.querySelectorAll(".item[data-id]")].indexOf(row) : -1;
+  swap();
+  if (a.isConnected) return;
+  let t = null; try { t = key ? root.querySelector(key) : null; } catch(_){}
+  if (t && (!canFocus(t) || t.getBoundingClientRect().bottom < 0 || t.getBoundingClientRect().top > innerHeight)) t = null;   // moved off screen: take the row now in its place
+  if (!t && at >= 0) { const rows = [...root.querySelectorAll(".item[data-id]")].filter(r => r.getClientRects().length); const r = rows[Math.min(at, rows.length - 1)];
+    t = r ? (r.querySelector('[data-act="done"]') || r.querySelector("button,a[href],[tabindex]")) : null; }
+  if (t) try { t.focus({preventScroll: true}); } catch(_){}
+}
+function sheetTabbables(L){
+  return [...L.querySelectorAll("a[href],button,input,select,textarea,summary,[tabindex]")]
+    .filter(el => el.tabIndex >= 0 && el.getAttribute("tabindex") !== "-1" && el.type !== "hidden" && canFocus(el));
+}
+function sheetHead(L){
+  const lb = L.getAttribute("aria-labelledby"); let h = lb ? document.getElementById(lb) : null;
+  if (!(h && L.contains(h) && h.getClientRects().length)) h = [...L.querySelectorAll("h1,h2,h3,h4,[role=heading]")].find(x => x.getClientRects().length) || null;
+  if (h) { if (!h.hasAttribute("tabindex")) h.setAttribute("tabindex", "-1"); h.setAttribute("data-focus-head", ""); return h; }
+  return sheetTabbables(L)[0] || null;
+}
+function sheetFocusIn(L){ const h = sheetHead(L); if (h) { try { h.focus({preventScroll: true}); } catch(_){} } }
+function inertSync(){
+  const top = SHEET.stack.length ? SHEET.stack[SHEET.stack.length - 1].el : null;
+  for (const c of document.body.children) {
+    const want = !!top && c !== top && c.id !== "toast" && !/^(SCRIPT|STYLE|LINK|TITLE|META|TEMPLATE)$/.test(c.tagName) && !(c.matches(".overlay,.studypage") && !layerIsOpen(c));
+    if (want && !c.inert) { c.inert = true; SHEET.made.add(c); }
+    else if (!want && SHEET.made.has(c)) { c.inert = false; SHEET.made.delete(c); }
+  }
+}
+function layerSync(){
+  const open = sheetLayers().filter(layerIsOpen);
+  const closed = SHEET.stack.filter(s => !open.includes(s.el));
+  SHEET.stack = SHEET.stack.filter(s => open.includes(s.el));
+  const a = document.activeElement, from = closed[closed.length - 1];
+  const fromClosed = !!(a && closed.some(s => s.el.contains(a)));
+  const opened = open.filter(el => !SHEET.stack.some(s => s.el === el));
+  for (const el of opened) {
+    let trig, key;
+    if (a && a !== document.body && !el.contains(a) && !fromClosed) { trig = a; key = focusKey(a); }
+    else if (from) { trig = from.trig; key = from.key; }   // settings -> Welcome tour, recap sheet -> recap page: back to what opened the first
+    else { trig = SHEET.lastOut; key = focusKey(trig); }
+    SHEET.stack.push({el, trig, key});
+  }
+  inertSync();
+  const top = SHEET.stack[SHEET.stack.length - 1];
+  if (opened.length && top) {
+    try { tipDismiss(); } catch(_){}
+    if (!top.el.contains(document.activeElement)) sheetFocusIn(top.el);
+  } else if (from) {
+    const now = document.activeElement;
+    const lost = !now || now === document.body || closed.some(s => s.el.contains(now)) || (top && !top.el.contains(now));
+    if (lost && !refocus(from.trig, from.key, top ? top.el : document, true) && top) sheetFocusIn(top.el);
+  }
+}
+/* A sheet that re-renders under the focus (renderRoom after a fetch, openStudy with replace) gets it back. Only when
+   the focused element was actually removed: a click on plain text inside the sheet must not have focus pulled. */
+function sheetRefocus(){
+  const top = SHEET.stack[SHEET.stack.length - 1]; if (!top) return;
+  const a = document.activeElement;
+  if (a && a !== document.body && a.isConnected) return;
+  if (SHEET.lastIn && SHEET.lastIn.isConnected) return;
+  if (!refocus(null, SHEET.lastInKey, top.el, false)) sheetFocusIn(top.el);
+}
+/* A toast that hides while one of its buttons has focus hands it back to where it came from. */
+function toastRefocus(){
+  const t = document.getElementById("toast"), a = document.activeElement;
+  if (!a || !t.contains(a)) return;
+  const top = SHEET.stack[SHEET.stack.length - 1];
+  if (!refocus(SHEET.prev, SHEET.prevKey, null, false)) { if (top) sheetFocusIn(top.el); else a.blur(); }
+}
+function sheetClose(L){
+  if (L.id === "roomOverlay") closeRoom();
+  else if (L.id === "recapOverlay") closeRecap();
+  else if (L.id === "recapPage") closeWrapped();
+  else if (L.id === "studyPage") closeStudy();
+  else if (L.id === "welcomeOverlay") document.getElementById("wGo").click();   // the welcome has no Close: Escape is "Let's go"
+  else L.classList.remove("open");
+}
+document.addEventListener("focusin", e => {
+  const el = e.target; if (!el || !el.closest || el.closest("#toast")) return;
+  SHEET.prev = el; SHEET.prevKey = focusKey(el);
+  if (!el.closest(".overlay,.studypage")) SHEET.lastOut = el;
+  const top = SHEET.stack[SHEET.stack.length - 1];
+  if (top && top.el.contains(el)) { SHEET.lastIn = el; SHEET.lastInKey = focusKey(el); }
+}, true);
+/* Safari does not focus a button on click: the pointer says what the trigger was. */
+document.addEventListener("pointerdown", e => {
+  const c = e.target && e.target.closest ? e.target.closest("button,a[href],[tabindex],input,select,textarea,summary") : null;
+  if (c && !c.closest(".overlay,.studypage,#toast")) SHEET.lastOut = c;
+}, true);
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") {
+    try { if (tipDismiss()) return; } catch(_){}
+    const top = SHEET.stack[SHEET.stack.length - 1];
+    const L = top ? top.el : sheetLayers().filter(layerIsOpen).pop();
+    if (L) sheetClose(L);
+    return;
+  }
+  if (e.key !== "Tab" || e.altKey || e.ctrlKey || e.metaKey) return;
+  const top = SHEET.stack[SHEET.stack.length - 1]; if (!top) return;
+  const t = document.getElementById("toast");
+  const list = sheetTabbables(top.el).concat(t.classList.contains("show") ? sheetTabbables(t) : []);
+  e.preventDefault();
+  if (!list.length) { sheetFocusIn(top.el); return; }
+  const a = document.activeElement; let i = list.indexOf(a), to;
+  if (i >= 0) to = list[(i + (e.shiftKey ? -1 : 1) + list.length) % list.length];
+  else if (a && top.el.contains(a)) {   // on the heading, or something that is not a tab stop: the next stop in document order
+    const after = list.findIndex(x => top.el.contains(x) && (a.compareDocumentPosition(x) & Node.DOCUMENT_POSITION_FOLLOWING) && !a.contains(x));
+    to = e.shiftKey ? (after > 0 ? list[after - 1] : list[list.length - 1]) : (after >= 0 ? list[after] : list[0]);
+  }
+  else to = e.shiftKey ? list[list.length - 1] : list[0];
+  try { to.focus(); } catch(_){}
+});
+const sheetObs = new MutationObserver(muts => {
+  let layers = false, inside = false, toastHid = false;
+  for (const m of muts) {
+    if (m.target.id === "toast") { if (!m.target.classList.contains("show")) toastHid = true; }
+    else if (m.type === "attributes" && m.target.matches && m.target.matches("body > .overlay, body > .studypage")) layers = true;
+    else inside = true;
+  }
+  try { if (layers) layerSync(); else if (inside) sheetRefocus(); if (toastHid) toastRefocus(); }
+  catch(err) { try { console.warn("LMK sheets", err); } catch(_){} }
+});
+for (const L of sheetLayers()) sheetObs.observe(L, {attributes: true, attributeFilter: ["class", "hidden"], childList: true, subtree: true});
+sheetObs.observe(document.getElementById("toast"), {attributes: true, attributeFilter: ["class"]});
+layerSync();   // anything already open
+/* scroll-padding sized to the bars, so focus never scrolls under the sticky header or the phone's bottom bar (2.4.7) */
+function padSync(){
+  const h = document.querySelector("header.top"), b = document.querySelector("nav.bottombar"), st = document.documentElement.style;
+  const hb = h ? h.getBoundingClientRect().height : 0, bb = b && getComputedStyle(b).display !== "none" ? b.getBoundingClientRect().height : 0;
+  st.setProperty("--pad-top", Math.ceil(hb + 8) + "px"); st.setProperty("--pad-bottom", Math.ceil(bb ? bb + 8 : 0) + "px");
+}
+try { const ro = new ResizeObserver(padSync); ro.observe(document.querySelector("header.top")); ro.observe(document.querySelector("nav.bottombar")); } catch(_){}
+addEventListener("resize", padSync); padSync();
 
 /* ================= events ================= */
 function switchTab(e){
@@ -4713,18 +4986,22 @@ document.querySelector(".wrap").addEventListener("click", e=>{
      nobody waiting on setup would ever look. It is the same data, one tap away, and the real sync
      replaces it by itself the moment Canvas answers — so it costs nothing to offer. */
   else if (a==="try-sample") {
-    store.custom = null; store.done = {}; store.dropped = {}; store.starred = {}; store.triaged = {};
-    save(); loadData(); courseFilter = null; saveView(); render();
+    try { localStorage.setItem("lmk_sample", "1"); } catch(_){}
+    loadData(); courseFilter = null; saveView(); render();
     welcomeOverlay.classList.remove("open");
     ping("sample_try");
-    toast("This is a sample semester. Your own classes replace it as soon as " + lmsName() + " answers.");
+    toast("A made-up semester, so you can see how LMK plans. Your own classes replace it the moment " + lmsName() + " answers.");
   }
+  else if (a==="sample-leave") { sampleLeave(); loadData(); courseFilter = null; saveView(); render(); window.scrollTo(0, 0); }
+  else if (a==="send-laptop") { sendToLaptop(); }
+  else if (a==="copy-applink") { copyAppLink(); }
   else if (a==="web-signin") { webSignIn(); }
   else if (a==="triage-more") { triageOpen = true; render(); }
   else if (a==="sync-dismiss") { const el = document.getElementById("syncNote"); if (el) el.hidden = true; }
   else if (a==="ann-dismiss") { const el = document.getElementById("announce"); try { localStorage.setItem("lmk_ann_dismissed", el.dataset.sig || ""); } catch(_){} el.hidden = true; }
   else if (a==="adm-unlock") { adminUnlock(); }
   else if (a==="adm-refresh") { adminFetch(true); }
+  else if (a==="adm-raw") { fetch(apiUrl("/stats?days=90"), {mode:"cors", credentials:"omit", headers: {"x-lmk-key": ADMIN.key}}).then(r => r.text()).then(t => { const w = window.open(URL.createObjectURL(new Blob([t], {type: "application/json"})), "_blank", "noopener"); if (!w) toast("Allow pop-ups to see the raw numbers."); }).catch(() => toast("Couldn't reach the worker.")); }   // the key goes in a header, so this cannot be a plain link
   else if (a==="adm-logout") { adminForget(); }
   else if (a==="adm-save-ann") { const g = id => document.getElementById(id); adminSave({announce: {text: g("admAnnText").value.trim().slice(0, 240), url: g("admAnnUrl").value.trim().slice(0, 300), until: g("admAnnUntil").value, on: g("admAnnOn").checked}}); }
   else if (a==="gift-place") { giftPlace(act.dataset.ref); }
@@ -4743,7 +5020,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="slip") {
     const id = act.dataset.id; store.leadOv = store.leadOv || {};
     const e = EVENTS.find(x => x.id === id); if (!e) return;
-    const daysLeft = Math.floor((startOfDay(e.due) - startOfDay(now())) / 864e5);
+    const daysLeft = Math.round((startOfDay(e.due) - startOfDay(now())) / 864e5);
     store.leadOv[id] = Math.max(0, daysLeft - 1); save(); loadData(); render(); toast("Slipped to tomorrow. The plan already knows.");
   }
   else if (a==="pile") {
@@ -4768,13 +5045,18 @@ document.querySelector(".wrap").addEventListener("keydown", e => {
   }
 });
 
-/* tooltip for radar */
+/* tooltip for radar. Escape dismisses it (1.4.13) and it stays down until the pointer leaves that element; what it
+   says is also in the cell's accessible name, so nothing lives only in the tooltip. */
 const tip = document.getElementById("tooltip");
+let tipOn = null, tipGone = null;
 document.addEventListener("mouseover", e=>{
   const t = e.target.closest("[data-tip]");
-  if (!t) { tip.style.display="none"; return; }
+  if (!t) { tip.style.display="none"; tipOn = tipGone = null; return; }
+  if (t === tipGone) return;
+  tipGone = null; tipOn = t;
   tip.textContent = t.dataset.tip; tip.style.display="block";
 });
+function tipDismiss(){ if (tip.style.display !== "block") return false; tip.style.display = "none"; tipGone = tipOn; return true; }
 document.addEventListener("mousemove", e=>{
   if (tip.style.display!=="block") return;
   const x = Math.min(e.clientX+14, innerWidth-260), y = e.clientY+16;
@@ -4948,7 +5230,8 @@ document.getElementById("gearBtn").addEventListener("click", ()=>{
 });
 document.getElementById("closeModal").addEventListener("click", ()=>overlay.classList.remove("open"));
 overlay.addEventListener("click", e=>{ if (e.target===overlay) overlay.classList.remove("open"); });
-document.addEventListener("keydown", e=>{ if (e.key==="Escape") { overlay.classList.remove("open"); ["addOverlay","planOverlay","detailOverlay","findOverlay","celebrateOverlay","plusOverlay"].forEach(x=>document.getElementById(x).classList.remove("open")); if (!studyPage.hidden) closeStudy(); } });
+/* Escape closes the TOP sheet only, the welcome included: sheetClose() in the sheets block (v71.1). This handler used to
+   close every overlay at once and left the welcome out, so a keyboard could never get past it. */
 
 const dz = document.getElementById("dropZone"), fi = document.getElementById("fileInput");
 dz.addEventListener("click", ()=>fi.click());
@@ -5134,19 +5417,19 @@ function openDetail(id){
     </p>
     <div style="display:flex;align-items:center;gap:9px;margin:0 0 14px;font-size:13.5px">
       <b>Grade:</b>
-      <input id="ddGot" type="number" inputmode="decimal" min="0" step="any" placeholder="score" value="${(store.grades||{})[id] ? store.grades[id].got : ""}" style="width:78px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:7px 9px;font:inherit">
+      <input id="ddGot" type="number" inputmode="decimal" min="0" step="any" placeholder="score" aria-label="Points you got" value="${(store.grades||{})[id] ? store.grades[id].got : ""}" style="width:78px;border:1px solid var(--ctl-line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:7px 9px;font:inherit">
       <span style="color:var(--muted)">/</span>
-      <input id="ddMax" type="number" inputmode="decimal" min="0" step="any" placeholder="out of" value="${(store.grades||{})[id] ? store.grades[id].max : ""}" style="width:78px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:7px 9px;font:inherit">
+      <input id="ddMax" type="number" inputmode="decimal" min="0" step="any" placeholder="out of" aria-label="Points possible" value="${(store.grades||{})[id] ? store.grades[id].max : ""}" style="width:78px;border:1px solid var(--ctl-line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:7px 9px;font:inherit">
       <span id="ddPct" class="etag" style="color:var(--good-text)">${(store.grades||{})[id] && store.grades[id].max > 0 ? Math.round(store.grades[id].got / store.grades[id].max * 100) + "%" : ""}</span>
     </div>
     <div style="display:flex;align-items:center;gap:9px;margin:0 0 8px;font-size:13.5px;flex-wrap:wrap">
       <b>Size & start:</b>
-      <select id="ddEffort" aria-label="Size" style="border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:7px 9px;font:inherit;font-size:13px">${["quick","medium","big"].map(v => `<option value="${v}" ${e.effort === v ? "selected" : ""}>${EFFORT[v].label} · ~${EFFORT[v].mins}m</option>`).join("")}</select>
-      <select id="ddLead" aria-label="Start how many days before" style="border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:7px 9px;font:inherit;font-size:13px">${[1,2,3,4,5,7].map(v => `<option value="${v}" ${leadFor(e) === v ? "selected" : ""}>start ${v}d before</option>`).join("")}</select>
+      <select id="ddEffort" aria-label="Size" style="border:1px solid var(--ctl-line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:7px 9px;font:inherit;font-size:13px">${["quick","medium","big"].map(v => `<option value="${v}" ${e.effort === v ? "selected" : ""}>${EFFORT[v].label} · ~${EFFORT[v].mins}m</option>`).join("")}</select>
+      <select id="ddLead" aria-label="Start how many days before" style="border:1px solid var(--ctl-line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:7px 9px;font:inherit;font-size:13px">${[1,2,3,4,5,7].map(v => `<option value="${v}" ${leadFor(e) === v ? "selected" : ""}>start ${v}d before</option>`).join("")}</select>
     </div>
     <div style="display:flex;align-items:center;gap:9px;margin:0 0 8px;font-size:13.5px;flex-wrap:wrap">
       <b>Type:</b>
-      <select id="ddKind" aria-label="Type" style="border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:7px 9px;font:inherit;font-size:13px">${Object.keys(KIND).map(k => `<option value="${k}" ${e.kind === k ? "selected" : ""}>${KIND[k].icon} ${KIND[k].label}</option>`).join("")}</select>
+      <select id="ddKind" aria-label="Type" style="border:1px solid var(--ctl-line);border-radius:8px;background:var(--surface-2);color:var(--ink);padding:7px 9px;font:inherit;font-size:13px">${Object.keys(KIND).map(k => `<option value="${k}" ${e.kind === k ? "selected" : ""}>${KIND[k].icon} ${KIND[k].label}</option>`).join("")}</select>
       <span style="font-size:12px;color:var(--muted)">${e.kind === "inclass" ? "Show-up item: no start reminder, never nags." : "Pick “In class” for things done during lecture."}</span>
     </div>
     ${e.aiWhy ? `<p class="privacy" style="margin:0 0 10px">🧠 <b>LMK's read:</b> ${esc(e.aiWhy)} — sized ${EFFORT[e.effort].label}, start ${leadFor(e)}d before it's due. Adjust above if it's wrong.</p>` : ""}
@@ -5155,7 +5438,7 @@ function openDetail(id){
     ${/(\d+\s*(hour|hr)s?\b|\bplay\b|\bwatch\b|\d{3,}\s*words|essay|record|film|interview)/i.test(e.desc || "") && e.effort !== "big" ? `<p class="privacy" style="margin:0 0 12px">⚡ The instructions mention time-consuming work (playing / watching / writing) — consider sizing this <b>Big</b> with an earlier start.</p>` : ""}
     ${e.desc ? `<div class="card" style="padding:13px 15px;font-size:13.5px;line-height:1.6;color:var(--ink-2);max-height:180px;overflow-y:auto;margin-bottom:14px"><b style="color:var(--ink);display:block;margin-bottom:4px;font-size:12px;letter-spacing:.04em;text-transform:uppercase">Instructions from Canvas</b>${esc(e.desc)}</div>` : `<p class="privacy" style="margin:0 0 12px">No instructions came through the calendar feed for this one — add what you know below and the AI tutor will use it.</p>`}
     <label class="field">My notes (what the professor wants, rubric points, where you're stuck…)
-      <textarea id="ddNotes" style="min-height:76px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:9px 10px;font:inherit;font-size:13.5px;resize:vertical">${esc(notes)}</textarea>
+      <textarea id="ddNotes" style="min-height:76px;border:1px solid var(--ctl-line);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:9px 10px;font:inherit;font-size:13.5px;resize:vertical">${esc(notes)}</textarea>
     </label>
     <div class="row" style="margin-top:14px">
       <button class="btn grad" id="ddStudy" data-act="study" data-id="${e.id}">✦ Break it down</button>
@@ -5205,7 +5488,7 @@ function openCourseNotes(course){
   document.getElementById("detailModal").innerHTML = `
     <h3 id="ddTitle">Class notes: ${esc(course)}</h3>
     <p class="sub2">Paste the whole syllabus — <b>length and order don't matter</b>. A large excerpt rides along in every AI study prompt for ${esc(course)}, and the complete text is saved as a Google Doc in your Drive that the AI can open and read in full.</p>
-    <textarea id="ddNotes" style="width:100%;min-height:140px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink);padding:10px;font:inherit;font-size:13.5px;resize:vertical">${esc(notes)}</textarea>
+    <textarea id="ddNotes" aria-label="Class notes" style="width:100%;min-height:140px;border:1px solid var(--ctl-line);border-radius:10px;background:var(--surface-2);color:var(--ink);padding:10px;font:inherit;font-size:13.5px;resize:vertical">${esc(notes)}</textarea>
     <div class="row" style="margin-top:14px"><button class="btn ghost" id="ddClose">Done</button></div>
     <p class="privacy" style="margin-top:12px">Saves automatically, stays on this device.</p>`;
   detailOverlay.classList.add("open");
@@ -5232,7 +5515,7 @@ let pendingPlan = null;
 const PASS_LABELS = ["First pass — survey the chapters", "Second pass — practice problems", "Third pass — active recall, no notes", "Final review — weak spots only"];
 function openExamPlan(id){
   const ex = EVENTS.find(x => x.id === id); if (!ex) return;
-  const daysLeft = Math.floor((startOfDay(ex.due) - startOfDay(now())) / 864e5);
+  const daysLeft = Math.round((startOfDay(ex.due) - startOfDay(now())) / 864e5);
   let offs = [7,4,2,1].filter(o => o <= daysLeft);
   if (!offs.length) offs = [0];
   const short = ex.title.split(/ [-–] /)[0].slice(0, 48);
@@ -5471,7 +5754,7 @@ document.getElementById("caSave").addEventListener("click", ()=>{
    sign-in (no Claude account needed), and the claude-only extras hide themselves. */
 const LMK_CONFIG = {
   googleClientId: "775343527321-m6m9082hu2uk2iuf1ibuj1f0m0i7pdad.apps.googleusercontent.com",   // web-mode Google sign-in (public by design)
-  storeUrl: "https://chromewebstore.google.com/detail/lmk-for-canvas/efjeldekjgbggjedpboafbblcegmmdam",
+  storeUrl: "https://chromewebstore.google.com/detail/lmk-today/efjeldekjgbggjedpboafbblcegmmdam",
   canvasUrl: "https://canvas.asu.edu/#lmk-sync",   // where "Open Canvas" goes before the first sync; the hash asks the extension to sync now   // the live listing (unlisted): approved 2026-09-07
   appUrl: "https://lmktoday.app/app/",
   giftUrl: "https://lmktoday.app/gift/",                       // the page a student sends to whoever offered to help
@@ -5492,6 +5775,21 @@ const MODE = (typeof window !== "undefined" && window.claude && typeof window.cl
 const IS_MOBILE = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
   || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent))
   || (matchMedia("(pointer:coarse)").matches && matchMedia("(max-width:760px)").matches);
+/* The extension installs in Chromium browsers only (Chrome, Edge, Brave, Arc, Opera). Safari and Firefox users were sent
+   to a store page that told them to switch browsers, with no word from LMK (first-run audit, 2026-10-10). */
+const IS_CHROMIUM = ((navigator.userAgentData && (navigator.userAgentData.brands || []).some(b => /Chromium/.test(b.brand)))
+  || /Chrome\/|Chromium\/|Edg\//.test(navigator.userAgent)) && !/Firefox|FxiOS|CriOS/.test(navigator.userAgent);
+const APP_LINK = () => (MODE === "web" ? String(location.href).split("#")[0] : LMK_CONFIG.appUrl);
+async function copyText(t){ try { await navigator.clipboard.writeText(t); return true; } catch(_) {
+  try { const a = document.createElement("textarea"); a.value = t; a.style.cssText = "position:fixed;opacity:0"; document.body.appendChild(a); a.select(); const ok = document.execCommand("copy"); a.remove(); return ok; } catch(_) { return false; } } }
+async function copyAppLink(){ toast(await copyText(APP_LINK()) ? "Link copied. Open it in Chrome, Edge, Brave or Arc." : "Copy this address: " + APP_LINK()); }
+/* A phone can't install the extension, so its job is to get this link to a laptop: the share sheet where there is one
+   (AirDrop, Messages, email to yourself), a copied link where there isn't. */
+async function sendToLaptop(){
+  const url = APP_LINK();
+  if (navigator.share) { try { await navigator.share({title: "LMK", text: "Set up LMK on my laptop", url}); return; } catch(e) { if (e && e.name === "AbortError") return; } }
+  toast(await copyText(url) ? "Link copied. Send it to yourself and open it on your laptop." : "Open this on your laptop: " + url);
+}
 const SYNC_FILE = "LMK-data.json";
 const drive = {mcp:null, server:null, fileId:null, ready:false, pushing:false, pending:false, timer:null};
 function syncBadge(txt, title){
@@ -5559,7 +5857,16 @@ function mergeStores(a, b){
   /* The instant of the last gift this student has actually been shown. Newest wins, so a sponsorship
      celebrated on the laptop does not pop again on the phone. */
   m.giftSeen = Math.max(+(a.giftSeen || 0), +(b.giftSeen || 0)); if (!m.giftSeen) delete m.giftSeen;
-  if (a.cloud && b.cloud) { const first = (a.cloud.at || 0) <= (b.cloud.at || 0) ? a.cloud : b.cloud; m.cloud = Object.assign({}, first, {on: newer.cloud ? !!newer.cloud.on : !!first.on}); }
+  /* cloud: the earliest id wins (sid + secret); on/off follows the latest CHOICE, not the latest save. Since v71.1 a new
+     device mints {on:false, onAt:0}: nobody chose that, and taking `on` from the newer save let a fresh phone switch off
+     the laptop's server sync on its first Drive pull (review, 2026-10-10). A record from before v71.1 has no onAt; its
+     `on` was set when it was made, so `at` stands in. A tie (two unchosen records) falls back to the newer save. */
+  if (a.cloud && b.cloud) {
+    const first = (a.cloud.at || 0) <= (b.cloud.at || 0) ? a.cloud : b.cloud;
+    const chose = c => "onAt" in c ? +c.onAt || 0 : +c.at || 0, ca = chose(a.cloud), cb = chose(b.cloud);
+    const pick = ca !== cb ? (ca > cb ? a.cloud : b.cloud) : (newer.cloud || first);
+    m.cloud = Object.assign({}, first, {on: !!pick.on, onAt: Math.max(ca, cb)});
+  }
   else m.cloud = a.cloud || b.cloud || null;
   if (!m.cloud) delete m.cloud;
   const byId = rows => { const map = new Map(); (rows||[]).forEach(r => map.set(r[4], r)); return map; };
@@ -6039,7 +6346,7 @@ function openWelcome(){
   if (MODE === "artifact") show("wAct3", false);
   if (MODE === "web" && IS_MOBILE) { /* the phone's step 3 is written above and must not be overwritten */ }
   else if (MODE === "web" && !gdReady()) set("wBody3", "No account, no password. Everything you do here saves privately on this device. Nothing is sent anywhere.");
-  else if (MODE === "web" && !IS_MOBILE && cloudPossible()) { set("wBody3", `No account, no password, so no name or email is on file anywhere. Everything saves on this device; sign in with Google and it follows you to your phone through your own Drive. LMK times your work quietly so its estimates get honest \u2014 no names, no grades, ever.`); const cr = document.getElementById("wCloudRow"); if (cr) cr.hidden = lmsName() === "Brightspace" || (!(EXT.lms || (store.ext || {}).lms) && lmsHint() === "d2l"); }   // Brightspace has no student access keys: no key, no server read
+  else if (MODE === "web" && !IS_MOBILE && cloudPossible()) { set("wBody3", `No account, no password, so no name or email is on file anywhere. Everything saves on this device; sign in with Google and it follows you to your phone through your own Drive. LMK times your work quietly so its estimates get honest; the timings stay on this device and in your own Drive.`); const cr = document.getElementById("wCloudRow"); if (cr) cr.hidden = lmsName() === "Brightspace" || (!(EXT.lms || (store.ext || {}).lms) && lmsHint() === "d2l"); }   // Brightspace has no student access keys: no key, no server read
   joinWelcomeCopy();
   document.getElementById("wName").value = (store.profile && store.profile.name) || draftName();
   welcomeOverlay.classList.add("open");
@@ -6054,7 +6361,11 @@ document.getElementById("wName").addEventListener("input", e => { try { localSto
    with on:true — an explicit opt-out silently discarded. `on:false` written first is kept by cloudEnsure. */
 function welcomeCloudChoice(){
   const wc = document.getElementById("wCloud"), wcRow = document.getElementById("wCloudRow");
-  if (wc && wcRow && !wcRow.hidden && !wc.checked && !(store.cloud && store.cloud.on)) store.cloud = {sid: randHex(16), secret: randB64(32), on: false, at: Date.now()};
+  /* Opt-in since v71.1: ticked turns it on, anything else leaves it off. The identity is made either way (rooms and the
+     morning note use it); only `on` says whether the server may read Canvas. */
+  const want = !!(wc && wcRow && !wcRow.hidden && wc.checked);
+  if (!(store.cloud && store.cloud.sid)) store.cloud = {sid: randHex(16), secret: randB64(32), on: want, onAt: want ? Date.now() : 0, at: Date.now()};
+  else if (want && !store.cloud.on) store.cloud = Object.assign({}, store.cloud, {on: true, onAt: Date.now()});   // `at` stays: it is when the id was made, and decides which id survives a merge
 }
 document.getElementById("wOther").addEventListener("click", () => {
   welcomeCloudChoice();
@@ -6155,7 +6466,7 @@ function pingDaily(){
    leave a Chrome Web Store review, and asking on a phone is asking for nothing. */
 function reviewUrl(){
   const u = String(LMK_CONFIG.storeUrl || "");
-  if (!/^https:\/\/chromewebstore\.google\.com\//.test(u)) return "";
+  if (!okStoreUrl(u)) return "";
   return u.replace(/\/+$/, "").replace(/\/reviews$/, "") + "/reviews";
 }
 function canReview(){ return MODE === "web" && !IS_MOBILE && !!reviewUrl(); }
@@ -6214,7 +6525,7 @@ async function adminFetch(force){
   if (!force && ADMIN.data && Date.now() - ADMIN.at < 60000) return;
   ADMIN.loading = true; ADMIN.err = "";
   try {
-    const r = await fetch(apiUrl("/admin?key=" + encodeURIComponent(ADMIN.key) + "&days=90"), {mode:"cors", credentials:"omit"});
+    const r = await fetch(apiUrl("/admin?days=90"), {mode:"cors", credentials:"omit", headers: {"x-lmk-key": ADMIN.key}});   // a header, never the URL (worker v15)
     if (r.status === 403) { ADMIN.err = "That admin key isn't accepted. Open LMK with a fresh admin link."; ADMIN.data = null; }
     else if (!r.ok) ADMIN.err = "The worker answered " + r.status + ".";
     else { ADMIN.data = await r.json(); ADMIN.at = Date.now(); }
@@ -6224,7 +6535,7 @@ async function adminFetch(force){
 }
 async function adminSave(patch){
   try {
-    const r = await fetch(apiUrl("/admin/settings?key=" + encodeURIComponent(ADMIN.key)), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"}, body: JSON.stringify(patch)});
+    const r = await fetch(apiUrl("/admin/settings"), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain", "x-lmk-key": ADMIN.key}, body: JSON.stringify(patch)});
     if (!r.ok) throw new Error(r.status);
     const j = await r.json(); if (ADMIN.data) ADMIN.data.settings = j.settings;
     try { localStorage.removeItem("lmk_cfg"); } catch(_){}
@@ -6241,8 +6552,8 @@ async function giftPlace(ref){
   if (!sid) { toast("Type the student's support code first."); return; }
   if (!(days >= 1)) { toast("Say how many days — a gift with no length is refused, not rounded up."); return; }
   try {
-    const r = await fetch(apiUrl("/admin/gift?key=" + encodeURIComponent(ADMIN.key)), {method:"POST", mode:"cors",
-      credentials:"omit", headers:{"content-type":"text/plain"}, body: JSON.stringify({ref, sid, days})});
+    const r = await fetch(apiUrl("/admin/gift"), {method:"POST", mode:"cors",
+      credentials:"omit", headers:{"content-type":"text/plain", "x-lmk-key": ADMIN.key}, body: JSON.stringify({ref, sid, days})});
     const j = await r.json();
     if (!j.ok) { toast("Couldn't place it: " + (j.error || "unknown")); return; }
     toast(`Placed · ${TIER_NAMES[j.level] || "Pro"} through ${FMT_DAY.format(new Date(j.until))}.`);
@@ -6253,7 +6564,7 @@ async function adminLookup(){
   const q = (document.getElementById("admLookup") || {}).value || "", out = document.getElementById("admLookupOut");
   if (!/^[a-f0-9]{6,64}$/.test(q.trim())) { if (out) out.textContent = "A support code is 6+ hex characters."; return; }
   try {
-    const r = await fetch(apiUrl("/admin/student?key=" + encodeURIComponent(ADMIN.key) + "&sid=" + encodeURIComponent(q.trim())), {mode:"cors", credentials:"omit"});
+    const r = await fetch(apiUrl("/admin/student?sid=" + encodeURIComponent(q.trim())), {mode:"cors", credentials:"omit", headers: {"x-lmk-key": ADMIN.key}});
     const j = await r.json(); const p = j.student;
     const planTxt = j.plan ? (j.plan.plus ? (j.plan.granted ? "Plus, granted" : "Plus, paying") + (j.plan.until ? " until " + FMT_DAY.format(new Date(j.plan.until)) : "") : "free plan") : "";
     const costTxt = "";
@@ -6282,7 +6593,7 @@ async function adminSaveTiers(){
 }
 async function adminRoom(body){
   try {
-    const r = await fetch(apiUrl("/admin/room?key=" + encodeURIComponent(ADMIN.key)), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"}, body: JSON.stringify(body)});
+    const r = await fetch(apiUrl("/admin/room"), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain", "x-lmk-key": ADMIN.key}, body: JSON.stringify(body)});
     const j = await r.json();
     toast(j.ok ? (body.action === "seen" ? "Filed." : "Removed from the room.") : "The worker said: " + (j.error || r.status));
   } catch(_) { toast("Couldn't reach the worker."); }
@@ -6293,7 +6604,7 @@ async function adminStudent(sid, action, months, level){
   if (action === "revoke" && !confirm("Take Plus away from this code now?")) return;
   if (!/^[a-f0-9]{6,64}$/i.test(sid || "")) { toast("A support code is 6 to 64 hex characters."); return; }
   try {
-    const r = await fetch(apiUrl("/admin/student?key=" + encodeURIComponent(ADMIN.key)), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain"}, body: JSON.stringify({sid: sid.toLowerCase(), action, months: +months || 1, level: level || "plus"})});
+    const r = await fetch(apiUrl("/admin/student"), {method:"POST", mode:"cors", credentials:"omit", headers:{"content-type":"text/plain", "x-lmk-key": ADMIN.key}, body: JSON.stringify({sid: sid.toLowerCase(), action, months: +months || 1, level: level || "plus"})});
     const j = await r.json();
     toast(j.ok ? (action === "grant" ? `${TIER_NAMES[j.level] || "Plus"} granted for ${j.months} month${j.months === 1 ? "" : "s"}.` : action === "revoke" ? "Plan revoked." : `Done: ${action}.`) : "The worker said: " + (j.error || r.status));
   } catch(_) { toast("Couldn't reach the worker."); }
@@ -6623,7 +6934,7 @@ function renderAdmin(root){
       <a href="https://mail.google.com/mail/#search/subject%3A%22LMK%22" target="_blank" rel="noopener">Feedback inbox<small>Gmail, every message with LMK in the subject</small></a>
       <a href="https://dash.cloudflare.com" target="_blank" rel="noopener">Cloudflare<small>the worker and its database</small></a>
       <a href="https://github.com/DVNSON/lmk/actions" target="_blank" rel="noopener">GitHub Actions<small>the cron tick, every 5 minutes</small></a>
-      <a href="${esc(apiUrl("/stats?key=" + encodeURIComponent(ADMIN.key) + "&days=90"))}" target="_blank" rel="noopener">Raw numbers<small>the JSON behind this page</small></a>
+      <button type="button" class="adm-link" data-act="adm-raw">Raw numbers<small>the JSON behind this page</small></button>
       <a href="https://claude.ai/code/artifact/65a2c224-d6ed-436a-baba-f81c23478b05" target="_blank" rel="noopener">The Playbook<small>phases, pricing, the weekly rhythm</small></a>
     </div></div>`;
     html += `<div class="card adm-card"><h3>System</h3><p class="sub2">Worker <b>${esc(LMK_CONFIG.statsUrl.replace(/^https?:\/\//, ""))}</b> · this device is in <b>${MODE}</b> mode · the server holds counts, these settings and, for Sync from anywhere, an encrypted Canvas key plus assignment rows per random code. Never a name.</p>
@@ -6635,13 +6946,18 @@ function renderAdmin(root){
 /* ================= remote config for everyone =================
    One small GET, cached ten minutes: an announcement and the store link. The request carries
    nothing about the student, and the app works exactly the same if it fails. */
+/* The admin can move the store link (a new slug, a tracking query), but only to LMK's own listing: parsed, exact host,
+   LMK's extension id in the path. Until v71.1 a prefix test let a value carry markup into every "Add to Chrome" button. */
+function okStoreUrl(u){
+  try { const x = new URL(String(u || "")); return x.protocol === "https:" && x.hostname === "chromewebstore.google.com" && /^\/detail\/[a-z0-9-]{1,80}\/efjeldekjgbggjedpboafbblcegmmdam(\/reviews)?\/?$/.test(x.pathname) ? x.href : ""; } catch(_) { return ""; }
+}
 function applyStoreUrl(){ for (const id of ["setupInstall","wInstall"]) { const el = document.getElementById(id); if (el) el.href = LMK_CONFIG.storeUrl; } }
 /* What the last sync changed, at the top of the page rather than in a toast that vanishes.
    It stays until dismissed when something actually changed, and fades on its own when nothing did. */
 let syncNoteTimer = 0;
 function syncNote(html, sticky){
   const el = document.getElementById("syncNote"); if (!el) return;
-  el.innerHTML = html + `<button class="x" data-act="sync-dismiss" aria-label="Dismiss">✕</button>`;
+  el.innerHTML = `<span>${html}</span><button class="x" data-act="sync-dismiss" aria-label="Dismiss">✕</button>`;   // one span: raw text and <b>s in a flex row became columns
   el.hidden = false;
   clearTimeout(syncNoteTimer);
   if (!sticky) syncNoteTimer = setTimeout(() => { el.hidden = true; }, 12000);
@@ -6665,7 +6981,7 @@ async function loadRemoteConfig(){
     try { const r = await fetch(apiUrl("/config"), {mode:"cors", credentials:"omit"}); if (r.ok) { cfg = await r.json(); localStorage.setItem("lmk_cfg", JSON.stringify({at: Date.now(), v: cfg})); } } catch(_){}
   }
   if (!cfg) return;
-  if (cfg.storeUrl && /^https:\/\/chromewebstore\.google\.com\//.test(cfg.storeUrl)) { LMK_CONFIG.storeUrl = cfg.storeUrl; applyStoreUrl(); }
+  if (okStoreUrl(cfg.storeUrl)) { LMK_CONFIG.storeUrl = okStoreUrl(cfg.storeUrl); applyStoreUrl(); }
   if (cfg.plus && typeof cfg.plus === "object") {
     PLUS.offer = Object.assign({}, cfg.plus); renderPlus();
     render();   // how much of the ranked semester is shown depends on the plan the offer describes
@@ -6717,17 +7033,27 @@ async function loadRemoteConfig(){
 /* A laptop's "Open on your phone" link: the same sync id and secret, so this phone pulls the same Canvas sync. */
 (function pairFromHash(){
   const land = (sid, secret) => {
-    store.cloud = {sid, secret, on: true, at: Date.now() - 1};
+    /* A pairing link swaps this device's sync identity for the one in the link. Done silently, a link someone else made
+       would quietly attach this device to THEIR account (security review, 2026-10-10). So a device that already has an
+       identity of its own asks first, and the default is no. */
+    if (store.cloud && store.cloud.sid && store.cloud.sid !== sid &&
+        !window.confirm("Pair this device with your laptop?\n\nOnly continue if you made this link yourself, on your own laptop, in the last few minutes. It replaces this device's LMK sync with your laptop's.")) {
+      toast("Not paired. Nothing on this device changed."); return;
+    }
+    store.cloud = {sid, secret, on: true, onAt: Date.now(), at: Date.now() - 1};
     if (!store.onboarded) store.onboarded = 1;
     save(); history.replaceState(null, "", location.pathname + location.search);
     setTimeout(() => toast("Paired with your laptop. This phone now stays fresh by itself."), 1200);
   };
   try {
-    /* The old shape put sid.secret straight in the URL, which then lived for ever in whatever message
-       thread it was sent through. Still accepted, because links already in the wild must keep working —
-       but nothing hands one out any more. */
-    const old = location.hash.match(/#pair=([a-f0-9]{16,64})\.([A-Za-z0-9_-]{32,128})/);
-    if (old) return land(old[1], old[2]);
+    /* The old shape put sid.secret straight in the URL, a credential that never expired and lived for ever in whatever
+       message thread it was sent through. Refused since v71.1 (nobody had used Sync from anywhere, so no working link
+       was lost); it is taken off the URL and the student is told to make a new one. */
+    if (/#pair=[a-f0-9]{16,64}\.[A-Za-z0-9_-]{32,128}/.test(location.hash)) {
+      history.replaceState(null, "", location.pathname + location.search);
+      setTimeout(() => toast("That pairing link is an old kind LMK no longer accepts. Make a new one on your laptop."), 1200);
+      return;
+    }
     const m = location.hash.match(/#pair=([A-Za-z0-9_+/=-]{24,})$/);
     if (!m) return;
     history.replaceState(null, "", location.pathname + location.search);   // off the URL before anything can log it
@@ -6789,8 +7115,14 @@ function maybeWelcome(){
   if (GIFT_RETURN) return;   // a parent back from Stripe: the receipt sheet is the whole page for them
   const known = store.onboarded || (store.profile && store.profile.name) || Object.keys(store.done || {}).length > 3;
   if (known) { if (!store.onboarded) { store.onboarded = 1; save(); } celebrateMaybe(); setTimeout(maybeHomeScreenHint, 2500); return; }
+  /* On a computer with no classes yet, the setup card IS the page: the welcome opened over it ~2 s in and covered the one
+     required button (first-run audit, 2026-10-10). It waits for the first sync instead, when a name and the sync choice
+     mean something; welcomeAfterSync() re-runs this then. Phones and the artifact are unchanged. */
+  if (MODE === "web" && !IS_MOBILE && !store.ext && !store.custom && !joinPending()) { welcomed = false; return; }
   openWelcome();
 }
+function welcomeAfterSync(){ welcomed = false; maybeWelcome(); }   // synchronous: the sheet must be open before celebrateMaybe() decides to hold the reveal for "Let's go"
+function joinPending(){ return !!(typeof JOIN !== "undefined" && JOIN && JOIN.cid); }   // an invite keeps the old order: welcome first, so the room can open
 setTimeout(maybeWelcome, 9000);
 (MODE === "web" ? initWebSync() : initSync()).catch(() => {}).finally(() => { maybeWelcome(); if (store.onboarded) cloudEnsure(); cloudPull("boot"); plusRefresh(false); roomsBoot(); });
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { pingDaily(); cloudPull("visible"); } });

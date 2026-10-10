@@ -14,9 +14,9 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const PAYLOAD = `(function(){ const now=Date.now(); const it={}, mk=(aid,c,cid,d,t)=>it[aid]={t,c,cid,due:new Date(now+d*864e5).toISOString(),pts:10,st:"online_upload",grp:"g",k:"",sub:"",score:null,url:"https://x/"+aid,desc:"",rub:"",fb:""};
   mk("901","BIO 202","C1",2,"Problem set 1"); mk("902","BIO 202","C1",5,"Problem set 2"); mk("903","ENG 105","C2",3,"Essay 1");
   return {lmk:"canvas",v:3,at:now,host:"canvas.asu.edu",items:it,groups:{},courses:[{id:"C1",tag:"BIO 202",wt:true},{id:"C2",tag:"ENG 105",wt:true}]}; })()`;
-async function fresh(ws, {seed={onboarded:0}, ls={}, mobile=false}={}){
+async function fresh(ws, {seed={onboarded:0}, ls={}, mobile=false, ua=''}={}){
   await send(ws,'Emulation.setDeviceMetricsOverride',{width:mobile?500:1100,height:900,deviceScaleFactor:1,mobile});
-  await send(ws,'Emulation.setUserAgentOverride',{userAgent: mobile?'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0 Safari/537.36'});
+  await send(ws,'Emulation.setUserAgentOverride',{userAgent: ua ? ua : mobile?'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0 Safari/537.36'});
   await send(ws,'Page.navigate',{url:'http://localhost:8899/app/'}); await sleep(400);
   await ev(ws,`localStorage.clear(); sessionStorage.clear(); localStorage.setItem('duenorth_v1', ${JSON.stringify(JSON.stringify(seed))}); ${Object.entries(ls).map(([k,v])=>`localStorage.setItem(${JSON.stringify(k)},${JSON.stringify(String(v))});`).join('')}`);
   await ev(ws,`navigator.serviceWorker && navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister()))`);
@@ -41,8 +41,13 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
   check('T1 fresh: checklist renders with row 1 current', r.rows.length===3 && /^now:/.test(r.rows[0]) && /^todo:/.test(r.rows[1]), r.rows);
   check('T1 fresh: Add to Chrome is the primary action', r.addToChrome, r);
   check('T1 fresh: the extension is marked required, and the alternatives say what they are for', r.reqTag && /required step/.test(r.heroTxt) && /the extension does this/.test(r.heroTxt) && r.signinLbl==='Used LMK before? Sign in' && r.otherLbl==="Can't add it? Other ways", {req:r.reqTag, s:r.signinLbl, o:r.otherLbl});
-  check('T1 fresh: overlay open, its install button hidden, step 2 names the extension as the required step', r.overlay && r.wInstallHidden && /required step/.test(r.wHead2) && /no automatic way in without it/.test(r.wBody2), {o:r.overlay,h:r.wInstallHidden,w:r.wHead2,b:r.wBody2});
-  check('T1 fresh: the sheet\'s Google button is a demoted restore, not the loudest thing in it', r.s3==='Used LMK before? Sign in' && r.s3cls==='btn ghost', {t:r.s3, c:r.s3cls});
+  /* v71.1: on a computer with nothing synced the welcome no longer opens over the card (it covered the one required
+     button); it opens at the first sync. Opened by hand (the gear's setup guide), the sheet still says the same things. */
+  check('T1 fresh: the welcome does NOT open over the setup card on a computer', !r.overlay, {o:r.overlay});
+  await sleep(7000); check('T1 fresh: and it has not opened 9 s in either (the boot timer)', !(await ev(ws,`welcomeOverlay.classList.contains('open')`)));
+  await ev(ws,`openWelcome()`); r=JSON.parse(await ev(ws,Q));
+  check('T1 opened by hand: its install button hidden, step 2 names the extension as the required step', r.overlay && r.wInstallHidden && /required step/.test(r.wHead2) && /no automatic way in without it/.test(r.wBody2), {o:r.overlay,h:r.wInstallHidden,w:r.wHead2,b:r.wBody2});
+  check('T1 opened by hand: the sheet\'s Google button is a demoted restore, not the loudest thing in it', r.s3==='Used LMK before? Sign in' && r.s3cls==='btn ghost', {t:r.s3, c:r.s3cls});
   check('T1 fresh: no template literal leaked into visible text', !r.leaked);
 
   // T2 hello arrives (posted FROM the page, satisfying ev.source === window)
@@ -93,7 +98,9 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
 
   // T7 phone
   await fresh(ws,{mobile:true}); r=JSON.parse(await ev(ws,Q));
-  check('T7 phone: no checklist, computer-first headline, install button hidden', r.rows.length===0 && r.h1==='Start on a computer, not here.' && r.wInstallHidden, {rows:r.rows,h1:r.h1});
+  check('T7 phone: no checklist, laptop-first headline, install button hidden', r.rows.length===0 && r.h1==='Set up LMK on your laptop.' && r.wInstallHidden, {rows:r.rows,h1:r.h1});
+  { const ph=JSON.parse(await ev(ws,`JSON.stringify({first:(document.querySelector('section.view .hero .actions .btn')||{}).textContent||'', sample:!!document.querySelector('section.view .hero [data-act="try-sample"]')})`));
+    check('T7 phone: the main button sends the link to a laptop, and a sample is one tap away', ph.first==='Send this link to my laptop' && ph.sample, ph); }
 
   // T10 the hint suppresses the flash
   await fresh(ws,{ls:{lmk_ping_ext:'1'}}); r=JSON.parse(await ev(ws,Q));
@@ -104,7 +111,7 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
   // T11 the typed name survives a reload
   await fresh(ws); await ev(ws,`const n=document.getElementById('wName'); n.value='Sam'; n.dispatchEvent(new Event('input'))`); r=JSON.parse(await ev(ws,Q));
   check('T11 draft: typing writes the draft', r.draft==='Sam', r.draft);
-  await fresh(ws,{ls:{lmk_name_draft:'Sam'}}); const pre=await ev(ws,`document.getElementById('wName').value`); check('T11 draft: reload prefills it', pre==='Sam', pre);
+  await fresh(ws,{ls:{lmk_name_draft:'Sam'}}); await ev(ws,`openWelcome()`); const pre=await ev(ws,`document.getElementById('wName').value`); check('T11 draft: reload prefills it', pre==='Sam', pre);
   await ev(ws,`document.getElementById('wGo').click()`); await sleep(300); const after=await ev(ws,`JSON.stringify({d:localStorage.getItem('lmk_name_draft'), n:store.profile.name})`);
   check("T11 draft: Let's go saves it and clears the draft", after==='{"d":null,"n":"Sam"}', after);
 
@@ -119,14 +126,32 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
 
 
   // T15 the sync-from-anywhere box is a real choice, and step 3 stops claiming what the box undoes
-  await fresh(ws); r=JSON.parse(await ev(ws,`JSON.stringify({row: !document.getElementById('wCloudRow').hidden, checked: document.getElementById('wCloud').checked, body: document.getElementById('wBody3').textContent})`));
-  check('T15 consent: shown on a desktop first run, ticked, and step 3 no longer says "never sees grades"', r.row && r.checked && !/never sees/.test(r.body), r);
+  // v71.1: opt-in. The box starts unticked; the welcome is opened by hand here (on a computer it now opens at the first sync)
+  await fresh(ws); await ev(ws,`openWelcome()`); r=JSON.parse(await ev(ws,`JSON.stringify({row: !document.getElementById('wCloudRow').hidden, checked: document.getElementById('wCloud').checked, body: document.getElementById('wBody3').textContent})`));
+  check('T15 consent: shown on a desktop, UNticked (opt-in), and step 3 claims nothing about grades', r.row && !r.checked && !/never sees|no grades/.test(r.body), r);
   await ev(ws,`document.getElementById('wCloud').checked=false; document.getElementById('wName').value='Sam'; document.getElementById('wGo').click()`); await sleep(400);
   r=JSON.parse(await ev(ws,`JSON.stringify({on: !!(store.cloud&&store.cloud.on), sid: !!(store.cloud&&store.cloud.sid), overlay: welcomeOverlay.classList.contains('open')})`));
   check('T15 consent: unticked -> store.cloud kept with on:false, overlay closed', !r.on && r.sid && !r.overlay, r);
-  await fresh(ws); await ev(ws,`document.getElementById('wName').value='Sam'; document.getElementById('wGo').click()`); await sleep(400);
+  await fresh(ws); await ev(ws,`openWelcome(); document.getElementById('wName').value='Sam'; document.getElementById('wGo').click()`); await sleep(400);
+  r=JSON.parse(await ev(ws,`JSON.stringify({on: !!(store.cloud&&store.cloud.on), sid: !!(store.cloud&&store.cloud.sid)})`));
+  check('T15 consent: left as it opens (unticked) -> off, but the identity exists for rooms and the morning note', !r.on && r.sid, r);
+  await fresh(ws); await ev(ws,`openWelcome(); document.getElementById('wCloud').checked=true; document.getElementById('wName').value='Sam'; document.getElementById('wGo').click()`); await sleep(400);
   r=JSON.parse(await ev(ws,`JSON.stringify({on: !!(store.cloud&&store.cloud.on)})`));
-  check('T15 consent: left ticked -> on', r.on, r);
+  check('T15 consent: ticked -> on', r.on, r);
+  // T18 the sample semester works on the public build (SEED_ROWS is empty there) and gives way to real classes
+  await fresh(ws); await ev(ws,`document.querySelector('[data-act="try-sample"]').click()`); await sleep(400);
+  r=JSON.parse(await ev(ws,`JSON.stringify({n: EVENTS.length, bar: !!document.querySelector('.samplebar'), ids: EVENTS.every(e => /^a99900000[0-9]{4}$/.test(e.id)), label: document.getElementById('srcLabel').textContent, stored: JSON.stringify(store).includes('99900000')})`));
+  check('T18 sample: a made-up semester appears with its own bar and label, and none of it is in the store', r.n >= 15 && r.bar && r.ids && /Sample semester/.test(r.label) && !r.stored, r);
+  await ev(ws,`toggleDone(EVENTS[0].id); toggleDone(EVENTS[1].id)`); await sleep(500);
+  r=JSON.parse(await ev(ws,`JSON.stringify({done: Object.keys(store.done).length, streak: store.streakDays.length, dur: Object.keys(store.dur||{}).length, cel: Object.keys(store.celebrated||{}).length})`));
+  check('T18 sample: a made-up checkmark earns no streak day, no timing and no celebration', r.done === 2 && r.streak === 0 && r.dur === 0 && r.cel === 0, r);
+  await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.9.2'}, '*'); window.postMessage({lmk:'canvas-payload', payload:${PAYLOAD}}, '*')`); await sleep(900);
+  r=JSON.parse(await ev(ws,`JSON.stringify({n: EVENTS.length, bar: !!document.querySelector('.samplebar'), flag: localStorage.getItem('lmk_sample'), left: JSON.stringify(Object.assign({}, store, {deleted: null})).includes('99900000'), tombs: Object.keys(store.deleted||{}).filter(k => /^done:a99900000/.test(k)).length})`));
+  check('T18 sample: real classes replace it, the flag goes, its checkmarks leave the store as tombstones (so Drive cannot bring them back)', r.n === 3 && !r.bar && r.flag === null && !r.left && r.tombs === 2, r);
+  // T19 a browser that cannot install the extension
+  await fresh(ws,{ua:'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15'}); r=JSON.parse(await ev(ws,Q));
+  { const sf=JSON.parse(await ev(ws,`JSON.stringify({first:(document.querySelector('section.view .hero .actions .btn')||{}).textContent||'', txt:(document.querySelector('section.view .hero .why')||{}).textContent||''})`));
+    check('T19 Safari: the card says which browsers work and the main button copies the link instead of opening the store', sf.first==='Copy this link' && /Chrome, Edge, Brave or Arc, not in this browser/.test(sf.txt) && !r.addToChrome, sf); }
   await fresh(ws,{mobile:true}); r=JSON.parse(await ev(ws,`JSON.stringify({row: !document.getElementById('wCloudRow').hidden})`));
   check('T15 consent: not offered on a phone', !r.row, r);
   // T15b the same choice through the two other exits
