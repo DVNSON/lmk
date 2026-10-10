@@ -43,7 +43,7 @@ async function open(mobile){
 }
 const list=ws=>ev(ws,`JSON.stringify(examList().map(x=>({k:x.key,c:x.course,n:x.name,approx:!!x.approx,gap:!!x.gap,w:x.weight||0,days:x.due?examDays(x):null,share:x.gap?null:examShare(x),rel:x.gap?0:examRelated(x).length})))`).then(JSON.parse);
 const nowCard=ws=>ev(ws,`JSON.stringify((()=>{ /* innerText follows text-transform, so rows are matched case-insensitively */const v=document.getElementById('view-now'); const hs=[...v.querySelectorAll('h2.sec')].map(h=>h.textContent.replace(/\\s+/g,' ').trim()); const card=[...v.querySelectorAll('h2.sec')].find(h=>/^Exams/.test(h.textContent)); const runway=card&&card.nextElementSibling; return {hs, rows:runway?[...runway.querySelectorAll('[data-exam]')].map(r=>r.innerText.replace(/\\s+/g,' ').trim()):[], after:(runway&&runway.nextElementSibling&&runway.nextElementSibling.textContent)||''}})())`).then(JSON.parse);
-const row=(ws,key)=>`document.querySelector('[data-exam="${key}"]')`;
+const row=(ws,key)=>`document.querySelector('.runway [data-exam="${key}"]')`;   // since v72.0 a study session in Today carries the exam's key too
 (async()=>{
   let P=await open(false), ws=P.ws, L=await list(ws);
   const psy2=L.find(x=>x.k==='PSY 101|exam 2'), psy3=L.find(x=>x.k==='PSY 101|exam 3'), mat=L.find(x=>x.k==='MAT 210|exam 2'), fms=L.find(x=>x.k==='FMS 265|gap');

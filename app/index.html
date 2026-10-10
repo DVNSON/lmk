@@ -340,6 +340,8 @@
   .exam.gap .days,.exam.approx .days{color:var(--muted)}
   .exam .iconbtn{flex:none}
   .examnext{margin-top:10px;border-style:solid;font-size:13px}
+  .item.prep .prepstep{font-size:12.5px;color:var(--ink-2);margin-top:4px;line-height:1.45}
+  .exam .t[data-act]{cursor:pointer}
   .examfacts{font-size:13.5px;color:var(--ink-2);margin:-6px 0 14px} .examfacts p{margin:0 0 6px} .examfacts b{color:var(--ink)}
   .exam .days{font:800 22px/1 "Bricolage Grotesque",sans-serif;min-width:64px;text-align:center}
   .exam .days small{display:block;font:600 9.5px/1.6 "Spline Sans Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
@@ -1045,7 +1047,7 @@ const fmtMins = m => m >= 60 ? (Math.round(m / 30) / 2) + "h" : m + "m";
 
 /* ================= state ================= */
 const LS_KEY = "duenorth_v1";
-let store = {done:{}, dropped:{}, starred:{}, triaged:{}, streakDays:[], custom:null, customRows:[], undated:[], itemNotes:{}, courseNotes:{}, grades:{}, deleted:{}, celebrated:{}, examHide:{}, effortOv:{}, leadOv:{}, seriesRules:{}, kindOv:{}, extGraded:{}, ext:null, capacity:null, capOv:{}, dur:{}, spent:{}, tab:{}, anon:"", };
+let store = {done:{}, dropped:{}, starred:{}, triaged:{}, streakDays:[], custom:null, customRows:[], undated:[], itemNotes:{}, courseNotes:{}, grades:{}, deleted:{}, celebrated:{}, examHide:{}, prepDone:{}, prepAmt:{}, effortOv:{}, leadOv:{}, seriesRules:{}, kindOv:{}, extGraded:{}, ext:null, capacity:null, capOv:{}, dur:{}, spent:{}, tab:{}, anon:"", };
 try { const raw = localStorage.getItem(LS_KEY); if (raw) store = Object.assign(store, JSON.parse(raw)); } catch(e){}
 function migrateIds(s){
   for (const mk of ["done","dropped","starred","triaged","itemNotes"]) {
@@ -1113,6 +1115,7 @@ function sampleLeave(){
   const pre = "a" + SAMPLE_PREFIX, t = Date.now();
   store.deleted = store.deleted || {};
   for (const id of Object.keys(store.done || {})) if (id.startsWith(pre)) store.deleted["done:" + id] = t;
+  for (const k of ["examHide", "prepDone", "prepAmt"]) { const o = store[k]; if (o) for (const key of Object.keys(o)) if (key.startsWith("s~")) delete o[key]; }   // the sample's exams
   for (const k of ["done", "dropped", "starred", "triaged", "handDone", "spent", "tab", "effortOv", "dur", "itemNotes", "leadOv", "kindOv"]) {
     const o = store[k]; if (!o || typeof o !== "object") continue;
     for (const id of Object.keys(o)) if (id.startsWith(pre)) delete o[id];
@@ -1913,7 +1916,7 @@ function computeBundles(){
   BUNDLES = {}; BUNDLE_LIST = [];
   const n = now(), horizon = addDays(startOfDay(n), 8);
   const groups = {};
-  EVENTS.filter(open).filter(e => e.kind !== "inclass" && e.kind !== "fyi" && e.due > n && e.due < horizon).forEach(e => {
+  EVENTS.filter(open).filter(e => e.kind !== "inclass" && e.kind !== "fyi" && !e.exam && e.due > n && e.due < horizon).forEach(e => {
     const k = e.course + "|" + dayKey(e.due);
     (groups[k] = groups[k] || []).push(e);
   });
@@ -2724,7 +2727,7 @@ function computePlan(){
   let chunk = CHUNK;
   for (let i = 0; i <= HORIZON; i++) { const c = Math.round(capHours(addDays(today, i)) * 60); if (c > 0) chunk = Math.min(chunk, c); }
   chunk = Math.max(30, chunk);
-  EVENTS.filter(open).filter(e => e.kind !== "inclass" && e.kind !== "fyi").forEach(e => {
+  EVENTS.filter(open).filter(e => e.kind !== "inclass" && e.kind !== "fyi" && !e.exam).forEach(e => {   // an exam is not work; its study is (prepChunks)
     const late = e.due < n;
     if (late && !store.triaged[e.id]) return;              // overdue work joins the plan once you've chosen to keep it
     const dueDay = late ? end : startOfDay(e.due);          // late = as soon as there's room, never "must today"
@@ -2735,6 +2738,7 @@ function computePlan(){
     let left = remainingMins(e), parts = Math.ceil(left / chunk), i = 0;
     while (left > 0) { const m = Math.min(chunk, left); chunks.push({e, mins:m, part:++i, parts, release, dueDay, late, day:null}); left -= m; }
   });
+  chunks.push(...prepChunks(today, end));
   chunks.sort((a, b) => (a.late ? 0 : 1) - (b.late ? 0 : 1) || a.dueDay - b.dueDay || a.release - b.release || b.mins - a.mins);
   const days = [];
   // pass 1 — forward fill: earliest-due first, only once the lead time opens, up to the day's budget
@@ -2746,8 +2750,8 @@ function computePlan(){
       if (c.day || c.release > d || c.dueDay < d) continue;
       const must = !c.late && c.dueDay.getTime() === d.getTime();
       const fits = day.mins + c.mins <= cap;   // never plan past the budget; only same-day deadlines can force it over
-      if (!must && (seen.has(c.e.id) || !fits)) continue;
-      c.day = k; day.items.push(c); day.mins += c.mins; seen.add(c.e.id);
+      if (!must && (seen.has(c.grp || c.e.id) || !fits)) continue;   // one part a day, and one study session a day per exam
+      c.day = k; day.items.push(c); day.mins += c.mins; seen.add(c.grp || c.e.id);
     }
     PLAN[k] = day; days.push(day);
   }
@@ -2761,7 +2765,7 @@ function computePlan(){
       if (day.mins <= day.cap) break;
       for (let j = i - 1; j >= 0; j--){
         const t = days[j];
-        if (t.mins + c.mins > t.cap || t.items.some(x => x.e.id === c.e.id)) continue;
+        if (t.mins + c.mins > t.cap || t.items.some(x => (x.grp || x.e.id) === (c.grp || c.e.id)) || (c.prep && t.date < c.release && t.date < addDays(c.release, -2))) continue;
         day.items.splice(day.items.indexOf(c), 1); day.mins -= c.mins;
         t.items.push(c); t.mins += c.mins; c.day = t.key; c.pulled = true;
         break;
@@ -2798,7 +2802,7 @@ function computeAhead(){
     const d = PLAN[key]; if (!d.cap) continue;
     d.items.forEach(c => { if (c.late) return; const r = d.mins / d.cap, p = placed[c.e.id]; if (!p || r > p.ratio) placed[c.e.id] = {date: d.date, mins: d.mins, cap: d.cap, ratio: r, over: d.mins > d.cap}; });
   }
-  const cands = EVENTS.filter(open).filter(e => e.kind !== "inclass" && e.kind !== "fyi" && e.due > n && dayKey(e.due) !== k && !onDay.has(e.id) && skip[e.id] !== k && !skipped.has(e.id));
+  const cands = EVENTS.filter(open).filter(e => e.kind !== "inclass" && e.kind !== "fyi" && !e.exam && e.due > n && dayKey(e.due) !== k && !onDay.has(e.id) && skip[e.id] !== k && !skipped.has(e.id));
   const scored = cands.map(e => {
     const left = remainingMins(e), days = Math.round((startOfDay(e.due) - today) / 864e5), p = placed[e.id];
     const relief = !!(p && p.ratio >= 0.85);   // "nearly full" has to mean it
@@ -2916,7 +2920,7 @@ function budgetLine(day){
   if (!day.items.length) return {tone:"good", txt:"Nothing needed today. Genuinely — enjoy it."};
   if (spare >= day.cap * 0.25) return {tone:"good", txt:`You're fine — ~${fmtMins(spare)} to spare.`};
   if (spare >= 0) return {tone:"warn", txt:"A full day, but it fits."};
-  const slip = [...day.items].reverse().find(c => c.dueDay > day.date);
+  const slip = [...day.items].reverse().find(c => c.dueDay > day.date && !c.prep);
   if (slip) {
     const nk = dayKey(addDays(day.date, 1)), nd = PLAN[nk];
     const safe = nd && nd.mins + slip.mins <= nd.cap && slip.dueDay > addDays(day.date, 1);
@@ -2925,6 +2929,7 @@ function budgetLine(day){
   return {tone:"critical", txt:`Over by ~${fmtMins(-spare)} and it's all due today — quick ones first, then ask for an extension on the biggest.`};
 }
 function planRow(c, today){
+  if (c.prep) return prepRowHtml(c);
   const e = c.e, d = dueLabel(e), done = !!store.done[e.id];
   const why = e.due < now() ? "overdue — rescue it" : dayKey(e.due) === dayKey(today) ? "due today" : c.parts > 1 ? `part ${c.part} of ${c.parts} · due ${FMT_DAY.format(e.due)}` : c.pulled ? `due ${FMT_DAY.format(e.due)} — that day is packed, do it now` : `due ${FMT_DAY.format(e.due)} — start now`;
   return `<div class="item ${done?"done":""}" data-id="${e.id}" style="box-shadow:inset 3px 0 0 ${COLOR[e.course]}">
@@ -3587,35 +3592,39 @@ function renderNow(root){
   if (sampleShown() && EVENTS.length) html = `<div class="card samplebar" role="note"><span><b>This is a made-up semester</b>, so you can see how LMK plans. Your own classes replace it the moment your school's site answers.</span><button class="btn ghost" data-act="sample-leave">Set up mine</button></div>` + html;
 
   // overdue work waits for a decision below today's plan — it is never the first thing on screen
-  const overdue = EVENTS.filter(open).filter(e => e.due < n && !store.triaged[e.id] && e.kind !== "inclass" && e.kind !== "fyi");
+  const overdue = EVENTS.filter(open).filter(e => e.due < n && !store.triaged[e.id] && e.kind !== "inclass" && e.kind !== "fyi" && !e.exam);   // a past exam was sat, not missed
 
   // next up hero
-  let ranked = rankOpen();
-  const inPlan = ranked.filter(r => PLAN_DAY[r.e.id] === dayKey(today) || r.e.kind === "inclass");
+  let ranked = rankOpen().filter(r => !r.e.exam || dayKey(r.e.due) === dayKey(today));   // an exam is the hero on its day only; before it, its study is
+  const inPlan = ranked.filter(r => PLAN_DAY[r.e.id] === dayKey(today) || r.e.kind === "inclass" || r.e.exam);
   if (inPlan.length) ranked = inPlan;
   /* Nothing needed today: the hero used to promote whatever ranked highest as "do this one thing", which is the
      one day the student should NOT be told that. Now it offers a head start (computeAhead), labelled as such; with
      none to offer — a day off, everything hidden for today, nothing within three weeks — it says clear and means it. */
   const aheadToday = AHEAD[dayKey(today)] || [];
   const dayItems = (PLAN[dayKey(today)] || {items: []}).items;
-  const aheadHero = !inPlan.length && aheadToday.length && !(ranked.length && ranked[0].e.due < n) ? aheadToday[0] : null;
-  if (aheadHero) html += aheadHeroHtml(aheadHero);
+  const prepToday = dayItems.filter(c => c.prep);
+  const examToday = inPlan.some(r => r.e.exam);
+  const prepHero = examToday ? null : prepToday.find(c => examDays(c.prep.x) <= 2) || (!inPlan.length && !(ranked.length && ranked[0].e.due < n) ? prepToday[0] : null);
+  const aheadHero = !prepHero && !inPlan.length && aheadToday.length && !(ranked.length && ranked[0].e.due < n) ? aheadToday[0] : null;
+  if (prepHero) html += prepHeroHtml(prepHero);
+  else if (aheadHero) html += aheadHeroHtml(aheadHero);
   else if (ranked.length && (inPlan.length || ranked[0].e.due < n || dayItems.length)) {
     const {e, why} = ranked[0];
     const d = dueLabel(e);
     const nothingToday = !EVENTS.filter(open).some(x => startOfDay(x.due) <= today && x.due >= n);
     const whyTxt = why.length ? why.join(" · ") : nothingToday ? (dayKey(e.due) === dayKey(addDays(today, 1)) ? "due tomorrow — today, not tonight" : "on today's plan so it lands early — nothing is due today") : "highest-urgency item on your plate";
     html += `<div class="card hero${CELEBRATE ? " celebrate" : ""}" style="--hero-tint:color-mix(in srgb, ${COLOR[e.course]} 26%, transparent)">${syncedInHtml()}
-      <div class="kicker">${e.kind === "inclass" ? "Today in class — just show up" : "Next up — do this one thing"}</div>
-      <h1>${esc(e.title)}</h1>
+      <div class="kicker">${e.kind === "inclass" ? "Today in class — just show up" : e.exam ? `Exam today${e.allDay ? "" : " · " + FMT_TIME.format(e.due)}` : "Next up — do this one thing"}</div>
+      <h1>${esc(e.exam ? examTitle(e.title) : e.title)}</h1>
       <div class="meta">
         <span class="cdot" style="width:10px;height:10px;background:${COLOR[e.course]}"></span><span class="ccode" style="font-size:13px">${esc(e.course)}</span>
         <span class="countchip ${d.hot?"hot":"soon"}">${d.txt}</span>
-        <span class="etag">${EFFORT[e.effort].label}</span>${minsTag(e)}
+        ${e.exam ? "" : `<span class="etag">${EFFORT[e.effort].label}</span>${minsTag(e)}`}
       </div>
-      <div class="why">Why this: <b>${esc(whyTxt)}</b></div>
+      <div class="why">${e.exam ? examDayWhy(e) : `Why this: <b>${esc(whyTxt)}</b>`}</div>
       <div class="actions">
-        <button class="btn primary" data-act="done-submit" data-id="${e.id}">${e.url ? "Done ✓ — submit in " + lmsName() + " ↗" : "Done — next ✓"}</button>
+        <button class="btn primary" data-act="done-submit" data-id="${e.id}">${e.exam ? (e.url ? "Open it in " + lmsName() + " ↗" : "Took it ✓") : e.url ? "Done ✓ — submit in " + lmsName() + " ↗" : "Done — next ✓"}</button>
         ${e.url?`<a class="btn ghost" href="${esc(e.url)}" target="_blank" rel="noopener">Open in ${lmsName()} ${"↗"}</a>`:""}
         <button class="btn grad" data-act="study" data-id="${e.id}">✦ Break it down</button>
         ${sprint ? `<span class="countchip soon" id="sprintClock">25:00</span><button class="btn ghost" data-act="sprint-stop">End sprint</button>` : `<button class="btn ghost" data-act="sprint" data-id="${e.id}">▶ 25-min sprint</button>`}
@@ -3813,14 +3822,16 @@ function renderPlan(root){
   for (let i = 0; i < 14; i++) {
     const d = addDays(startOfDay(n), i);
     const evs = EVENTS.filter(visible).filter(e => dayKey(e.due) === dayKey(d));
-    if (!evs.length) continue;
+    const preps = ((PLAN[dayKey(d)] || {}).items || []).filter(c => c.prep);
+    if (!evs.length && !preps.length) continue;
     any = true;
     const openCt = evs.filter(e=>!store.done[e.id]);
     const mins = openCt.reduce((s,e)=>s+learnedMins(e).mins,0);
     const label = i===0?"Today":i===1?"Tomorrow":FMT_DAY.format(d);
     const pd = PLAN[dayKey(d)];
     html += `<div class="dayhead"><span class="d">${label}</span><span class="m">${openCt.length} due · ~${mins>=60?Math.round(mins/60*10)/10+"h":mins+"m"}${pd && pd.items.length ? ` · plan ~${fmtMins(pd.mins)} of ${fmtMins(pd.cap)}${pd.mins > pd.cap ? " ⚠" : ""}` : ""}</span></div>`;
-    html += listCard(evs, {timeOnly:true});
+    if (evs.length) html += listCard(evs, {timeOnly:true});
+    if (preps.length) html += `<div class="card" style="margin-top:${evs.length ? 8 : 0}px"><div class="list">${preps.map(prepRowHtml).join("")}</div></div>`;
   }
   if (!any) html += `<div class="empty">A quiet fortnight. Peek at the Semester view — is a heavy week hiding after it?</div>`;
 
@@ -4190,7 +4201,7 @@ function cachePlanLine(days, today){
 /* The sync bookmarklet, generated from ~/lmk-extension/bookmarklet.txt — regenerate both together.
    It works on ANY school's Canvas, which is the whole point: it takes the origin from the page it runs on. */
 const LMK_SYNC_BOOKMARKLET = "javascript:(function(){%0A  let BASE = \"\";%0A  const sleep = ms => new Promise(r => setTimeout(r, ms));%0A  /* Bounded-concurrency map. Canvas answers one request about as fast as six, so the old one-at-a-time%0A     walk spent almost all of its time waiting: 1 + 3 per course + up to 40 quiz reads, strictly in series,%0A     is ~70 round trips deep and took tens of seconds on a full course load. LIMIT is deliberately modest %E2%80%94%0A     Canvas rate-limits on a leaky bucket per session and answers 403 when it runs dry. */%0A  const LIMIT = 6;%0A  /* The ceiling has to be on requests actually in flight, not on tasks: fanning out five courses that each%0A     fire three reads is fifteen at once, which is how you empty Canvas's bucket and start collecting 403s.%0A     Every hop passes through this gate, so the fan-out above can be as wide as it likes. */%0A  let live = 0; const waiting = [];%0A  const acquire = () => live < LIMIT ? (live++, Promise.resolve()) : new Promise(r => waiting.push(r));%0A  const release = () => { const w = waiting.shift(); if (w) w(); else live--; };   // hand the slot straight on%0A  async function pool(list, n, fn){%0A    const out = new Array(list.length); let i = 0;%0A    await Promise.all(Array.from({length: Math.min(n, list.length)}, async () => {%0A      for (;;){ const k = i++; if (k >= list.length) return; out[k] = await fn(list[k], k); }%0A    }));%0A    return out;%0A  }%0A  async function getJSON(path){%0A    const out = [];%0A    let url = BASE + path + (path.includes(\"?\") ? \"&\" : \"?\") + \"per_page=100\";%0A    for (let hop = 0; url && hop < 20; hop++){%0A      let r = null;%0A      /* A 403 here is usually the rate-limit bucket, not a permission problem, and it only started%0A         happening once LMK asked for several courses at once. Backing off and trying again is the%0A         difference between a full sync and a course going silently missing. */%0A      for (let tryN = 0; tryN < 3; tryN++){%0A        const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000);%0A        await acquire();%0A        try { r = await fetch(url, {credentials:\"include\", headers:{\"Accept\":\"application/json\"}, signal: ctl.signal}); }%0A        finally { clearTimeout(timer); release(); }%0A        if (r.ok || (r.status !== 403 && r.status !== 429 && r.status < 500)) break;%0A        await sleep(300 * (tryN + 1));%0A      }%0A      if (!r || !r.ok) throw new Error(((r && r.status) || \"net\") + \" \" + path);%0A      let txt = await r.text();%0A      if (txt.startsWith(\"while(1);\")) txt = txt.slice(9);%0A      const data = JSON.parse(txt);%0A      if (Array.isArray(data)) out.push(...data); else return data;%0A      const link = r.headers.get(\"Link\") || \"\";%0A      const m = link.match(/<([^>]+)>;%5Cs*rel=\"next\"/);%0A      url = m ? m[1] : null;%0A    }%0A    return out;%0A  }%0A  const strip = h => (h || \"\").replace(/<[^>]+>/g, \" \").replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/%5Cs+/g, \" \").trim();%0A  /* Canvas's own grade for this course: exactly what the student sees, with group weights, drop rules,%0A     late policies and excused work already applied. Null when the instructor hides totals. */%0A  function courseScores(c){%0A    const num = v => (v === null || v === undefined || v === \"\" || !isFinite(+v)) ? null : +v;%0A    const es = (c.enrollments || []).filter(e => /student/i.test(e.type || e.role || \"\"));%0A    const e = es.find(x => x.computed_current_score != null) || es[0] || {};%0A    return {cur: num(e.computed_current_score), fin: num(e.computed_final_score)};%0A  }%0A  function courseTag(c){%0A    const s = (c.course_code || c.name || \"\");%0A    if (/asuready/i.test(s)) return \"ASU Ready\";%0A    const m = s.match(/([A-Z]{2,4})%5Cs?-?(%5Cd{2,3}[A-Z]?)/);%0A    return m ? m[1] + \" \" + m[2] : s.slice(0, 18);%0A  }%0A  function rubricText(a){%0A    const r = Array.isArray(a.rubric) ? a.rubric : [];%0A    return r.slice(0, 12).map(c => String(c.description || \"\").replace(/%5Cs+/g, \" \").trim().slice(0, 80) + (c.points != null ? \" (\" + c.points + \" pts)\" : \"\")).filter(x => x.trim() && x.trim() !== \"(0 pts)\").join(\"; \").slice(0, 900);%0A  }%0A  function kindHint(a){%0A    const st = a.submission_types || [];%0A    if (a.grading_type === \"not_graded\" || (a.points_possible === 0 && !st.includes(\"online_quiz\"))) return \"fyi\";%0A    if (st.includes(\"none\") || st.includes(\"on_paper\")) return \"inclass\";%0A    if (/attendance|participation|in.?class|clicker/i.test(a.name || \"\")) return \"inclass\";%0A    if (st.includes(\"online_quiz\")) return \"quiz\";%0A    if (st.includes(\"discussion_topic\")) return \"discussion\";%0A    return \"\";%0A  }%0A  (typeof window !== \"undefined\" ? window : self).lmkCollect = async function(base, prev){%0A    BASE = (base || location.origin).replace(/%5C/$/, \"\");%0A    const HOST = BASE.replace(/^https?:%5C/%5C//, \"\");%0A    /* LMK plans a STUDENT's work, and `enrollment_state=active` happily returns the courses someone%0A       teaches as well. With `include[]=submission` those come back with no submission %E2%80%94 because it is not%0A       their work to hand in %E2%80%94 so every assignment a professor has ever set would arrive looking like%0A       unfinished homework due tomorrow. A course is only dropped when every enrolment in it is positively%0A       a teaching one; a course whose roles Canvas does not report is kept, because guessing wrong in that%0A       direction hides a student's real work. */%0A    const rolesOf = c => (c.enrollments || []).map(e => String(e.type || e.role || \"\").toLowerCase()).filter(Boolean);%0A    const teachesOnly = c => { const r = rolesOf(c); return r.length > 0 && r.every(x => /teacher|^ta$|ta_|designer|grader/.test(x)); };%0A    const allCourses = (await getJSON(\"/api/v1/courses?enrollment_state=active&include[]=term&include[]=total_scores\")).filter(c => c.name && !c.access_restricted_by_date);%0A    const taught = allCourses.filter(teachesOnly).length;%0A    const courses = allCourses.filter(c => !teachesOnly(c));%0A    const items = {};%0A    const groups = {};%0A    /* The three reads a course needs know nothing about each other, and neither do the courses, so they%0A       all go out together. The results are folded back in course order afterwards, so `items`, `groups`%0A       and every id in them come out exactly as the one-at-a-time version produced them. */%0A    const fetched = await pool(courses, 8, async c => {%0A      const [list, subs, g] = await Promise.all([%0A        getJSON(`/api/v1/courses/${c.id}/assignments?include[]=submission&order_by=due_at`).then(x => x, () => null),%0A        /* What the instructor actually wrote back. One request per course, only this student's submissions,%0A           only comments from someone who is not the student. It is the most useful thing LMK can know. */%0A        getJSON(`/api/v1/courses/${c.id}/students/submissions?student_ids[]=self&include[]=submission_comments&per_page=100`).then(x => x, () => []),%0A        getJSON(`/api/v1/courses/${c.id}/assignment_groups`).then(x => x, () => null),%0A      ]);%0A      return {list, subs, g};%0A    });%0A    for (let ci = 0; ci < courses.length; ci++){%0A      const c = courses[ci], tag = courseTag(c), got = fetched[ci] || {};%0A      const list = got.list;%0A      if (!list) continue;                                   // the course's assignments failed: skip it whole, as before%0A      const fb = {};%0A      for (const sub of (Array.isArray(got.subs) ? got.subs : [])) {%0A        const mine = String(sub.user_id || \"\");%0A        const notes = (sub.submission_comments || []).filter(x => x && x.comment && String(x.author_id || \"\") !== mine);%0A        if (notes.length) fb[String(sub.assignment_id)] = strip(notes[notes.length - 1].comment).slice(0, 400);%0A      }%0A      if (got.g) groups[c.id] = got.g.map(x => ({id:x.id, name:x.name, w:x.group_weight}));%0A      for (const a of list){%0A        if (a.only_visible_to_overrides && !a.due_at && !a.has_overrides) continue;%0A        const s = a.submission || {};%0A        items[String(a.id)] = {%0A          t: a.name, c: tag, cid: String(c.id),%0A          due: a.due_at || \"\", lock: a.lock_at || \"\",%0A          pts: a.points_possible, gt: a.grading_type, st: (a.submission_types || []).join(\",\"),%0A          grp: a.assignment_group_id, k: kindHint(a),%0A          sub: s.workflow_state || \"\", subAt: s.submitted_at || \"\", score: s.score == null ? null : s.score,%0A          late: !!s.late, missing: !!s.missing, excused: !!s.excused,%0A          url: a.html_url || \"\",%0A          desc: strip(a.description).slice(0, 1200),%0A          rub: rubricText(a),%0A          fb: fb[String(a.id)] || \"\",%0A          qid: a.quiz_id ? String(a.quiz_id) : \"\",%0A        };%0A      }%0A    }%0A    // Canvas keeps seconds spent on every quiz attempt %E2%80%94 exact durations, no sensor needed.%0A    /* This was the other half of the wait: up to forty one-at-a-time reads, every single sync, re-measuring%0A       quizzes that were finished weeks ago. A submitted quiz's time_spent never changes, so anything the%0A       last payload already measured is carried straight over and never asked for again %E2%80%94 after the first%0A       sync this is usually zero requests %E2%80%94 and whatever is genuinely new goes out in parallel. */%0A    const quizTime = {}, quizMap = {};%0A    const known = (prev && prev.quizTime) || {};%0A    const submitted = Object.entries(items).filter(([aid, x]) => x.qid && /^(submitted|graded|pending_review)$/.test(x.sub));%0A    for (const [aid, x] of submitted){%0A      quizMap[x.cid + \"/\" + x.qid] = aid;%0A      if (known[aid] != null) quizTime[aid] = known[aid];%0A    }%0A    const fresh = submitted.filter(([aid]) => known[aid] == null).slice(0, 40);%0A    await pool(fresh, 12, async ([aid, x]) => {%0A      try {%0A        const r = await getJSON(`/api/v1/courses/${x.cid}/quizzes/${x.qid}/submissions`);%0A        const subs = (r && r.quiz_submissions) || [];%0A        const secs = subs.map(q => +q.time_spent || 0).filter(v => v > 0);%0A        if (secs.length) quizTime[aid] = Math.round(Math.max(...secs) / 60);%0A      } catch(e){}%0A    });%0A    for (const aid in items) if (items[aid].qid) quizMap[items[aid].cid + \"/\" + items[aid].qid] = aid;%0A    // apply_assignment_group_weights is the course-level switch: when it is false Canvas ignores%0A    // the group weights entirely and grades on total points, however the weights are set.%0A    return {lmk:\"canvas\", v:3, at: Date.now(), host: HOST, taught,%0A      courses: courses.map(c => Object.assign({id:String(c.id), tag:courseTag(c), name:c.name, wt: !!c.apply_assignment_group_weights, uuid: String(c.uuid || \"\")}, courseScores(c))),   // uuid: Canvas shows it only to the enrolled; it is what proves a classmate is a classmate (rooms), hashed before it leaves the browser%0A      groups, items, quizTime, quizMap};%0A  };%0A})();%0A%0A(async()=>{try{const p=await window.lmkCollect();const s=JSON.stringify(p);const n=Object.keys(p.items).length;%0Alet ok=false;try{await navigator.clipboard.writeText(s);ok=true}catch(e){}%0Aif(!ok){const ta=document.createElement(\"textarea\");ta.value=s;ta.style.cssText=\"position:fixed;top:8px;left:8px;width:90vw;height:40vh;z-index:99999;font-size:12px\";document.body.appendChild(ta);ta.focus();ta.select();try{ok=document.execCommand(\"copy\")}catch(e){}if(ok)ta.remove();else alert(\"Select all + copy the box, then paste it into LMK (gear %E2%86%92 Paste from Canvas).\")}%0Aif(ok)alert(\"LMK: copied \"+n+\" assignments. Open LMK %E2%86%92 gear %E2%86%92 Paste from Canvas %E2%86%92 paste.\")}catch(e){alert(\"LMK: could not read Canvas %E2%80%94 are you logged in on this tab? \"+e)}})();";
-const APP_BUILD = "v71.3";
+const APP_BUILD = "v72.0";
 const LMK_SYNC_BOOKMARKLET_D2L = "javascript:(function(){%0A  let BASE = \"\", XSRF = \"\", LP = \"1.0\", LE = \"1.0\", ME = \"\";%0A  const DIAG = [];%0A  const mask = p => p.replace(/%5C/%5Cd{2,}(?=%5C/|$|%5C?)/g, \"/#\");   // ids out of the path names%0A  async function getJSON(path, soft){%0A    const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000);%0A    let r;%0A    try {%0A      const headers = {\"Accept\": \"application/json\"};%0A      if (XSRF) headers[\"X-Csrf-Token\"] = XSRF;%0A      r = await fetch(BASE + path, {credentials: \"include\", headers, signal: ctl.signal});%0A    } catch(e) { clearTimeout(timer); DIAG.push({p: mask(path), s: 0, err: String(e && e.message || e).slice(0, 60)}); if (soft) return null; throw e; }%0A    finally { clearTimeout(timer); }%0A    const rec = {p: mask(path), s: r.status};%0A    if (!r.ok) { DIAG.push(rec); if (soft) return null; throw new Error(r.status + \" \" + path); }%0A    let data = null;%0A    try { data = await r.json(); } catch(e) { rec.err = \"not json\"; DIAG.push(rec); if (soft) return null; throw e; }%0A    const list = Array.isArray(data) ? data : data && Array.isArray(data.Items) ? data.Items : data && Array.isArray(data.Objects) ? data.Objects : null;%0A    rec.n = list ? list.length : 1;%0A    rec.k = Object.keys((list ? list[0] : data) || {}).slice(0, 40);%0A    DIAG.push(rec);%0A    return data;%0A  }%0A  /* Brightspace pages two ways: PagedResultSet {PagingInfo:{Bookmark,HasMoreItems}, Items} and%0A     ObjectListPage {Objects, Next}. Both are walked here; twenty hops is more than any student has. */%0A  async function getAll(path, soft){%0A    const out = []; let next = path;%0A    for (let hop = 0; next && hop < 20; hop++){%0A      const d = await getJSON(next, soft);%0A      if (!d) break;%0A      if (Array.isArray(d)) { out.push(...d); break; }%0A      if (Array.isArray(d.Items)) { out.push(...d.Items); const pi = d.PagingInfo || {}; next = pi.HasMoreItems && pi.Bookmark ? path + (path.includes(\"?\") ? \"&\" : \"?\") + \"bookmark=\" + encodeURIComponent(pi.Bookmark) : null; continue; }%0A      if (Array.isArray(d.Objects)) { out.push(...d.Objects); next = typeof d.Next === \"string\" && d.Next ? d.Next.replace(/^https?:%5C/%5C/[^/]+/, \"\") : null; continue; }%0A      break;%0A    }%0A    return out;%0A  }%0A  const strip = h => (h || \"\").replace(/<[^>]+>/g, \" \").replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/%5Cs+/g, \" \").trim();%0A  const rich = o => o && typeof o === \"object\" ? (o.Html ? strip(o.Html) : strip(o.Text || \"\")) : strip(typeof o === \"string\" ? o : \"\");%0A  const num = v => (v === null || v === undefined || v === \"\" || !isFinite(+v)) ? null : +v;%0A  const iso = v => { const t = Date.parse(v || \"\"); return isNaN(t) ? \"\" : new Date(t).toISOString(); };%0A  function courseTag(ou){%0A    const s = String(ou.Code || ou.Name || \"\");%0A    const m = s.match(/([A-Z]{2,4})[%5Cs_-]?(%5Cd{2,3}[A-Z]?)(?![0-9])/);%0A    return m ? m[1] + \" \" + m[2] : String(ou.Name || s).slice(0, 18);%0A  }%0A  /* D2L ids are org-wide database ids, but a dropbox folder and a quiz can share a number, and progress is%0A     keyed by id alone. One leading digit per kind keeps them apart and keeps the id all digits (invariant 2). */%0A  const idOf = (kind, id) => (kind === \"quiz\" ? \"2\" : \"1\") + String(id).replace(/%5CD/g, \"\");%0A  const pct = (n, d) => (num(n) != null && num(d) > 0) ? Math.round(n / d * 1000) / 10 : null;%0A%0A  (typeof window !== \"undefined\" ? window : self).lmkD2LDiag = DIAG;%0A  (typeof window !== \"undefined\" ? window : self).lmkCollectD2L = async function(base){%0A    BASE = (base || location.origin).replace(/%5C/$/, \"\");%0A    const HOST = BASE.replace(/^https?:%5C/%5C//, \"\");%0A    DIAG.length = 0;%0A    try { XSRF = String((typeof localStorage !== \"undefined\" && localStorage.getItem(\"XSRF.Token\")) || \"\").replace(/^\"|\"$/g, \"\"); } catch(_) { XSRF = \"\"; }%0A    // the API is versioned per product; ask which versions this school runs rather than guessing%0A    const versions = await getJSON(\"/d2l/api/versions/\", true);%0A    for (const v of (Array.isArray(versions) ? versions : [])) { if (v.ProductCode === \"lp\" && v.LatestVersion) LP = v.LatestVersion; if (v.ProductCode === \"le\" && v.LatestVersion) LE = v.LatestVersion; }%0A    const me = await getJSON(`/d2l/api/lp/${LP}/users/whoami`, true);%0A    ME = me && me.Identifier != null ? String(me.Identifier) : \"\";%0A    const now = Date.now();%0A    const enr = await getAll(`/d2l/api/lp/${LP}/enrollments/myenrollments/?orgUnitTypeId=3`, false);%0A    const courses = enr.map(e => e || {}).filter(e => {%0A      const ou = e.OrgUnit || {}, a = e.Access || {};%0A      if (!ou.Id || !ou.Name) return false;%0A      if (a.IsActive === false || a.CanAccess === false) return false;%0A      const end = Date.parse(a.EndDate || \"\"), start = Date.parse(a.StartDate || \"\");%0A      if (!isNaN(end) && end < now - 14 * 864e5) return false;       // a course that ended a fortnight ago%0A      if (!isNaN(start) && start > now + 30 * 864e5) return false;   // one that has not started%0A      return true;%0A    }).map(e => e.OrgUnit);%0A    const items = {}, groups = {}, quizTime = {}, quizMap = {};%0A    let subCalls = 0, attCalls = 0;%0A    const out = [];%0A    for (const ou of courses){%0A      const cid = String(ou.Id), tag = courseTag(ou);%0A      // grades first: a released score is the strongest evidence, and the id map is needed by both lists%0A      const gv = {};%0A      for (const g of (await getAll(`/d2l/api/le/${LE}/${cid}/grades/values/myGradeValues/`, true) || [])) if (g && g.GradeObjectIdentifier != null) gv[String(g.GradeObjectIdentifier)] = g;%0A      const fin = await getJSON(`/d2l/api/le/${LE}/${cid}/grades/final/values/myGradeValue`, true);%0A      const cur = fin ? (pct(fin.WeightedNumerator, fin.WeightedDenominator) ?? pct(fin.PointsNumerator, fin.PointsDenominator)) : null;%0A      // categories carry the weights; these two routes are often instructor-only, and that is fine (points-based grading then)%0A      const setup = await getJSON(`/d2l/api/le/${LE}/${cid}/grades/setup/`, true);%0A      const cats = await getAll(`/d2l/api/le/${LE}/${cid}/grades/categories/`, true);%0A      const gobjs = await getAll(`/d2l/api/le/${LE}/${cid}/grades/`, true);%0A      const catOf = {}; for (const g of gobjs || []) if (g && g.Id != null && g.CategoryId != null) catOf[String(g.Id)] = String(g.CategoryId);%0A      if (Array.isArray(cats) && cats.length) groups[cid] = cats.map(c => ({id: String(c.Id), name: c.Name, w: num(c.Weight)}));%0A      const wt = !!(setup && /weight/i.test(String(setup.GradingSystem || \"\")));%0A      out.push({id: cid, tag, name: ou.Name, wt, cur, fin: null, uuid: ou.Code ? \"d2l:\" + String(ou.Code) : \"\"});   // Brightspace has no course uuid; the offering code is the nearest thing an outsider does not see%0A      // dropbox folders = assignments%0A      const folders = (await getAll(`/d2l/api/le/${LE}/${cid}/dropbox/folders/`, true) || []).filter(f => f && f.Id != null && f.Name && !f.IsHidden);%0A      folders.sort((a, b) => (Date.parse(b.DueDate || (b.Availability || {}).EndDate || \"\") || 0) - (Date.parse(a.DueDate || (a.Availability || {}).EndDate || \"\") || 0));%0A      for (const f of folders){%0A        const av = f.Availability || {}, as = f.Assessment || {};%0A        const due = iso(f.DueDate) || iso(av.EndDate);          // Brightspace instructors often set only \"Ends\"; the student treats that as the deadline%0A        const g = f.GradeItemId != null ? gv[String(f.GradeItemId)] : null;%0A        const stype = ({0: \"online_upload\", 1: \"online_text_entry\", 2: \"on_paper\", 3: \"none\"})[f.SubmissionType] || \"online_upload\";%0A        const pts = num(as.ScoreDenominator) ?? (g ? num(g.PointsDenominator) : null);%0A        let sub = \"\", subAt = \"\", score = g ? num(g.PointsNumerator) : null, fb = \"\";%0A        /* The learner's own submissions: the one call that turns \"graded\" into \"handed in on <date>\". Read for%0A           the recent and coming work only, capped, and never trusted blindly %E2%80%94 a 403 here just means no%0A           auto-check for this school until we know its rules. */%0A        const dueMs = Date.parse(due) || 0;%0A        if (subCalls < 40 && (!dueMs || dueMs > now - 60 * 864e5) && stype !== \"none\") {%0A          subCalls++;%0A          const ent = await getJSON(`/d2l/api/le/${LE}/${cid}/dropbox/folders/${f.Id}/submissions/`, true);%0A          const mine = (Array.isArray(ent) ? ent : []).filter(e => e && e.Entity && (!ME || String(e.Entity.EntityId) === ME || e.Entity.EntityType === \"Group\"));%0A          for (const e of mine){%0A            const subs = Array.isArray(e.Submissions) ? e.Submissions : [];%0A            const latest = subs.map(s => iso(s.SubmissionDate)).filter(Boolean).sort().pop();%0A            if (latest) { sub = \"submitted\"; subAt = latest; }%0A            const fbk = e.Feedback || null;%0A            if (fbk) { if (num(fbk.Score) != null) { score = num(fbk.Score); sub = \"graded\"; } const t = rich(fbk.Feedback); if (t) fb = t.slice(0, 400); }%0A          }%0A        }%0A        if (!sub && score != null) sub = \"graded\";%0A        items[idOf(\"dropbox\", f.Id)] = {%0A          t: f.Name, c: tag, cid, due, lock: iso(av.EndDate),%0A          pts, gt: (pts > 0 || f.GradeItemId != null) ? \"points\" : \"not_graded\", st: stype,%0A          grp: f.GradeItemId != null && catOf[String(f.GradeItemId)] ? catOf[String(f.GradeItemId)] : \"\",%0A          k: stype === \"on_paper\" || stype === \"none\" ? \"inclass\" : (!(pts > 0) && f.GradeItemId == null) ? \"fyi\" : \"\",%0A          sub, subAt, score, late: false, missing: false, excused: false,%0A          url: `${BASE}/d2l/lms/dropbox/user/folder_submit_files.d2l?ou=${cid}&db=${f.Id}`,%0A          desc: rich(f.CustomInstructions).slice(0, 1200),%0A          rub: (Array.isArray(as.Rubrics) ? as.Rubrics : []).map(r => String(r.Name || \"\").trim()).filter(Boolean).slice(0, 12).join(\"; \").slice(0, 900),%0A          fb, qid: \"\",%0A        };%0A      }%0A      // quizzes%0A      const quizzes = (await getAll(`/d2l/api/le/${LE}/${cid}/quizzes/`, true) || []).filter(q => q && q.QuizId != null && q.Name && q.IsActive !== false);%0A      for (const q of quizzes){%0A        const due = iso(q.DueDate) || iso(q.EndDate);%0A        const g = q.GradeItemId != null ? gv[String(q.GradeItemId)] : null;%0A        let sub = \"\", subAt = \"\", score = g ? num(g.PointsNumerator) : null;%0A        const dueMs = Date.parse(due) || 0;%0A        const aid = idOf(\"quiz\", q.QuizId);%0A        if (attCalls < 20 && (!dueMs || dueMs > now - 60 * 864e5)) {%0A          attCalls++;%0A          const att = await getAll(`/d2l/api/le/${LE}/${cid}/quizzes/${q.QuizId}/attempts/`, true);%0A          const mine = (att || []).filter(a => a && (!ME || a.UserId == null || String(a.UserId) === ME));%0A          const done = mine.map(a => ({at: iso(a.TimeCompleted), mins: (Date.parse(a.TimeCompleted || \"\") - Date.parse(a.TimeStarted || \"\")) / 60e3})).filter(a => a.at);%0A          if (done.length) { sub = \"submitted\"; subAt = done.map(a => a.at).sort().pop(); const m = Math.max(...done.map(a => a.mins).filter(v => v > 0 && v < 600)); if (isFinite(m) && m > 0) quizTime[aid] = Math.round(m); }%0A        }%0A        if (score != null) sub = subAt ? \"graded\" : \"graded\";%0A        quizMap[cid + \"/\" + q.QuizId] = aid;%0A        items[aid] = {%0A          t: q.Name, c: tag, cid, due, lock: iso(q.EndDate),%0A          pts: g ? num(g.PointsDenominator) : null, gt: q.GradeItemId != null ? \"points\" : \"not_graded\", st: \"online_quiz\",%0A          grp: q.GradeItemId != null && catOf[String(q.GradeItemId)] ? catOf[String(q.GradeItemId)] : \"\",%0A          k: \"quiz\",%0A          sub, subAt, score, late: false, missing: false, excused: false,%0A          url: `${BASE}/d2l/lms/quizzing/user/quiz_summary.d2l?ou=${cid}&qi=${q.QuizId}`,%0A          desc: (rich(q.Description) + \" \" + rich(q.Instructions)).trim().slice(0, 1200),%0A          rub: \"\", fb: \"\", qid: String(q.QuizId),%0A        };%0A      }%0A    }%0A    return {lmk: \"canvas\", lms: \"d2l\", v: 3, at: Date.now(), host: HOST, courses: out, groups, items, quizTime, quizMap, diag: DIAG.slice(0, 200)};%0A  };%0A})();%0A%0A(async()=>{try{const p=await window.lmkCollectD2L();delete p.diag;const s=JSON.stringify(p);const n=Object.keys(p.items).length;%0Alet ok=false;try{await navigator.clipboard.writeText(s);ok=true}catch(e){}%0Aif(!ok){const ta=document.createElement(\"textarea\");ta.value=s;ta.style.cssText=\"position:fixed;top:8px;left:8px;width:90vw;height:40vh;z-index:99999;font-size:12px\";document.body.appendChild(ta);ta.focus();ta.select();try{ok=document.execCommand(\"copy\")}catch(e){}if(ok)ta.remove();else alert(\"Select all + copy the box, then paste it into LMK (gear %E2%86%92 Paste from Canvas).\")}%0Aif(ok)alert(\"LMK: copied \"+n+\" assignments from Brightspace. Open LMK %E2%86%92 gear %E2%86%92 Paste from Canvas %E2%86%92 paste.\")}catch(e){alert(\"LMK: could not read Brightspace %E2%80%94 are you signed in on this tab? \"+e)}})();";   // embedded by ~/lmk-backend/tools/build-d2l.py from collect-d2l.js
 let lastErr = null;
 function reportErr(e, where){
@@ -4528,7 +4539,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
     const ev = EVENTS.find(x => x.id === id);
     if (ev && ev.url) window.open(ev.url, "_blank", "noopener");
     burstAt(act);
-    toggleDone(id, null, ev && ev.url ? "Done — " + lmsName() + " is open, go turn it in." : undefined);
+    toggleDone(id, null, ev && ev.exam ? "Good luck. It's marked as taken." : ev && ev.url ? "Done — " + lmsName() + " is open, go turn it in." : undefined);
   }
   else if (a==="done" && id) toggleDone(id, row);
   else if (a==="star" && id) toggleStar(id);
@@ -4559,9 +4570,10 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="sprint") startSprint(id);
   else if (a==="sprint-stop") stopSprint(false);
   else if (a==="examplan") { const ex = act.closest("[data-id]"); if (ex) openExamPlan(ex.dataset.id); }
+  else if (a==="prep-done") { const r = act.closest("[data-exam]"), x = r && examFind(r.dataset.exam); if (x) prepMark(x, act); }
   else if (a==="exam-open" || a==="exam-date" || a==="exam-hide") {
     const row = act.closest("[data-exam]"), x = row && examFind(row.dataset.exam); if (!x) return;
-    if (a === "exam-open" && x.ev) openExamPlan(x.ev.id);
+    if (a === "exam-open" && !x.gap) openExamSheet(x);
     else if (a === "exam-hide") {
       store.examHide = store.examHide || {}; store.examHide[x.key] = Date.now(); save(); render();
       toast(x.gap ? `Hidden for ${x.course}.` : "Hidden. It was only a guess.", {label: "Undo", fn: () => { delete store.examHide[x.key]; save(); render(); }});
@@ -5166,23 +5178,25 @@ function examGroups(c){
   const gs = (((store.ext || {}).groups || {})[cid] || []).filter(g => /\b(exams?|midterms?|finals?|tests?)\b/i.test(g.name || ""));
   return {gs, weighted: !(meta && meta.wt === false), weight: gs.reduce((t, g) => t + (+g.w || 0), 0)};
 }
+function examKP(){ return sampleShown() ? "s~" : ""; }   // sample-semester keys never collide with a real class's
+function examKeyOf(e){ return examKP() + e.course + "|" + (examName(e.title) || e.id); }
 function examList(){
-  const hide = store.examHide || {}, out = [], seen = new Set();
+  const hide = store.examHide || {}, out = [], seen = new Set(), KP = examKP();
   for (const e of EVENTS) {
     if (!e.exam || store.dropped[e.id]) continue;
-    const k = e.course + "|" + (examName(e.title) || e.id); seen.add(k);
+    const k = KP + e.course + "|" + (examName(e.title) || e.id); seen.add(k);
     out.push({key: k, course: e.course, name: examTitle(e.title), due: e.due, ev: e});
   }
   for (const e of EVENTS) {
     if (e.exam || store.dropped[e.id] || !/practice/i.test(e.title)) continue;
     const n = examName(e.title); if (!n) continue;
-    const k = e.course + "|" + n; if (seen.has(k) || hide[k]) continue; seen.add(k);
+    const k = KP + e.course + "|" + n; if (seen.has(k) || hide[k]) continue; seen.add(k);
     out.push({key: k, course: e.course, name: n === "final" ? "Final exam" : n.replace(/\b\w/g, ch => ch.toUpperCase()), due: e.due, approx: true, from: e});
   }
   for (const c of COURSES) {
-    if (out.some(x => x.course === c) || hide[c + "|gap"]) continue;
+    if (out.some(x => x.course === c) || hide[KP + c + "|gap"]) continue;
     const g = examGroups(c); if (!g.gs.length) continue;
-    out.push({key: c + "|gap", course: c, gap: true, group: g.gs[0].name, weight: g.weighted ? g.weight : 0});
+    out.push({key: KP + c + "|gap", course: c, gap: true, group: g.gs[0].name, weight: g.weighted ? g.weight : 0});
   }
   return out;
 }
@@ -5227,10 +5241,12 @@ function examRowHtml(x, list){
     share ? `<span class="etag" title="This exam's share of your final grade">${share >= 10 ? Math.round(share) : share.toFixed(1)}% of grade</span>` : examCatChip(x),
     rel.length ? `<span class="etag${done === rel.length ? " ok" : ""}">practice ${done}/${rel.length}</span>` : "",
     need.length ? `<span class="etag">${esc(need.join(" + "))}</span>` : "",
+    (() => { const p = prepPlan(x); if (!p || days === 0) return ""; if (p.own) return `<span class="etag">your study blocks</span>`; if (p.amt === "off") return `<span class="etag">prep off</span>`;
+      const all = p.done.length + p.sessions.length; return all ? `<span class="etag${p.sessions.length ? "" : " ok"}">studied ${p.done.length}/${all}</span>` : ""; })(),
   ].join("");
   return `<div class="exam ${days <= 3 ? "imminent" : ""}${x.approx ? " approx" : ""}" data-exam="${esc(x.key)}"${x.ev ? ` data-id="${x.ev.id}"` : ""} style="box-shadow:inset 3px 0 0 ${col}">
     <div class="days">${x.approx ? "~" : ""}${days}<small>${days === 1 ? "day" : "days"}</small></div>
-    <div class="body"><div class="t" style="font-weight:600">${esc(x.name)}</div>
+    <div class="body"><div class="t" style="font-weight:600" data-act="exam-open" role="button" tabindex="0">${esc(x.name)}</div>
       <div class="sub"><span class="cdot" style="background:${col}"></span><span class="ccode">${esc(x.course)}</span>
         <span class="duelbl">${x.approx ? `about ${FMT_DAY.format(x.due)} · LMK's guess, not in ${lmsName()}` : FMT_DAY.format(x.due) + (x.ev && !x.ev.allDay ? " · " + FMT_TIME.format(x.due) : "")}</span></div>
       ${chips ? `<div class="examchips">${chips}</div>` : ""}</div>
@@ -5259,6 +5275,10 @@ function examsSemesterHtml(){
   let html = `<h2 class="sec" style="margin-top:4px">Exams <span class="count">${up.length} left this term</span></h2>`;
   if (up.length || gaps.length) html += `<div class="card runway">${up.map(x => examRowHtml(x, list)).join("")}${gaps.map(x => examRowHtml(x, list)).join("")}</div>`;
   else html += `<div class="empty">No exams LMK can see${courseFilter ? " for this class" : ""}. If one is coming, add it with the + button and keep "exam", "midterm" or "final" in the name.</div>`;
+  const past = pastExams();
+  if (past.length) html += `<h2 class="sec">How your exams went <span class="count">${past.length}</span></h2><div class="card"><div class="list">${past.map(q => `
+    <div class="item"><div class="body" style="padding-left:4px"><div class="t" style="font-weight:600">${esc(examTitle(q.e.title))}</div>
+      <div class="sub"><span class="cdot" style="background:${COLOR[q.e.course]}"></span><span class="ccode">${esc(q.e.course)}</span><span class="duelbl">${FMT_DAY.format(q.e.due)} · ${pastLine(q)}</span></div></div></div>`).join("")}</div></div>`;
   return html;
 }
 /* The add sheet, turned into "add an exam": a guessed exam gets its name, class and guessed date filled in, a gap gets
@@ -5275,6 +5295,13 @@ function openAddExam(x){
   const m = document.getElementById("caMsg"); m.className = "parse-msg"; m.textContent = x.gap ? 'Keep "exam", "midterm" or "final" in the name so LMK treats it as one.' : "Check the date against your syllabus.";
   addOverlay.classList.add("open");
 }
+function examDayWhy(e){
+  const x = examList().find(y => y.ev && y.ev.id === e.id) || {course: e.course, ev: e, due: e.due, key: examKeyOf(e)};
+  const need = examNeeds(x), done = prepDoneList(x), bits = [];
+  if (need.length) bits.push(`Needs <b>${esc(need.join(" + "))}</b>: open it a few minutes early.`);
+  bits.push(done.length ? `You studied ${fmtMins(done.reduce((t, d) => t + (+d.m || 0), 0))} in ${done.length} session${done.length === 1 ? "" : "s"}. You're ready.` : "Skim your weak spots once, then go.");
+  return bits.join(" ");
+}
 function examFind(key){ return examList().find(x => x.key === key) || null; }
 function examFactsHtml(x){
   const share = examShare(x), need = examNeeds(x), lines = [];
@@ -5283,56 +5310,190 @@ function examFactsHtml(x){
   return lines.length ? `<div class="examfacts">${lines.map(l => `<p>${l}</p>`).join("")}</div>` : "";
 }
 
+/* ================= exam prep, planned (v72.0) =================
+   Emiel, 2026-10-10: study time before an exam should plan itself, and the idea should be complete, not one piece.
+   Before this the planner booked an exam like homework: "Exam 2 · part 1 of 2", 90-minute chunks of the exam itself,
+   whose checkbox marked the EXAM done days before it was sat. Now an exam is never work in the plan; its study is.
+   - prepPlan(x): a total from what the exam is worth (examShare; a guess uses its category's weight; unknown = normal),
+     times the student's choice (store.prepAmt[key]: off / light / normal / heavy), cut into 2–6 sessions of 25–90 min,
+     spaced from ~2 days per session before the exam up to the day before it. Sessions are COUNTED, not dated:
+     store.prepDone[key#n] = {at, m}. Skipping one leaves no debt; the ones left re-spread over the days that remain
+     (fewer days than sessions -> fewer, longer ones, never past 2 h), and never two for one exam on the same day.
+   - computePlan books the sessions like any work (budget, the backward pull to an earlier day with room).
+   - Today: each session says what to do (prepStep). Done marks the session, never the exam, and counts for the streak.
+   - "Next up" is a session when one is today and nothing else is, or the exam is two days away or less.
+   - Exam day: the exam is the hero ("Exam today · 9:00 AM", what it needs, how much was studied); a past exam is never
+     "past due". Afterwards, Semester shows each exam's score next to the study it got, and the next exam in that class
+     says how the last one went.
+   - The student's own "Study:" rows for the class (the old "Add study blocks" button) switch LMK's plan off for that
+     exam, so nothing is booked twice. */
+function prepAmt(x){ return (store.prepAmt || {})[x.key] || "normal"; }
+function prepMult(a){ return a === "off" ? 0 : a === "light" ? 0.5 : a === "heavy" ? 1.5 : 1; }
+function prepBase(x){
+  const s = examShare(x); if (s != null) return s >= 25 ? 300 : s >= 15 ? 240 : s >= 8 ? 180 : 120;
+  const g = examGroups(x.course); if (g.weighted && g.weight > 0) return g.weight >= 40 ? 240 : 180;
+  return 180;
+}
+function prepWhy(x){
+  const s = examShare(x); if (s != null) return `it is ${s >= 10 ? Math.round(s) : s.toFixed(1)}% of your grade in ${x.course}`;
+  const g = examGroups(x.course); if (g.weighted && g.weight > 0) return `${g.gs[0].name.toLowerCase()} are ${Math.round(g.weight)}% of your grade in ${x.course}`;
+  return `${lmsName()} doesn't say what it is worth, so this is a normal amount`;
+}
+function prepOwnRows(x){
+  const t0 = startOfDay(now());
+  return (store.customRows || []).filter(r => /^study\b/i.test(r[0] || "") && r[1] === x.course && (d => d && d >= t0 && d <= x.due)(parseDT(r[2] || "")));
+}
+function prepDoneList(x){ const pd = store.prepDone || {}; return Object.keys(pd).filter(k => k.startsWith(x.key + "#")).map(k => Object.assign({k}, pd[k])); }
+function prepPlan(x){
+  if (!x || x.gap || !x.due) return null;
+  const amt = prepAmt(x), today = startOfDay(now()), examDay = startOfDay(x.due);
+  const done = prepDoneList(x), mins = done.reduce((t, d) => t + (+d.m || 0), 0), own = prepOwnRows(x).length > 0;
+  const total = own ? 0 : Math.round(prepBase(x) * prepMult(amt));
+  const N = total ? Math.max(2, Math.min(6, Math.round(total / 50))) : 0;
+  const per = N ? Math.max(25, Math.min(90, Math.round(total / N / 5) * 5)) : 0;
+  const doneToday = done.some(d => dayKey(new Date(d.at)) === dayKey(today));
+  const left = Math.max(0, N - done.length), sessions = [];
+  if (left && examDay > today) {
+    const first = addDays(today, doneToday ? 1 : 0), last = addDays(examDay, -1);
+    if (last >= first) {
+      const start = new Date(Math.max(first, addDays(examDay, -Math.max(4, N * 2))));
+      const avail = Math.round((startOfDay(last) - startOfDay(start)) / 864e5) + 1, k = Math.min(left, avail);
+      const m = Math.min(120, Math.round(per * left / k / 5) * 5);
+      for (let i = 0; i < k; i++) {
+        const off = k === 1 ? avail - 1 : Math.round(i * (avail - 1) / (k - 1));
+        sessions.push({n: done.length + i + 1, of: done.length + k, day: addDays(start, off), mins: m});
+      }
+    }
+  }
+  return {x, amt, own, total, N, per, done, mins, sessions};
+}
+/* What one session is for: a survey first, practice in the middle, a no-notes run near the end, weak spots last —
+   named after the work LMK can see (the chapters in the title, the practice items for the same exam). */
+function prepStep(x, s){
+  const rel = examRelated(x), names = rel.slice(0, 3).map(e => e.title.replace(/\s*[-–—]\s*requires.*$/i, "").slice(0, 40));
+  const t = (x.ev || x.from || {}).title || "", ch = ((t.match(/ch(?:apters?|\.)?\s*([\d,\s&and]+)/i) || [])[1] || "").match(/\d+/g) || [];
+  const covers = ch.length ? `chapters ${ch.join(", ")}` : "everything it covers";
+  if (s.n === s.of) { const need = examNeeds(x), day = startOfDay(s.day).getTime() === addDays(startOfDay(x.due), -1).getTime();
+    return `Final review: only the questions you missed or guessed.${need.length && day ? ` Then run the ${need.join(" + ")} check so tomorrow has no surprises.` : ""} Then sleep; it counts.`; }
+  if (s.n === 1 && s.of >= 3) return `First pass: skim ${covers} and write down what you can't explain yet.`;
+  if (s.n === s.of - 1 && s.of >= 3) return `Practice test: answer from memory with your notes closed, then check.`;
+  return names.length ? `Practice: redo ${names.join(" · ")}.` : `Practice: work problems on ${covers}, the kind the exam will ask.`;
+}
+function prepEvent(x, s){ return {id: "prep:" + x.key + "#" + s.n, title: "Study for " + x.name, course: x.course, due: x.due, kind: "prep", effort: "medium", exam: false, prep: true, allDay: true, desc: "", url: null}; }
+function prepChunks(today, end){
+  const out = [];
+  for (const x of examList()) {
+    if (x.gap || x.due < today || (courseFilter && x.course !== courseFilter)) continue;
+    const p = prepPlan(x); if (!p) continue;
+    for (const s of p.sessions) {
+      const sd = startOfDay(s.day); if (sd > end) continue;
+      const lastDay = addDays(startOfDay(x.due), -1), next = addDays(sd, 1);
+      out.push({e: prepEvent(x, s), mins: s.mins, part: s.n, parts: s.of, release: sd, dueDay: s.n === s.of || next > lastDay ? sd : next, late: false, day: null, grp: "prep:" + x.key, prep: {x, s}});
+    }
+  }
+  return out;
+}
+function prepRowHtml(c){
+  const x = c.prep.x, s = c.prep.s, col = COLOR[x.course] || "var(--line-strong)", days = examDays(x);
+  return `<div class="item prep" data-exam="${esc(x.key)}" style="box-shadow:inset 3px 0 0 ${col}">
+    <button class="cbx" data-act="prep-done" aria-label="Mark session ${s.n} of ${s.of} done: ${esc(x.course)} ${esc(x.name)}">${ICON_CHECK}</button>
+    <div class="body">
+      <div class="t" data-act="exam-open" role="button" tabindex="0">Study for ${esc(x.course)} ${esc(x.name)}</div>
+      <div class="sub"><span class="cdot" style="background:${col}"></span><span class="ccode">${esc(x.course)}</span>
+        <span class="etag" style="text-transform:none">~${fmtMins(c.mins)}</span>
+        <span class="duelbl">session ${s.n} of ${s.of} · exam ${days === 1 ? "tomorrow" : FMT_DAY.format(x.due)}${x.approx ? " (date is LMK's guess)" : ""}</span></div>
+      <div class="prepstep">${esc(prepStep(x, s))}</div>
+    </div>
+  </div>`;
+}
+function prepHeroHtml(c){
+  const x = c.prep.x, s = c.prep.s, col = COLOR[x.course] || "var(--c1)", days = examDays(x);
+  return `<div class="card hero" data-exam="${esc(x.key)}" style="--hero-tint:color-mix(in srgb, ${col} 26%, transparent)">${syncedInHtml()}
+    <div class="kicker">Next up — study for an exam</div>
+    <h1>Study for ${esc(x.course)} ${esc(x.name)}</h1>
+    <div class="meta"><span class="cdot" style="width:10px;height:10px;background:${col}"></span><span class="ccode" style="font-size:13px">${esc(x.course)}</span>
+      <span class="countchip ${days <= 2 ? "hot" : "soon"}">exam ${days === 1 ? "tomorrow" : "in " + days + " days"}</span>
+      <span class="etag">session ${s.n} of ${s.of}</span><span class="etag" style="text-transform:none">~${fmtMins(c.mins)}</span></div>
+    <div class="why">This session: <b>${esc(prepStep(x, s))}</b></div>
+    <div class="actions">
+      <button class="btn primary" data-act="prep-done">Done — session ${s.n} ✓</button>
+      <button class="btn ghost" data-act="exam-open">Open the prep plan</button>
+    </div>
+  </div>`;
+}
+function prepMark(x, at){
+  const p = prepPlan(x); if (!p) return;
+  const today = PLAN[dayKey(startOfDay(now()))], c = today && today.items.find(c => c.prep && c.prep.x.key === x.key);
+  const n = p.done.length + 1, key = x.key + "#" + n, m = c ? c.mins : (p.sessions[0] || {}).mins || p.per || 45;
+  store.prepDone = store.prepDone || {}; store.prepDone[key] = {at: Date.now(), m};
+  if (!x.key.startsWith("s~")) markDoneToday();
+  if (at) burstAt(at);
+  save(); render();
+  const left = p.sessions.length - 1;
+  toast(left > 0 ? `Session ${n} done. ${left} more before the exam.` : "That was the last session. You're ready.", {label: "Undo", fn: () => {
+    delete store.prepDone[key];
+    const k = dayKey(now());
+    if (!Object.values(store.done).some(ts => dayKey(new Date(ts)) === k) && !Object.values(store.prepDone).some(d => dayKey(new Date(d.at)) === k))
+      store.streakDays = store.streakDays.filter(d => d !== k);
+    save(); render();
+  }});
+}
+/* After an exam: its score (Canvas, through store.grades) next to the study it got. */
+function pastExams(course){
+  const t0 = startOfDay(now());
+  return EVENTS.filter(e => e.exam && !store.dropped[e.id] && e.due < t0 && (!course || e.course === course) && (!courseFilter || e.course === courseFilter))
+    .map(e => { const k = examKeyOf(e), done = prepDoneList({key: k}), g = (store.grades || {})[e.id];
+      return {e, key: k, sessions: done.length, mins: done.reduce((t, d) => t + (+d.m || 0), 0), pct: g && +g.max > 0 ? Math.round(+g.got / +g.max * 1000) / 10 : null}; })
+    .sort((a, b) => b.e.due - a.e.due);
+}
+function pastLine(p){
+  return `${p.pct != null ? `<b>${p.pct}%</b>` : "no score yet"} · ${p.sessions ? `studied ${fmtMins(p.mins)} in ${p.sessions} session${p.sessions === 1 ? "" : "s"}` : "no study sessions logged"}`;
+}
+
 /* ================= exam study plan ================= */
 const planOverlay = document.getElementById("planOverlay");
-let pendingPlan = null;
-const PASS_LABELS = ["First pass — survey the chapters", "Second pass — practice problems", "Third pass — active recall, no notes", "Final review — weak spots only"];
-function openExamPlan(id){
-  const ex = EVENTS.find(x => x.id === id); if (!ex) return;
-  const daysLeft = Math.round((startOfDay(ex.due) - startOfDay(now())) / 864e5);
-  let offs = [7,4,2,1].filter(o => o <= daysLeft);
-  if (!offs.length) offs = [0];
-  const short = ex.title.split(/ [-–] /)[0].slice(0, 48);
-  const chapM = ex.title.match(/ch(?:apters?|\.)?\s*([\d,\s&and]+)/i);
-  const chaps = chapM ? (chapM[1].match(/\d+/g) || []) : [];
-  const exNumM = ex.title.match(/(exam|midterm|final)\s*\d*/i);
-  const related = examRelated({course: ex.course, ev: ex, due: ex.due}).slice(0, 6);
-  const blocks = offs.map((o, i) => ({
-    dt: addDays(startOfDay(ex.due), -o),
-    label: o === 0 ? "Today — focused cram, weak spots first" : (PASS_LABELS[i] || PASS_LABELS[3]),
-    effort: (o <= 1 ? "quick" : "medium"),
-  }));
-  pendingPlan = {course: ex.course, short, blocks};
+function openExamPlan(id){ const ev = EVENTS.find(e => e.id === id); if (!ev) return; const x = examList().find(y => y.ev && y.ev.id === id); if (x) openExamSheet(x); }
+let examSheetKey = "";
+function openExamSheet(x){
+  examSheetKey = x.key;
+  const p = prepPlan(x), days = examDays(x), related = examRelated(x).slice(0, 6);
+  const last = x.ev || x.approx ? pastExams(x.course).find(q => q.pct != null) : null;
+  const amtChip = v => `<button class="minibtn ${p.amt === v ? "keep" : ""}" data-act="prep-amt" data-v="${v}" aria-pressed="${p.amt === v}">${v[0].toUpperCase() + v.slice(1)}</button>`;
+  const fmtDay = d => dayKey(d) === dayKey(now()) ? "today" : dayKey(d) === dayKey(addDays(now(), 1)) ? "tomorrow" : FMT_DAY.format(d);
+  let plan = "";
+  if (days === 0) plan = `<p class="sub2" style="margin:0">Exam day. No more sessions; ${p.done.length ? `you studied ${fmtMins(p.mins)} in ${p.done.length} session${p.done.length === 1 ? "" : "s"}.` : "good luck."}</p>`;
+  else if (p.own) plan = `<p class="sub2" style="margin:0">You added your own study blocks for ${esc(x.course)}, so LMK isn't planning more for this exam.</p>`;
+  else if (p.amt === "off") plan = `<p class="sub2" style="margin:0">Off for this exam. LMK won't plan study time for it.</p>`;
+  else plan = `<p class="sub2" style="margin:0 0 10px">LMK set aside about <b>${fmtMins(p.total)}</b> in ${p.N} sessions because ${esc(prepWhy(x))}. Skip one and the rest re-spread; nothing piles up.</p>
+    <div class="card"><div class="list">${p.done.map((d, i) => `<div class="item done"><div class="body" style="padding-left:4px"><div class="t" style="font-weight:500">✓ Session ${i + 1}</div><div class="sub"><span class="duelbl">${FMT_DAY.format(new Date(d.at))} · ~${fmtMins(+d.m || 0)}</span></div></div></div>`).join("")}
+      ${p.sessions.map(se => `<div class="item"><div class="body" style="padding-left:4px"><div class="t" style="font-weight:500">Session ${se.n} · ${fmtDay(se.day)} · ~${fmtMins(se.mins)}</div><div class="sub"><span>${esc(prepStep(x, se))}</span></div></div></div>`).join("")}
+      ${!p.sessions.length && p.done.length ? `<div class="item"><div class="body" style="padding-left:4px"><div class="t" style="font-weight:500">Every session is done.</div></div></div>` : ""}</div></div>`;
   document.getElementById("planModal").innerHTML = `
-    <h3 id="ppTitle">Study plan: ${esc(short)}</h3>
-    <p class="sub2">${esc(ex.course)} · ${FMT_DAY.format(ex.due)} · spaced passes beat one giant cram — every time.</p>
-    ${examFactsHtml({course: ex.course, ev: ex, due: ex.due})}
-    <div class="card"><div class="list">` + blocks.map(b => `
-      <div class="item"><div class="body" style="padding-left:4px">
-        <div class="t">${esc(b.label)}</div>
-        <div class="sub"><span class="duelbl">${FMT_DAY.format(b.dt)}</span><span class="etag">${EFFORT[b.effort].label} · ~${EFFORT[b.effort].mins}m</span></div>
-      </div></div>`).join("") + `</div></div>
+    <h3 id="ppTitle">Exam prep: ${esc(x.name)}</h3>
+    <p class="sub2">${esc(x.course)} · ${x.approx ? `about ${FMT_DAY.format(x.due)} (LMK's guess, not in ${lmsName()})` : FMT_DAY.format(x.due) + (x.ev && !x.ev.allDay ? " · " + FMT_TIME.format(x.due) : "")} · ${days === 0 ? "today" : days === 1 ? "tomorrow" : "in " + days + " days"}</p>
+    ${examFactsHtml(x)}
+    ${last ? `<p class="examfacts" style="margin-top:0">Last exam in ${esc(x.course)}: ${pastLine(last)}.</p>` : ""}
+    <h2 class="sec" style="margin:14px 0 8px">Study plan</h2>
+    ${days > 0 && !p.own ? `<div class="caprow" style="margin:0 0 10px"><span>How much</span>${["off", "light", "normal", "heavy"].map(amtChip).join("")}</div>` : ""}
+    ${plan}
     ${related.length ? `<h2 class="sec" style="margin:16px 0 8px">What it covers <span class="count">${related.filter(r => store.done[r.id]).length} of ${related.length} done</span></h2><div class="card"><div class="list">` + related.map(r => `
       <div class="item${store.done[r.id] ? " done" : ""}"><div class="body" style="padding-left:4px"><div class="t" style="font-weight:500">${store.done[r.id] ? "✓ " : ""}${esc(r.title)}</div><div class="sub"><span class="duelbl">${FMT_DAY.format(r.due)}</span></div></div>
-      ${r.url?`<a class="iconbtn" href="${esc(r.url)}" target="_blank" rel="noopener" aria-label="Open in ${lmsName()}">${ICON_LINK}</a>`:""}</div>`).join("") + `</div></div>` : ""}
+      ${r.url ? `<a class="iconbtn" href="${esc(r.url)}" target="_blank" rel="noopener" aria-label="Open in ${lmsName()}">${ICON_LINK}</a>` : ""}</div>`).join("") + `</div></div>` : ""}
     <div class="row" style="margin-top:16px">
-      <button class="btn primary" id="ppAdd">Add ${blocks.length} study block${blocks.length>1?"s":""} to my plan</button>
-      <button class="btn ghost" id="ppClose">Not now</button>
+      ${x.approx ? `<button class="btn primary" data-act="exam-date">Set the real date</button>` : ""}
+      <button class="btn ghost" id="ppClose">Close</button>
     </div>`;
   planOverlay.classList.add("open");
 }
 planOverlay.addEventListener("click", e => {
   if (e.target === planOverlay || e.target.id === "ppClose") { planOverlay.classList.remove("open"); return; }
-  if (e.target.id === "ppAdd" && pendingPlan) {
-    const stamp = Date.now();
-    pendingPlan.blocks.forEach((b, i) => {
-      const dt = b.dt.getFullYear() + String(b.dt.getMonth()+1).padStart(2,"0") + String(b.dt.getDate()).padStart(2,"0");
-      store.customRows.push([`Study: ${pendingPlan.short} — ${b.label.split(" — ")[0]}`, pendingPlan.course, dt, "", "custom-" + stamp + "-" + i, "", b.effort]);
-    });
-    save(); loadData(); render();
-    toast(`${pendingPlan.blocks.length} study blocks added — they’ll surface on the right days.`);
-    pendingPlan = null; planOverlay.classList.remove("open");
-  }
+  const act = e.target.closest("[data-act]"); if (!act) return;
+  const x = examFind(examSheetKey); if (!x) return;
+  if (act.dataset.act === "prep-amt") {
+    store.prepAmt = store.prepAmt || {};
+    if (act.dataset.v === "normal") delete store.prepAmt[x.key]; else store.prepAmt[x.key] = act.dataset.v;
+    save(); render(); openExamSheet(x);
+  } else if (act.dataset.act === "exam-date") { planOverlay.classList.remove("open"); openAddExam(x); }
 });
 
 /* ================= paste-from-canvas importer ================= */
@@ -5584,7 +5745,7 @@ function mergeStores(a, b){
   const newer = (b.savedAt||0) >= (a.savedAt||0) ? b : a;
   const older = newer === b ? a : b;
   const m = {};
-  for (const k of ["done","dropped","examHide","starred","triaged","itemNotes","courseNotes","grades","effortOv","leadOv","seriesRules","kindOv","extGraded","extDone","handDone","capOv","celebrated","recapSeen","lmkSyllabusIds","sessLog","wrappedSeen"]) {
+  for (const k of ["done","dropped","examHide","prepDone","prepAmt","starred","triaged","itemNotes","courseNotes","grades","effortOv","leadOv","seriesRules","kindOv","extGraded","extDone","handDone","capOv","celebrated","recapSeen","lmkSyllabusIds","sessLog","wrappedSeen"]) {
     m[k] = Object.assign({}, older[k]||{}, newer[k]||{});
   }
   // learning data: measurements union by timestamp, tracked minutes take the max
