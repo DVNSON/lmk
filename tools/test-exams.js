@@ -52,13 +52,13 @@ const row=(ws,key)=>`document.querySelector('.runway [data-exam="${key}"]')`;   
   check('E1 FMS 265: a 40% "Midterm and Final" category with nothing dated is a GAP; CIS 105 (no exam category) is absent', fms && fms.gap && fms.w===40 && !L.some(x=>x.c==='CIS 105'), L);
   check('E1 a Canvas exam\'s share is its real weight (80% over two 100-point exams = 40 points); a guess has no share of its own', Math.round(psy2.share)===40 && mat.share===null, {psy2:psy2.share, mat:mat.share});
   let N=await nowCard(ws);
-  const iToday=N.hs.findIndex(h=>/^Today/.test(h)), iEx=N.hs.findIndex(h=>/^Exams/.test(h));
-  check('E2 Now has an Exams section right after today\'s plan (the hero and Today stay first)', iToday>=0 && iEx===iToday+1, N.hs);
+  const iToday=N.hs.findIndex(h=>/^Today/.test(h)), iEx=N.hs.findIndex(h=>/^Exams/.test(h)), iTmrw=N.hs.findIndex(h=>/^Due tomorrow/.test(h));
+  check('E2 Now has an Exams section (this week) right under Due tomorrow, after today\'s plan (v73.4; Emiel: "underneath the due tomorrow section")', iToday>=0 && iTmrw>iToday && iEx===iTmrw+1 && /^Exams this week/.test(N.hs[iEx]), N.hs);
   check('E2 the PSY row: days left, date, share, practice done, the LockDown + webcam tag, a Prep button', N.rows.some(r=>/^7 days Exam 2 \(Ch\. 5 and 6\) PSY 101/i.test(r) && /40% of grade/i.test(r) && /practice 0\/2/i.test(r) && /LockDown Browser \+ webcam/i.test(r) && /Prep/.test(r)), N.rows);
   check('E2 the MAT guess says it is a guess, never a fact: "~6", "about", "LMK\'s guess, not in Canvas", Set date', N.rows.some(r=>/^~6 days Exam 2 MAT 210 about .*LMK's guess, not in Canvas/i.test(r) && /Set date/.test(r)), N.rows);
   check('E2 a guess never claims its own share of the grade: it shows its category\'s ("exams: 70% of grade"), never "~70%" for one exam', N.rows.some(r=>/MAT 210/.test(r) && /exams: 70% of grade/i.test(r) && !/~70%/.test(r)), N.rows);
   check('E2 the FMS gap names the category and its weight and asks for the date', N.rows.some(r=>/FMS 265: exams with no date/.test(r) && /Midterm and Final count for 40% of your grade/.test(r) && /Add date/.test(r)), N.rows);
-  check('E2 an exam more than three weeks out is one line under the card, not a row', /After that: PSY 101 · Exam 3 \(Ch\. 8\)/.test(N.after) && !N.rows.some(r=>/Exam 3/.test(r)), N.after);
+  check('E2 an exam beyond the week is one line under the card, not a row', /After that: PSY 101 · Exam 3 \(Ch\. 8\)/.test(N.after) && !N.rows.some(r=>/Exam 3/.test(r)), N.after);
   // practice done -> readiness moves
   await ev(ws,`toggleDone(EVENTS.find(e=>/Chapter 5 Practice/.test(e.title)).id); 1`); await sleep(700);
   N=await nowCard(ws);
