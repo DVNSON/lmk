@@ -1,6 +1,7 @@
 /* Onboarding state machine, end to end, in a real headless Chrome. 40 checks: the checklist hero's states
    (fresh / checking / waiting / stuck / empty / phone), the welcome overlay's copy per state, the first-sync
-   reveal and its 10-minute flag, the name draft, the sync-from-anywhere consent box, the ASU note.
+   reveal and its 10-minute flag, the name draft, the sync-from-anywhere consent box, and (v73.4) the setup steps:
+   platform, school address, approval, and that nothing points at ASU.
    Run:  cd ~/lmk-web && python3 -m http.server 8899 &
          "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --remote-debugging-port=9333 --user-data-dir=/tmp/lmk-cdp-wi about:blank &
          node tools/test-onboarding.js
@@ -22,6 +23,7 @@ async function fresh(ws, {seed={onboarded:0}, ls={}, mobile=false, ua=''}={}){
   await ev(ws,`navigator.serviceWorker && navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister()))`);
   await send(ws,'Page.navigate',{url:'http://localhost:8899/app/'}); await sleep(2600);
 }
+const READY = {lmk_lms_hint:'canvas', lmk_school:'myschool.instructure.com'};   // the two setup answers, for a school read out of the box
 const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...document.querySelectorAll('.checks li')].map(li=>li.className+':'+li.textContent.trim());
   const wb2=document.getElementById('wBody2'), heroTxt=(document.querySelector('section.view .hero')||{}).textContent||'';
   const s3el=document.getElementById('wSignin3');
@@ -38,9 +40,10 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
 
   // T1 fresh laptop
   await fresh(ws); let r=JSON.parse(await ev(ws,Q));
-  check('T1 fresh: checklist renders with row 1 current', r.rows.length===3 && /^now:/.test(r.rows[0]) && /^todo:/.test(r.rows[1]), r.rows);
-  check('T1 fresh: Add to Chrome is the primary action', r.addToChrome, r);
-  check('T1 fresh: the extension is marked required, and the alternatives say what they are for', r.reqTag && /required step/.test(r.heroTxt) && /the extension does this/.test(r.heroTxt) && r.signinLbl==='Used LMK before? Sign in' && r.otherLbl==="Can't add it? Other ways", {req:r.reqTag, s:r.signinLbl, o:r.otherLbl});
+  check('T1 fresh: the steps start with the platform, five rows, row 1 current', r.rows.length===5 && /^now:Which one your school uses/.test(r.rows[0]) && /^todo:/.test(r.rows[1]), r.rows);
+  { const p1=JSON.parse(await ev(ws,`JSON.stringify({picks:[...document.querySelectorAll('.pick')].map(b=>b.dataset.lms), asu:!!document.querySelector('section.view .hero a[href*="asu.edu"]'), href:canvasHref()})`));
+    check('T1 fresh: three choices (Canvas, Brightspace, something else), no store button yet, and nothing points at ASU', p1.picks.join()==='canvas,d2l,other' && !r.addToChrome && !p1.asu && p1.href==='', p1); }
+  check('T1 fresh: the extension row is marked required from the start', r.reqTag, r.rows);
   /* v71.1: on a computer with nothing synced the welcome no longer opens over the card (it covered the one required
      button); it opens at the first sync. Opened by hand (the gear's setup guide), the sheet still says the same things. */
   check('T1 fresh: the welcome does NOT open over the setup card on a computer', !r.overlay, {o:r.overlay});
@@ -49,11 +52,16 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
   check('T1 opened by hand: its install button hidden, step 2 names the extension as the required step', r.overlay && r.wInstallHidden && /required step/.test(r.wHead2) && /no automatic way in without it/.test(r.wBody2), {o:r.overlay,h:r.wInstallHidden,w:r.wHead2,b:r.wBody2});
   check('T1 opened by hand: the sheet\'s Google button is a demoted restore, not the loudest thing in it', r.s3==='Used LMK before? Sign in' && r.s3cls==='btn ghost', {t:r.s3, c:r.s3cls});
   check('T1 fresh: no template literal leaked into visible text', !r.leaked);
+  // T1b both answers given: the extension is the step, and the alternatives say what they are for
+  await fresh(ws,{ls:READY}); r=JSON.parse(await ev(ws,Q));
+  check('T1b answered: row 3 (the extension) is current and Add to Chrome is the primary action', /^done:My school uses Canvas/.test(r.rows[0]) && /^done:My school is at myschool\.instructure\.com/.test(r.rows[1]) && /^now:Add the LMK/.test(r.rows[2]) && r.addToChrome, r.rows);
+  check('T1b answered: the alternatives say what they are for', /required step/.test(r.heroTxt) && /myschool\.instructure\.com/.test(r.heroTxt) && r.signinLbl==='Used LMK before? Sign in' && r.otherLbl==="Can't add it? Other ways", {s:r.signinLbl, o:r.otherLbl});
 
   // T2 hello arrives (posted FROM the page, satisfying ev.source === window)
+  await fresh(ws,{ls:READY});
   await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.4.2'}, '*')`); await sleep(600); r=JSON.parse(await ev(ws,Q));
-  check('T2 hello: row 1 done, row 2 current, hero waiting', /^done:Extension added/.test(r.rows[0]) && /^now:Canvas or Brightspace read once/.test(r.rows[1]) && r.waiting, r.rows);
-  check('T2 hello: headline says waiting', r.h1==='Extension added. Waiting for Canvas or Brightspace…', r.h1);
+  check('T2 hello: the extension row done, "read once" current, hero waiting', /^done:Extension added/.test(r.rows[2]) && /^now:Canvas read once/.test(r.rows[3]) && r.waiting, r.rows);
+  check('T2 hello: the headline names the school to open, and the button opens it', r.h1==='Open myschool.instructure.com and sign in.' && /href="https:\/\/myschool\.instructure\.com\/#lmk-sync"/.test(await ev(ws,`document.querySelector('section.view .hero .actions').innerHTML`)), r.h1);
   check('T2 hello: overlay step 2 now says added', r.wHead2==='Extension added ✓' && r.wInstallHidden, r.wHead2);
   const stable = await ev(ws,`(function(){ const a=document.querySelector('section.view').innerHTML; render(); render(); return a===document.querySelector('section.view').innerHTML; })()`);
   check('T2 hello: hero string is byte-stable across renders (pulse never restarts)', stable===true);
@@ -66,12 +74,12 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
     Object.defineProperty(document,'hidden',{configurable:true,get:()=>false}); for(let i=0;i<20;i++) cb(); const visibleStuck=extStuck;
     return JSON.stringify({hiddenStuck, visibleStuck}); })()`);
   const c=JSON.parse(clock); check('T3 stuck escalation ignores hidden time and fires when visible', c.hiddenStuck===false && c.visibleStuck===true, c);
-  r=JSON.parse(await ev(ws,Q)); check('T3 stuck headline', r.h1==='Nothing has come back from Canvas or Brightspace yet.' && /^now:Canvas or Brightspace read once/.test(r.rows[1]), r.h1);
+  r=JSON.parse(await ev(ws,Q)); check('T3 stuck headline, and it says how to check the address', r.h1==='Nothing has come back from Canvas yet.' && /^now:Canvas read once/.test(r.rows[3]) && /compare the first part of the address bar/.test(r.heroTxt), r.h1);
 
   // T4 empty answer
   await fresh(ws); await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.4.2'}, '*')`); await sleep(300);
   await ev(ws,`window.postMessage({lmk:'canvas-payload', payload:{lmk:'canvas',v:3,at:Date.now(),host:'canvas.uw.edu',items:{},courses:[],groups:{}}}, '*')`); await sleep(500); r=JSON.parse(await ev(ws,Q));
-  check('T4 empty: rows 1+2 done, row 3 current, headline explains', /^done:/.test(r.rows[0]) && /^done:/.test(r.rows[1]) && /^now:/.test(r.rows[2]) && r.h1==='Canvas answered, but no active courses came back.', {rows:r.rows,h1:r.h1});
+  check('T4 empty: every row done but the last, which is current; headline explains', r.rows.slice(0, -1).every(x => /^done:/.test(x)) && /^now:Your classes land here/.test(r.rows[r.rows.length-1]) && r.h1==='Canvas answered, but no active courses came back.', {rows:r.rows,h1:r.h1});
   check('T4 empty: store.ext not written, no first-sync key', !r.ext && r.firstKey===null, {ext:r.ext,key:r.firstKey});
   const href = await ev(ws,`canvasHref()`); check('T4 empty: Open Canvas now points at the school that answered', /canvas\.uw\.edu/.test(href), href);
 
@@ -103,10 +111,10 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
     check('T7 phone: the main button sends the link to a laptop, and a sample is one tap away', ph.first==='Send this link to my laptop' && ph.sample, ph); }
 
   // T10 the hint suppresses the flash
-  await fresh(ws,{ls:{lmk_ping_ext:'1'}}); r=JSON.parse(await ev(ws,Q));
-  check('T10 hint: paints "Checking…" and no store button before hello', /Checking for the extension/.test(r.rows[0]) && !r.addToChrome, r.rows);
+  await fresh(ws,{ls:Object.assign({lmk_ping_ext:'1'}, READY)}); r=JSON.parse(await ev(ws,Q));
+  check('T10 hint: paints "Checking…" and no store button before hello', /Checking for the extension/.test(r.rows[2]) && !r.addToChrome, r.rows);
   await sleep(2800); r=JSON.parse(await ev(ws,Q));
-  check('T10 hint: settles to Add to Chrome when no hello arrives', r.addToChrome && /^now:Add the LMK/.test(r.rows[0]), r.rows);
+  check('T10 hint: settles to Add to Chrome when no hello arrives', r.addToChrome && /^now:Add the LMK/.test(r.rows[2]), r.rows);
 
   // T11 the typed name survives a reload
   await fresh(ws); await ev(ws,`const n=document.getElementById('wName'); n.value='Sam'; n.dispatchEvent(new Event('input'))`); r=JSON.parse(await ev(ws,Q));
@@ -149,7 +157,7 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
   r=JSON.parse(await ev(ws,`JSON.stringify({n: EVENTS.length, bar: !!document.querySelector('.samplebar'), flag: localStorage.getItem('lmk_sample'), left: JSON.stringify(Object.assign({}, store, {deleted: null})).includes('99900000'), tombs: Object.keys(store.deleted||{}).filter(k => /^done:a99900000/.test(k)).length})`));
   check('T18 sample: real classes replace it, the flag goes, its checkmarks leave the store as tombstones (so Drive cannot bring them back)', r.n === 3 && !r.bar && r.flag === null && !r.left && r.tombs === 2, r);
   // T19 a browser that cannot install the extension
-  await fresh(ws,{ua:'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15'}); r=JSON.parse(await ev(ws,Q));
+  await fresh(ws,{ls:READY, ua:'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15'}); r=JSON.parse(await ev(ws,Q));
   { const sf=JSON.parse(await ev(ws,`JSON.stringify({first:(document.querySelector('section.view .hero .actions .btn')||{}).textContent||'', txt:(document.querySelector('section.view .hero .why')||{}).textContent||''})`));
     check('T19 Safari: the card says which browsers work and the main button copies the link instead of opening the store', sf.first==='Copy this link' && /Chrome, Edge, Brave or Arc, not in this browser/.test(sf.txt) && !r.addToChrome, sf); }
   await fresh(ws,{mobile:true}); r=JSON.parse(await ev(ws,`JSON.stringify({row: !document.getElementById('wCloudRow').hidden})`));
@@ -173,23 +181,45 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
     r=JSON.parse(await ev(ws,`JSON.stringify({open:[...document.querySelectorAll('body > .overlay.open')].map(o=>o.id), hero:!!document.querySelector('section.view .hero'), plans:/LMK Plus|per month|\\$[0-9]/.test(document.body.innerText), err:(window.__errs||[]).length})`));
     check('T17 #'+h+' (an old Stripe return link) opens the app normally: no sheet, no price anywhere, the first-run card', r.open.length===0 && r.hero && !r.plans, r);
   }
-  // T16 before any school has answered, "Open Canvas" is ASU's and says so
-  await fresh(ws); r=await ev(ws,`/opens ASU's Canvas/.test(document.querySelector('section.view .hero').textContent)`);
-  check('T16 ASU note: shown on a fresh laptop', r===true, r);
-  await fresh(ws,{mobile:true}); r=await ev(ws,`/opens ASU's Canvas/.test(document.querySelector('section.view .hero').textContent)`);
-  check('T16 ASU note: not on a phone', r===false, r);
-  // T18 the LMS choice on the first-run card: Brightspace hides the Canvas-only routes and says where to go; it survives a reload
-  await fresh(ws); r=JSON.parse(await ev(ws,`JSON.stringify({chips:document.querySelectorAll('[data-act="lms-hint"]').length, canvasBtn:!!document.querySelector('section.view .hero a[href*="lmk-sync"]'), asu:/opens ASU's Canvas/.test(document.querySelector('section.view .hero').textContent)})`));
-  check('T18 fresh: both LMS chips, the Canvas button and the ASU note (Canvas is the default)', r.chips===2 && r.canvasBtn && r.asu, r);
-  await ev(ws,`document.querySelector('[data-act="lms-hint"][data-lms="d2l"]').click()`); await sleep(300);
-  r=JSON.parse(await ev(ws,`JSON.stringify({hint:localStorage.getItem('lmk_lms_hint'), txt:document.querySelector('section.view .hero').textContent, canvasBtn:!!document.querySelector('section.view .hero a[href*="lmk-sync"]'), token:!!document.querySelector('section.view .hero [data-act="open-token"]'), rows:[...document.querySelectorAll('.checks li')].map(li=>li.textContent.trim())})`));
-  check('T18 Brightspace chosen: no Canvas button, no token route, the brightspace.com line, the checklist says Brightspace', r.hint==='d2l' && !r.canvasBtn && !r.token && /brightspace\.com/.test(r.txt) && !/opens ASU's Canvas/.test(r.txt) && /finds it there/.test(r.txt) && !/opens your school's site by itself/.test(r.txt) && /Brightspace read once/.test(r.rows[1]), r);
-  await send(ws,'Page.reload'); await sleep(2200);
-  r=JSON.parse(await ev(ws,`JSON.stringify({txt:document.querySelector('section.view .hero').textContent, pressed:(document.querySelector('[data-act="lms-hint"][data-lms="d2l"]')||{}).getAttribute&&document.querySelector('[data-act="lms-hint"][data-lms="d2l"]').getAttribute('aria-pressed')})`));
-  check('T18 the choice survives a reload', /brightspace\.com/.test(r.txt) && r.pressed==='true', r);
-  await ev(ws,`document.querySelector('[data-act="lms-hint"][data-lms="canvas"]').click()`); await sleep(300);
-  r=JSON.parse(await ev(ws,`JSON.stringify({canvasBtn:!!document.querySelector('section.view .hero a[href*="lmk-sync"]'), hint:localStorage.getItem('lmk_lms_hint')})`));
-  check('T18 back to Canvas: the button returns', r.canvasBtn && r.hint==='canvas', r);
+  // T16 nothing points at ASU before a school is known (v73.4: "Open Canvas" used to be ASU's for everyone)
+  await fresh(ws,{ls:{lmk_lms_hint:'canvas'}}); r=JSON.parse(await ev(ws,`JSON.stringify({href:canvasHref(), links:[...document.querySelectorAll('section.view .hero a')].map(a=>a.href).filter(h=>/asu\\.edu/.test(h)), txt:/ASU's Canvas/.test(document.querySelector('section.view .hero').textContent)})`));
+  check('T16 Canvas picked, no school yet: no Open button, no ASU link, no "ASU\'s Canvas" note', r.href==='' && !r.links.length && !r.txt, r);
+  // T18 the platform choice and the school address, step by step
+  await fresh(ws); await ev(ws,`document.querySelector('.pick[data-lms="d2l"]').click()`); await sleep(300);
+  r=JSON.parse(await ev(ws,`JSON.stringify({hint:localStorage.getItem('lmk_lms_hint'), h1:document.querySelector('section.view .hero h1').textContent, ph:(document.getElementById('schoolIn')||{}).placeholder, token:!!document.querySelector('section.view .hero [data-act="open-token"]'), focus:document.activeElement&&document.activeElement.id})`));
+  check('T18 Brightspace picked: the address step asks for the Brightspace address, focused, with its example and no token route', r.hint==='d2l' && r.h1==="What's your school's Brightspace address?" && r.ph==='yourschool.brightspace.com' && !r.token && r.focus==='schoolIn', r);
+  await ev(ws,`{const i=document.getElementById('schoolIn'); i.value='not an address'; document.querySelector('[data-act="school-save"]').click()}`); await sleep(200);
+  r=JSON.parse(await ev(ws,`JSON.stringify({msg:document.getElementById('schoolMsg').textContent, hidden:document.getElementById('schoolMsg').hidden, saved:localStorage.getItem('lmk_school')})`));
+  check('T18 a bad address is refused with a sentence, nothing saved', !r.hidden && /doesn't look like a web address/.test(r.msg) && r.saved===null, r);
+  await ev(ws,`{const i=document.getElementById('schoolIn'); i.value='https://Learn.School.Brightspace.com/d2l/home'; i.dispatchEvent(new Event('input',{bubbles:true})); i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))}`); await sleep(300);
+  r=JSON.parse(await ev(ws,Q));
+  check('T18 a pasted URL (Enter) is cut to its host and saved; a brightspace.com school needs no approval, so the extension is next', (await ev(ws,`localStorage.getItem('lmk_school')`))==='learn.school.brightspace.com' && /^now:Add the LMK/.test(r.rows[2]) && r.rows.length===5, r.rows);
+  await send(ws,'Page.reload'); await sleep(2200); r=JSON.parse(await ev(ws,Q));
+  check('T18 both answers survive a reload', /^done:My school uses Brightspace/.test(r.rows[0]) && /learn\.school\.brightspace\.com/.test(r.rows[1]), r.rows);
+  await ev(ws,`document.querySelector('[data-act="setup-change"][data-step="platform"]').click()`); await sleep(300);
+  r=JSON.parse(await ev(ws,`JSON.stringify({hint:localStorage.getItem('lmk_lms_hint'), school:localStorage.getItem('lmk_school'), picks:document.querySelectorAll('.pick').length})`));
+  check('T18 Change on the platform clears it and the school after it', r.hint===null && r.school===null && r.picks===3, r);
+  await ev(ws,`window.__toasts=[]; const _t2=toast; toast=(m,a)=>{window.__toasts.push(String(m)); return _t2(m,a);}; document.querySelector('.pick[data-lms="canvas"]').click()`); await sleep(300);
+  await ev(ws,`{const i=document.getElementById('schoolIn'); i.value='x.brightspace.com'; document.querySelector('[data-act="school-save"]').click()}`); await sleep(300);
+  r=JSON.parse(await ev(ws,`JSON.stringify({hint:localStorage.getItem('lmk_lms_hint'), toasts:window.__toasts})`));
+  check('T18 a Brightspace address typed under Canvas switches the platform and says so', r.hint==='d2l' && /switched to Brightspace/.test(r.toasts.join(' ')), r);
+  // T20 a school on its own address: the approval step, ticked off by the extension
+  await fresh(ws,{ls:{lmk_lms_hint:'canvas', lmk_school:'canvas.uw.edu'}}); await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.9.8'}, '*')`); await sleep(500); r=JSON.parse(await ev(ws,Q));
+  check('T20 own address: six rows, "Let LMK read canvas.uw.edu" current, step 4 of 5', r.rows.length===6 && /^now:Let LMK read canvas\.uw\.edu/.test(r.rows[3]) && /Step 4 of 5/.test(await ev(ws,`document.querySelector('section.view .hero .kicker').textContent`)), r.rows);
+  await ev(ws,`window.__posted=[]; const _pm=window.postMessage.bind(window); window.postMessage=(d,o)=>{window.__posted.push(d); return _pm(d,o);}; document.querySelector('[data-act="host-add"]').click()`); await sleep(200);
+  r=JSON.parse(await ev(ws,`JSON.stringify(window.__posted.filter(d=>d&&d.lmk==='host-page'))`));
+  check('T20 Approve asks the extension for its page with the typed school as a suggestion', r.length===1 && r[0].host==='canvas.uw.edu', r);
+  await ev(ws,`window.postMessage({lmk:'ext-hosts', hosts:['canvas.uw.edu']}, '*')`); await sleep(400); r=JSON.parse(await ev(ws,Q));
+  check('T20 once Chrome granted it, the row ticks and the school is next to open', /^done:canvas\.uw\.edu approved in Chrome/.test(r.rows[3]) && /^now:Canvas read once/.test(r.rows[4]) && r.h1==='Open canvas.uw.edu and sign in.', r.rows);
+  await fresh(ws,{ls:{lmk_lms_hint:'canvas', lmk_school:'canvas.uw.edu'}}); await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.4.2'}, '*')`); await sleep(500);
+  r=JSON.parse(await ev(ws,`JSON.stringify({txt:document.querySelector('section.view .hero .why').textContent, btn:!!document.querySelector('[data-act="host-add"]')})`));
+  check('T20 an extension too old to add a school says to update it, with no dead button', /Update it/.test(r.txt) && !r.btn, r);
+  // T21 a platform LMK cannot read yet
+  await fresh(ws); await ev(ws,`document.querySelector('.pick[data-lms="other"]').click()`); await sleep(300);
+  r=JSON.parse(await ev(ws,`JSON.stringify({h1:document.querySelector('section.view .hero h1').textContent, ask:!!document.querySelector('section.view .hero a[href*="mail"]'), store:/Add to Chrome/.test(document.querySelector('section.view .hero').innerHTML)})`));
+  check('T21 "Something else": an honest no, a way to ask for it, and no store button', r.h1==="LMK can't read that one yet." && r.ask && !r.store, r);
+  await ev(ws,`document.querySelector('[data-act="setup-change"][data-step="platform"]').click()`); await sleep(300);
+  check('T21 Back returns to the choice', (await ev(ws,`document.querySelectorAll('.pick').length`))===3);
   console.log('\\nJS errors during run:', errs.length? errs.slice(0,4) : 'none');
   console.log(`\\n${fail? fail+' FAILED' : 'ALL OK'}  (${pass} passed)`);
   ws.close(); process.exit(fail?1:0);

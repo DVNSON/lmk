@@ -661,8 +661,16 @@
   .intro .txt{flex:1 1 260px;min-width:0;font-size:13.5px;line-height:1.45;color:var(--ink-2)}   /* min-width:0: a flex item defaults to its content width, and a row of class chips is wider than a phone */
   .intro .txt b{display:block;color:var(--ink);font-size:15px;margin-bottom:2px}
   .roomline{margin:14px 0 4px}
-  .lmschoice{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:4px}
-  .lmschoice .chip{padding:4px 11px}
+  /* the setup steps (v73.4): the platform choice and the school address */
+  .pickgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0 4px}
+  .pick{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:14px 16px;border:1.5px solid var(--line-strong);border-radius:14px;background:var(--surface);color:var(--ink);font:inherit;text-align:left;cursor:pointer;min-width:0}
+  .pick b{font:700 16px/1.2 'Bricolage Grotesque',sans-serif}
+  .pick span{font-size:12.5px;color:var(--muted)}
+  .pick:hover{border-color:var(--c1)}
+  .pick:focus-visible{outline:2px solid var(--c1);outline-offset:2px}
+  .schoolform{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 4px}
+  .schoolform input{flex:1 1 220px;min-width:0;border:1px solid var(--ctl-line);border-radius:10px;background:var(--surface-2);color:var(--ink);padding:11px 13px;font:inherit;font-size:16px}
+  .checks .minibtn{margin-left:4px;font-weight:400}
   .roster{list-style:none;margin:0 0 14px;padding:0;display:flex;flex-direction:column;gap:6px}
   .roster li{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);font-size:13.5px}
   .roster .rname{font-weight:600;color:var(--ink)}
@@ -1450,13 +1458,13 @@ function applyCanvasPayload(p, opts = {}){
     /* Canvas answered — that is a fact the first-run card can show — it just had nothing in it (wrong account,
        or a term whose courses are not published yet). Remember it on EXT, never in the store, and let the
        card say so persistently; a toast lasts three seconds and the student may be on the Canvas tab. */
-    EXT.emptyAt = Date.now(); if (p.host) EXT.host = String(p.host); EXT.lms = p.lms === "d2l" ? "d2l" : "canvas"; if (!store.ext) render();
+    EXT.emptyAt = Date.now(); if (p.host) EXT.host = String(p.host); EXT.lms = platform(p.lms) ? p.lms : "canvas"; if (!store.ext) render();
     if (!opts.quiet) toast(taughtOnly()
       ? `LMK plans a student's own work, and the ${taughtOnly()} course${taughtOnly() === 1 ? "" : "s"} on this account ${taughtOnly() === 1 ? "is one" : "are ones"} you teach.`
       : `${lmsName()} answered, but no active courses came back. Are you signed in to the right ${lmsName()} account?`);
     return null;
   }
-  store.ext = {at:p.at || Date.now(), host:p.host || "", lms: p.lms === "d2l" ? "d2l" : "canvas", items, courses:(p.courses && p.courses.length) ? p.courses : ((store.ext || {}).courses || []), groups:p.groups || (store.ext || {}).groups || {}};
+  store.ext = {at:p.at || Date.now(), host:p.host || "", lms: platform(p.lms) ? p.lms : "canvas", items, courses:(p.courses && p.courses.length) ? p.courses : ((store.ext || {}).courses || []), groups:p.groups || (store.ext || {}).groups || {}};
   EXT.emptyAt = 0;
   save(); loadData();
   try { if (absorbTracking.quizTimes) absorbTracking.quizTimes(); } catch(_){}   // EVENTS is current now, so the prediction is real
@@ -1485,7 +1493,7 @@ function renderBgStatus(){
   /* The first-run card's "Add my school's Canvas" used to be the only door, and it closed the moment any data
      existed. A student who got in once by another route (a token, a paste) needs it after that day too. */
   const hr = document.getElementById("setupHost");
-  if (hr) { if (EXT.present && extCanAdopt() && MODE === "web") { hr.innerHTML = `Your school's Canvas or Brightspace isn't on canvas.asu.edu, instructure.com or brightspace.com? <button class="minibtn" data-act="host-add">Add my school's Canvas</button>`; hr.hidden = false; } else hr.hidden = true; }
+  if (hr) { if (EXT.present && extCanAdopt() && MODE === "web") { hr.innerHTML = `Your school's ${LMS_LIST} has its own address? <button class="minibtn" data-act="host-add">Add my school</button>`; hr.hidden = false; } else hr.hidden = true; }
   const el = document.getElementById("setupBg"); if (!el) return;
   if (!EXT.present || MODE !== "web" && MODE !== "artifact") { el.hidden = true; return; }
   const r = EXT.resync, ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 1440 ? Math.round(m / 60) + " h ago" : Math.round(m / 1440) + " d ago"; };
@@ -1555,7 +1563,7 @@ async function cloudRegisterToken(host, token){
   const msg = document.getElementById("ctMsg");
   const say = (t, ok) => { if (msg) { msg.textContent = t; msg.className = "parse-msg " + (ok ? "ok" : "err"); } };
   host = (host || "").trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "").toLowerCase(); token = (token || "").trim();
-  if (!/^[a-z0-9][a-z0-9.-]{2,80}\.[a-z]{2,}$/.test(host)) return say("That doesn't look like a Canvas address (try canvas.asu.edu).", false);
+  if (!/^[a-z0-9][a-z0-9.-]{2,80}\.[a-z]{2,}$/.test(host)) return say("That doesn't look like a Canvas address (it looks like canvas.yourschool.edu).", false);
   if (token.length < 20) return say("Paste the whole token.", false);
   if (!store.onboarded) { store.onboarded = 1; }
   if (!store.cloud || !store.cloud.sid) { store.cloud = {sid: randHex(16), secret: randB64(32), on: true, at: Date.now()}; }
@@ -1582,17 +1590,53 @@ function cloudTurnOff(){
   CLOUD.registered = false; renderCloudStatus();
   toast("Sync from anywhere is off. LMK's server forgot your Canvas sync.");
 }
-/* Every "Open Canvas" used to be the literal ASU address, which sends a student at any other school to a
-   login page for a university they do not attend. The collector already stamps every payload with the host it
-   read (`store.ext.host`), so once a sync has happened the app knows the right one — it just never used it. */
-function canvasHref(){
-  const h = String((store.ext || {}).host || EXT.host || "").trim();
-  return /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(h) ? "https://" + h + "/#lmk-sync" : LMK_CONFIG.canvasUrl;
+/* ---- the learning platforms LMK reads (v73.4) ----
+   One list, read by the setup steps, the address check and lmsName(). A new platform is one entry here plus its reader
+   in the extension (platforms.js + a collector); the whole checklist is ~/lmk-docs/extension.md, "Adding a platform".
+   `id` matches the extension's platforms.js and the payload's `lms` (Canvas payloads carry none, so it is the
+   default). `native`: addresses the extension reads out of the box — any other one the student approves once in
+   Chrome. `token`: the platform gives students access tokens (Sync from anywhere, the token route: Canvas only). */
+const PLATFORMS = [
+  {id: "canvas", name: "Canvas", maker: "Instructure", native: [/(^|\.)instructure\.com$/, /^canvas\.asu\.edu$/], example: "canvas.yourschool.edu",
+   where: "It often starts with <b>canvas.</b> or ends in <b>instructure.com</b>.", token: true},
+  {id: "d2l", name: "Brightspace", maker: "D2L", native: [/(^|\.)brightspace\.com$/], example: "yourschool.brightspace.com",
+   where: "It often ends in <b>brightspace.com</b>, or starts with <b>d2l.</b>, <b>elearn.</b> or <b>learn.</b>", token: false},
+];
+const platform = id => PLATFORMS.find(p => p.id === id) || null;
+const platformOfHost = h => PLATFORMS.find(p => p.native.some(r => r.test(h))) || null;
+/* Schools whose address LMK has seen answer (the same rows as tools/build-schools.py) — suggestions in the address box,
+   never a default. Add a row only for an address you have seen answer. */
+const KNOWN_SCHOOLS = [
+  ["Arizona State University", "canvas.asu.edu", "canvas"], ["University of Washington", "canvas.uw.edu", "canvas"],
+  ["UCLA (Bruin Learn)", "bruinlearn.ucla.edu", "canvas"], ["Harvard University", "canvas.harvard.edu", "canvas"],
+  ["University of Wisconsin–Madison", "canvas.wisc.edu", "canvas"], ["UC Davis", "canvas.ucdavis.edu", "canvas"],
+  ["University of Pennsylvania", "canvas.upenn.edu", "canvas"], ["Rutgers University", "canvas.rutgers.edu", "canvas"],
+  ["UT Dallas (eLearning)", "elearning.utdallas.edu", "canvas"],
+];
+const HOST_RE = /^[a-z0-9][a-z0-9.-]{2,80}\.[a-z]{2,}$/;
+/* what a student pastes: a whole URL, a path, a port — down to the host */
+const cleanHost = v => String(v || "").trim().toLowerCase().replace(/^[a-z]+:\/\//, "").replace(/[/?#].*$/, "").replace(/[:@\s].*$/, "");
+/* The setup answers live on this device only (never the store) until a school answers; then the payload's own
+   host and platform win. */
+function lsGet(k){ try { return localStorage.getItem(k) || ""; } catch(_) { return ""; } }
+function lsSet(k, v){ try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch(_){} }
+function schoolHost(){
+  const h = String((store.ext || {}).host || EXT.host || lsGet("lmk_school")).trim().toLowerCase();
+  return HOST_RE.test(h) ? h : "";
 }
-/* Which LMS the student's classes come from. The payload says (`lms`); before any sync it is unknown, and copy
+/* Every "Open Canvas" used to be the literal ASU address, and before a first sync it still was until v73.4 — which
+   sent a student at any other school to a login page for a university they do not attend. Now it is the school the
+   payload names or the student typed, and "" when neither exists (callers draw no button then). The artifact is
+   Emiel's own ASU copy and keeps its address. */
+function canvasHref(){
+  const h = schoolHost();
+  return h ? "https://" + h + "/#lmk-sync" : MODE === "artifact" ? LMK_CONFIG.canvasUrl : "";
+}
+/* Which platform the student's classes come from. The payload says (`lms`); before any sync it is unknown, and copy
    for that moment says "Canvas or Brightspace" instead of guessing. Canvas-only routes (calendar feed, access
    token, Sync from anywhere) keep saying Canvas, because that is what they are. */
-function lmsName(){ return ((store.ext || {}).lms || EXT.lms) === "d2l" ? "Brightspace" : "Canvas"; }
+function lmsName(){ return (platform((store.ext || {}).lms || EXT.lms) || PLATFORMS[0]).name; }
+const LMS_LIST = PLATFORMS.map(p => p.name).join(" or ");
 /* A pairing link is a credential someone is about to text to themselves. It used to BE the credential,
    valid for ever; now the laptop asks the worker to wrap it with a five-minute expiry sealed inside. */
 async function cloudPairLink(){
@@ -2064,7 +2108,7 @@ function maybeOfferDrive(){
 }
 function applyExtPresence(){
   const b = document.getElementById("setupInstall"); if (!b) return;
-  if (EXT.present) { b.textContent = "Extension installed ✓ · Open " + lmsName() + " →"; b.href = canvasHref(); }
+  if (EXT.present) { const u = canvasHref(); b.textContent = u ? "Extension installed ✓ · Open " + lmsName() + " →" : "Extension installed ✓"; if (u) b.href = u; else b.removeAttribute("href"); }
 }
 /* While the first-run card is waiting on Canvas, ask the extension every few seconds for whatever it
    has. The extension answers a "canvas-ping" with its latest payload, so the sync the student just
@@ -2130,6 +2174,7 @@ window.addEventListener("message", ev => {
   if (d && d.lmk === "ext-hello" && !EXT.present) { EXT.present = true; EXT.version = String(d.version || "");
     try { if (!localStorage.getItem("lmk_ping_ext")) pingOnce("lmk_ping_ext", "extension"); } catch(_){} applyExtPresence(); renderDriveOffer(); if (store.onboarded) cloudEnsure(); renderCloudStatus(); welcomeSync(); if (!store.ext) render(); }
   if (d && d.lmk === "cloud-status" && d.cloud) { EXT.cloud = d.cloud; renderCloudStatus(); }
+  if (d && d.lmk === "ext-hosts" && Array.isArray(d.hosts)) { EXT.hosts = d.hosts.map(String).filter(h => HOST_RE.test(h)).slice(0, 8); if (!store.ext) render(); }   // schools approved in Chrome (0.9.8): ticks "Let LMK read …" off
   if (d && d.lmk === "canvas-look" && d.echo) { LOOK.mode = d.mode || "auto"; LOOK.quiet = !!d.quiet; LOOK.known = true; renderFeatures(); }
   if (d && d.lmk === "resync-status") { EXT.resync = d.resync || null; if (d.at) EXT.at = d.at; renderBgStatus(); }
   if (d && d.lmk === "drive-status" && d.drive) {
@@ -3380,6 +3425,26 @@ function joinLoad(){
 }
 function joinClear(){ JOIN.cid = ""; JOIN.host = ""; JOIN.tag = ""; JOIN.count = null; try { localStorage.removeItem("lmk_join"); } catch(_){} }
 function lmsHint(){ try { return localStorage.getItem("lmk_lms_hint") || ""; } catch(_) { return ""; } }
+/* The school address step. What is typed survives a re-render (the minute tick skips while the box has focus, but a
+   hello or a payload can render too). A known platform's address picked under another platform switches the
+   platform rather than refusing: the student was right about their school. */
+let SCHOOL_DRAFT = "";
+document.addEventListener("input", e => { if (e.target && e.target.id === "schoolIn") SCHOOL_DRAFT = e.target.value.slice(0, 200); });
+document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target && e.target.id === "schoolIn") { e.preventDefault(); saveSchool(); } });
+function saveSchool(){
+  const inp = document.getElementById("schoolIn"), msg = document.getElementById("schoolMsg");
+  const say = t => { if (msg) { msg.textContent = t; msg.hidden = !t; } };
+  const h = cleanHost(inp ? inp.value : SCHOOL_DRAFT);
+  if (!h) return say("Type your school's address first — the part at the start of the address bar.");
+  if (!HOST_RE.test(h)) return say(`That doesn't look like a web address. It looks like ${(platform(lmsHint()) || PLATFORMS[0]).example}.`);
+  if (/(^|\.)lmktoday\.app$|(^|\.)google\.com$|(^|\.)chromewebstore\.google\.com$/.test(h)) return say("That's not your school's site. Open the site where your professors post assignments and copy its address.");
+  const hp = platformOfHost(h);
+  if (hp && hp.id !== lmsHint()) { lsSet("lmk_lms_hint", hp.id); toast(`That's a ${hp.name} address, so LMK switched to ${hp.name}.`); }
+  lsSet("lmk_school", h); SCHOOL_DRAFT = "";
+  animNext = true; render(); focusSetup();
+}
+/* After a step changes, focus goes to the new step's heading so a keyboard or screen-reader user lands on it. */
+function focusSetup(){ setTimeout(() => { const el = document.getElementById("schoolIn") || document.querySelector("section.view .hero h1"); if (el) { if (el.tagName === "H1") el.setAttribute("tabindex", "-1"); try { el.focus({preventScroll: true}); } catch(_){} } }, 30); }
 function roomsPossible(){ return MODE === "web" && cloudPossible(); }   // a phone can use rooms too; only the artifact copy cannot
 /* Enrollment, proven without a token: Canvas shows a course's uuid only to people in it; the extension collected it
    inside the student's session (0.7.0+) and the hash of host|cid|uuid is what a room checks. The uuid never leaves. */
@@ -3997,17 +4062,20 @@ function renderNow(root){
          nothing and the waiting pulse never restarts; the two install-time reloads cannot desynchronise it. */
       const state = phone ? "phone" : !live ? "artifact" : installed && answered ? "empty" : installed && extStuck ? "stuck" : installed ? "waiting" : EXT_HINT ? "checking" : "fresh";
       pingStep(state);
-      /* Which LMS? Known for real only once a school has answered. Before that the student can say — two chips
-         under the checklist, kept on this device (lmk_lms_hint, never the store) — and the copy, the buttons and the
-         Canvas-only routes (the token, ASU's Canvas) follow the answer. The extension still decides by itself. */
+      /* ---- the setup steps (v73.4) ----
+         One step at a time, in the order a student can do them: which platform, which school, the extension, Chrome's
+         approval when the school's address is not one the extension reads out of the box, then open it and sign in.
+         The answers stay on this device (lmk_lms_hint, lmk_school; never the store) until a school answers, and then
+         the payload's own host and platform win. Nothing here points at a default school any more: until v73.4 every
+         "Open Canvas" before a first sync went to ASU's, and the platform was an optional chip under the checklist. */
       const lmsKnown = !!(EXT.lms || (store.ext || {}).lms), hint = lmsKnown ? "" : lmsHint();
-      const isD2L = lmsKnown ? lmsName() === "Brightspace" : hint === "d2l";
-      const LMSW = lmsKnown ? lmsName() : hint === "d2l" ? "Brightspace" : hint === "canvas" ? "Canvas" : "Canvas or Brightspace";
-      const openLbl = canvasHref() === LMK_CONFIG.canvasUrl ? "Canvas" : lmsName();            // the button opens ASU's Canvas until a school is known
-      const hostKnown = canvasHref() !== LMK_CONFIG.canvasUrl;
-      const openBtn = cls => isD2L && !hostKnown ? "" : `<a class="btn ${cls}" href="${esc(canvasHref())}" target="_blank" rel="noopener"${cls === "ghost" ? ' title="Already added the extension? This is the only other step."' : ""}>${cls === "ghost" ? "Already added it? " : ""}Open ${openLbl} →</a>`;
-      const lmsChips = lmsKnown ? "" : `<div class="lmschoice"><span>My school uses</span><button class="chip" data-act="lms-hint" data-lms="canvas" aria-pressed="${hint === "canvas"}">Canvas</button><button class="chip" data-act="lms-hint" data-lms="d2l" aria-pressed="${hint === "d2l"}">Brightspace</button></div>`;
-      const d2lNote = isD2L && !hostKnown && state === "fresh" ? `<p class="sub2" style="margin:10px 0 0">Then open your school's Brightspace — the address usually ends in <b>brightspace.com</b> — in a new tab, like you normally would. LMK reads it from there and your classes land here by themselves. If your school's Brightspace has its own address (like <b>d2l.msu.edu</b>), a button to add it appears here once the extension is in. Sync from anywhere isn't available on Brightspace; your phone stays fresh through your own Drive.</p>` : "";
+      const P = platform(lmsKnown ? (EXT.lms || (store.ext || {}).lms) : hint);
+      const otherLms = !lmsKnown && hint === "other";
+      const isD2L = !!P && !P.token;                                   // the Canvas-only routes (token, Sync from anywhere) need a token platform
+      const LMSW = P ? P.name : LMS_LIST;
+      const host = schoolHost(), openLbl = host || lmsName();
+      const native = !!host && !!platformOfHost(host);
+      const openBtn = cls => canvasHref() ? `<a class="btn ${cls}" href="${esc(canvasHref())}" target="_blank" rel="noopener">Open ${esc(openLbl)} →</a>` : "";
       if (state === "phone" || state === "artifact") {
         html += `<div class="card hero" style="--hero-tint:color-mix(in srgb, var(--c1) 20%, transparent)">
           <div class="kicker">First run</div>
@@ -4022,46 +4090,70 @@ function renderNow(root){
         </div>`;
         root.innerHTML = html; return;
       }
-      const rowCls = (done, now) => done ? "done" : now ? "now" : "todo";
-      const checks = `<ol class="checks">
-          <li class="${rowCls(installed, state === "fresh" || state === "checking")}">${state === "checking" ? "Checking for the extension\u2026" : installed ? "Extension added" : `Add the LMK Today extension<span class="req">required</span>`}</li>
-          <li class="${rowCls(answered, state === "waiting" || state === "stuck")}">${LMSW} read once${installed ? "" : " \u2014 the extension does this"}</li>
-          <li class="${rowCls(false, state === "empty")}">Your classes land here</li>
-        </ol>`;
-      const h1 = state === "waiting" ? `Extension added. Waiting for ${LMSW}\u2026`
-        : state === "stuck" ? `Nothing has come back from ${LMSW} yet.`
-        : state === "empty" ? (taughtOnly() ? `These look like courses you teach.` : `${LMSW} answered, but no active courses came back.`)
-        : "Let's get your classes in.";
-      const why = state === "waiting"
-          ? (isD2L && !hostKnown ? "Open your school's Brightspace in another tab — the address usually ends in <b>brightspace.com</b> — and sign in if it asks. Your classes land here by themselves a few seconds after it loads." : "The extension opened your school's Canvas or Brightspace in another tab. If it's asking you to sign in, sign in and it does the rest; your classes land here by themselves a few seconds after it loads. If the site that opened isn't your school's, open your own school's Canvas or Brightspace instead — any <b>instructure.com</b> or <b>brightspace.com</b> address works out of the box.")
-        : state === "stuck"
-          ? `Almost always one of three things. <b>1.</b> Your school's site hasn't finished loading in this browser — if it's still asking you to sign in, finish that and come straight back. <b>2.</b> You're signed out of ${LMSW}. <b>3.</b> Your school runs ${LMSW} on its own address${isD2L ? " rather than one ending in <b>brightspace.com</b>" : ", like <b>canvas.uw.edu</b> or <b>bruinlearn.ucla.edu</b>"} — out of the box LMK reads <b>canvas.asu.edu</b>, any <b>*.instructure.com</b> and any <b>*.brightspace.com</b> address. ${extCanAdopt() ? "If that's you, add it below: Chrome will ask you to approve it, and then it works like any other school." : isD2L ? "If that's you, update the extension (0.5 or newer) and add the address under the gear." : "If that's you, the Canvas token below works on <i>any</i> school and takes a minute."}`
-        : state === "empty"
-          ? (taughtOnly()
-              ? `LMK builds a plan out of a student's own coursework — what is due, what is submitted, what it is worth. The ${taughtOnly()} course${taughtOnly() === 1 ? "" : "s"} on this account ${taughtOnly() === 1 ? "is one you teach" : "are ones you teach"}, so there is nothing here to plan. If you want to see what your students see, sign in to ${LMSW} with a student account.`
-              : "That usually means " + LMSW + " was signed in to a different account, or this term's courses aren't published yet.")
-          : isD2L ? `<b>The extension is how LMK reads Brightspace</b> — the one required step, and nothing lands here until it's in. One click in Chrome; keep your school's Brightspace open in another tab and the extension finds it there and reads it. About a minute, once.`
-          : !IS_CHROMIUM ? `<b>LMK's extension runs in Chrome, Edge, Brave or Arc, not in this browser.</b> Open this page in one of those to set it up; it takes about a minute, once. No way to switch browsers? A Canvas token works from any browser: see Other ways.`
-          : `<b>The extension is how LMK reads ${LMSW}</b> — the one required step, and nothing lands here until it's in. One click in Chrome, then it opens your school's site by itself; if it asks you to sign in, sign in, and your classes come back here on their own. About a minute, once.`;
-      const tokenBtn = (label, title) => isD2L ? "" : `<button class="btn ghost" data-act="open-token"${title ? ` title="${title}"` : ""}>${label}</button>`;
-      const actions = state === "fresh" && !IS_CHROMIUM
-          ? `<button class="btn grad" data-act="copy-applink">Copy this link</button>${tokenBtn("Use a Canvas token instead", "Works in any browser, at any school whose Canvas allows student tokens")}`
-        : state === "fresh"
-          ? `<a class="btn grad" href="${esc(LMK_CONFIG.storeUrl)}" target="_blank" rel="noopener">Add to Chrome →</a>${openBtn("ghost")}${gdReady() ? `<button class="btn ghost" data-act="web-signin" title="Only if another computer of yours has already synced — it restores that plan, it does not read ${LMSW}">Used LMK before? Sign in</button>` : ""}`
-        : state === "checking" ? ""
-        : state === "stuck"
-          ? `${openBtn("grad")}${extCanAdopt() ? `<button class="btn grad" data-act="host-add" title="Chrome will ask you to approve your school's site">Add my school's ${isD2L ? "Brightspace" : "Canvas"} →</button>${tokenBtn("Or use a Canvas token")}` : tokenBtn("Use a Canvas token instead", "Works on any school's Canvas, whatever its address")}`
-        : state === "empty"
-          ? `${openBtn("grad")}${tokenBtn("Use a Canvas token instead")}`
-          : `${openBtn("grad")}${isD2L && !hostKnown && extCanAdopt() ? `<button class="btn ghost" data-act="host-add" title="Only if your school's Brightspace isn't at a brightspace.com address — Chrome will ask you to approve it">Add my school's Brightspace →</button>` : ""}${gdReady() ? `<button class="btn ghost" data-act="web-signin">Sign in with Google</button>` : ""}`;
-      html += `<div class="card hero${state === "waiting" ? " waiting" : ""}" style="--hero-tint:color-mix(in srgb, var(--c1) 20%, transparent)">
-        <div class="kicker">${JOIN.tag && JOIN.cid ? "You were invited" : installed ? "One step left" : "First run"}</div>
+      const approved = native || (!!host && (EXT.hosts || []).includes(host)) || answered;
+      const steps = [
+        {k: "platform", done: !!P, label: P ? `My school uses ${P.name}` : "Which one your school uses"},
+        {k: "school", done: !!host, label: host ? `My school is at ${host}` : "Your school's address"},
+        {k: "ext", done: installed, label: state === "checking" ? "Checking for the extension…" : installed ? "Extension added" : "Add the LMK Today extension", req: !installed && state !== "checking"},
+        ...(host && !native ? [{k: "approve", done: approved, label: approved ? `${host} approved in Chrome` : `Let LMK read ${host}`}] : []),
+        {k: "open", done: answered, label: `${LMSW} read once`},
+        {k: "land", done: false, label: "Your classes land here"},
+      ];
+      /* The extension is the one step that can come first: a student who installed it before picking anything is still
+         asked for their platform and school, because that is what the "Open" button needs. */
+      const cur = otherLms ? "platform" : state === "empty" ? "land" : (steps.find(x => !x.done) || {k: "land"}).k;
+      const stepN = Math.max(1, steps.findIndex(x => x.k === cur) + 1), stepOf = steps.length - 1;
+      { const sev = ({school: "step_school", approve: "step_approve"})[cur]; if (sev) pingOnce("lmk_" + sev, sev); }
+      const canChange = k => !lmsKnown && (k === "platform" || k === "school");
+      const checks = `<ol class="checks">${steps.map(x => `<li class="${x.done && x.k !== cur ? "done" : x.k === cur ? "now" : "todo"}">${esc(x.label)}${x.req ? `<span class="req">required</span>` : ""}${x.done && canChange(x.k) && x.k !== cur ? ` <button class="minibtn" data-act="setup-change" data-step="${x.k}" aria-label="Change: ${esc(x.label)}">Change</button>` : ""}</li>`).join("")}</ol>`;
+      const LIST = esc(LMS_LIST);
+      let h1 = "", why = "", actions = "", extra = "";
+      if (cur === "platform" && otherLms) {
+        h1 = "LMK can't read that one yet.";
+        why = `LMK reads ${LIST} today, and adds platforms in the order students ask for them. Tell us which one your school uses and it counts toward the next one. Until then you can still add your work by hand with the <b>+</b> button.`;
+        actions = `<a class="btn grad" href="${esc(LMK_CONFIG.feedbackUrl)}" target="_blank" rel="noopener">Tell us which one →</a><button class="btn ghost" data-act="setup-change" data-step="platform">Back</button>`;
+      } else if (cur === "platform") {
+        h1 = "Which one does your school use?";
+        why = "LMK reads your classes from your school's own site, so it needs to know which kind. It's the site where your professors post assignments.";
+        extra = `<div class="pickgrid">${PLATFORMS.map(p => `<button class="pick" data-act="lms-hint" data-lms="${p.id}"><b>${esc(p.name)}</b><span>by ${esc(p.maker)}</span></button>`).join("")}<button class="pick" data-act="lms-hint" data-lms="other"><b>Something else</b><span>Moodle, Blackboard, …</span></button></div>`;
+      } else if (cur === "school") {
+        h1 = `What's your school's ${esc(P.name)} address?`;
+        why = `Open ${esc(P.name)} in another tab the way you normally do and look at the address bar — LMK needs the first part, like <b>${esc(P.example)}</b>. ${P.where} You can paste the whole address.`;
+        const opts = KNOWN_SCHOOLS.filter(x => x[2] === P.id).map(x => `<option value="${esc(x[1])}">${esc(x[0])}</option>`).join("");
+        extra = `<div class="schoolform"><input id="schoolIn" list="schoolList" inputmode="url" autocomplete="off" spellcheck="false" autocapitalize="off" aria-label="Your school's ${esc(P.name)} address" placeholder="${esc(P.example)}" value="${esc(SCHOOL_DRAFT)}"><button class="btn grad" data-act="school-save">Next →</button></div>${opts ? `<datalist id="schoolList">${opts}</datalist>` : ""}<p class="parse-msg err" id="schoolMsg" role="status" hidden></p>`;
+      } else if (cur === "ext") {
+        h1 = state === "checking" ? "Checking for the extension…" : "Add the LMK Today extension.";
+        why = !IS_CHROMIUM ? `<b>LMK's extension runs in Chrome, Edge, Brave or Arc, not in this browser.</b> Open this page in one of those to finish; it takes about a minute, once.${P && P.token ? " No way to switch browsers? A Canvas token works from any browser: see Other ways." : ""}`
+          : `<b>The extension is how LMK reads ${esc(LMSW)}</b>, and the one required step: nothing lands here until it's in. One click in Chrome. ${native ? `It then opens <b>${esc(host)}</b> by itself; if it asks you to sign in, sign in, and your classes come back here on their own.` : "Then come back to this tab for the next step."}`;
+        actions = state === "checking" ? "" : !IS_CHROMIUM ? `<button class="btn grad" data-act="copy-applink">Copy this link</button>`
+          : `<a class="btn grad" href="${esc(LMK_CONFIG.storeUrl)}" target="_blank" rel="noopener">Add to Chrome →</a>${gdReady() ? `<button class="btn ghost" data-act="web-signin" title="Only if another computer of yours has already synced — it restores that plan, it does not read ${esc(LMSW)}">Used LMK before? Sign in</button>` : ""}`;
+      } else if (cur === "approve") {
+        h1 = `Let LMK read ${esc(host)}.`;
+        why = extCanAdopt()
+          ? `${esc(host)} isn't an address the extension reads out of the box, so Chrome asks you once. Press the button, then <b>Allow LMK to read this site</b> on the page that opens, and say yes in Chrome's box. LMK reads only that site, and you can take it back in Chrome's settings any time.`
+          : `This version of the extension can't add a school's own address. Update it (Chrome does this by itself within a day, or reinstall from the store), then come back.${P && P.token ? " Or use a Canvas token: see Other ways." : ""}`;
+        actions = extCanAdopt() ? `<button class="btn grad" data-act="host-add">Approve ${esc(host)} →</button>${openBtn("ghost").replace(">Open ", ">Already approved? Open ")}` : "";
+      } else if (cur === "open") {
+        h1 = state === "stuck" ? `Nothing has come back from ${esc(LMSW)} yet.` : `Open ${esc(host)} and sign in.`;
+        why = state === "stuck"
+          ? `Almost always one of three things. <b>1.</b> ${esc(host)} hasn't finished loading — if it's asking you to sign in, finish that and come straight back. <b>2.</b> You're signed out of it. <b>3.</b> That isn't quite your school's address — open your ${esc(LMSW)} the usual way and compare the first part of the address bar with <b>${esc(host)}</b>; if it's different, press <b>Change</b> next to it above.`
+          : `The extension reads it the moment it loads${native ? " (it may already be open in another tab)" : ""}. If it asks you to sign in, sign in; your classes land here by themselves a few seconds later.`;
+        actions = `${openBtn("grad")}${state === "stuck" && P && P.token ? `<button class="btn ghost" data-act="open-token">Or use a Canvas token</button>` : ""}`;
+      } else {                                                       // "land": the school answered with nothing
+        h1 = taughtOnly() ? "These look like courses you teach." : `${esc(LMSW)} answered, but no active courses came back.`;
+        why = taughtOnly()
+          ? `LMK builds a plan out of a student's own coursework — what is due, what is submitted, what it is worth. The ${taughtOnly()} course${taughtOnly() === 1 ? "" : "s"} on this account ${taughtOnly() === 1 ? "is one you teach" : "are ones you teach"}, so there is nothing here to plan. If you want to see what your students see, sign in to ${esc(LMSW)} with a student account.`
+          : `That usually means ${esc(LMSW)} was signed in to a different account, or this term's courses aren't published yet.`;
+        actions = `${openBtn("grad")}${P && P.token ? `<button class="btn ghost" data-act="open-token">Use a Canvas token instead</button>` : ""}`;
+      }
+      html += `<div class="card hero${cur === "open" && state !== "stuck" && installed ? " waiting" : ""}" style="--hero-tint:color-mix(in srgb, var(--c1) 20%, transparent)">
+        <div class="kicker">${JOIN.tag && JOIN.cid ? "You were invited" : cur === "land" ? "Almost there" : `Step ${Math.min(stepN, stepOf)} of ${stepOf}`}</div>
         <h1>${h1}</h1>
-        ${checks}${lmsChips}${joinWhyHtml()}
+        ${checks}${joinWhyHtml()}
         <div class="why">${why}</div>
-        <div class="actions">${actions}<button class="btn ghost" data-act="open-gear">${installed ? "Other ways" : "Can't add it? Other ways"}</button></div>
-        <p class="sub2" style="margin:10px 0 0">Want to see what it does first? <button class="minibtn" data-act="try-sample">Try a sample semester</button> — nothing is synced and your own classes replace it the moment ${LMSW} answers.</p>
-        ${!isD2L && canvasHref() === LMK_CONFIG.canvasUrl && state === "fresh" ? `<p class="sub2" style="margin:10px 0 0">That button opens ASU's Canvas. Another school? Open your own school's Canvas in any tab instead — LMK reads it from there.</p>` : d2lNote}
+        ${extra}
+        <div class="actions">${actions}<button class="btn ghost" data-act="open-gear">${cur === "ext" ? "Can't add it? Other ways" : "Other ways"}</button></div>
+        <p class="sub2" style="margin:10px 0 0">Want to see what it does first? <button class="minibtn" data-act="try-sample">Try a sample semester</button> — nothing is synced and your own classes replace it the moment ${esc(LMSW)} answers.</p>
       </div>`;
       root.innerHTML = html; if (installed) nudgeExtension(); return;
     }
@@ -4941,7 +5033,19 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="sess-share") sessShare(act.dataset.cid, act.dataset.id);
   else if (a==="room-seen") { roomMarkSeen(act.dataset.cid); render(); }
   else if (a==="room-nudge-done") { store.roomNudge = Date.now(); save(); render(); }
-  else if (a==="lms-hint") { try { localStorage.setItem("lmk_lms_hint", act.dataset.lms === "d2l" ? "d2l" : "canvas"); } catch(_){} render(); }
+  else if (a==="lms-hint") {                                        // the setup steps' first answer (v73.4)
+    const id = platform(act.dataset.lms) ? act.dataset.lms : act.dataset.lms === "other" ? "other" : "";
+    if (id) { lsSet("lmk_lms_hint", id); pingOnce("lmk_lms_" + id, "lms_" + id); }
+    const h = lsGet("lmk_school"), hp = h && platformOfHost(h);
+    if (hp && hp.id !== id) lsSet("lmk_school", "");                   // a brightspace.com address cannot be the Canvas school
+    animNext = true; render(); focusSetup();
+  }
+  else if (a==="setup-change") {                                     // "Change" next to a finished step: that answer and the ones after it
+    if (act.dataset.step === "platform") lsSet("lmk_lms_hint", "");
+    SCHOOL_DRAFT = act.dataset.step === "school" ? lsGet("lmk_school") : "";
+    lsSet("lmk_school", ""); render(); focusSetup();
+  }
+  else if (a==="school-save") saveSchool();
   else if (a==="recap-info") openRecapInfo();
   else if (a==="recap-open") openWrapped(act.dataset.mode);
   else if (a==="recap-hide") { store.recapHide = Date.now(); save(); render(); toast("Hidden. It comes back for the last two weeks."); }
@@ -4984,7 +5088,7 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="gpa") openGpaDetail();
   else if (a==="reload") { location.reload(); }
   else if (a==="install-app") { if (installEvt) { installEvt.prompt(); installEvt = null; setTimeout(renderInstall, 500); } }
-  else if (a==="host-add") { try { window.postMessage({lmk:"host-page"}, "*"); } catch(_){} toast("Chrome is opening a tab where you can add your school."); }
+  else if (a==="host-add") { try { window.postMessage({lmk:"host-page", host: lsGet("lmk_school") || (store.ext || {}).host || ""}, "*"); } catch(_){} toast("Chrome is opening a tab where you can approve your school."); }
   else if (a==="open-token") { const g = document.getElementById("gearBtn"); if (g) g.click(); const dt = document.getElementById("cloudTokenWay"); if (dt) { dt.hidden = false; dt.open = true; setTimeout(() => dt.scrollIntoView({block: "start"}), 100); } }
   else if (a==="open-gear") { const g = document.getElementById("gearBtn"); if (g) g.click(); }
   /* A first sync can take a minute, and a student staring at a checklist has no reason to believe any of
@@ -5146,10 +5250,10 @@ async function refreshAll(){
     const r = await canvasRead.catch(() => "failed"), L = lmsName();
     if (r === "read") did.unshift(L);
     else if (r === "healing") canvasNote = `${L} signed this browser out. LMK opened it in a background tab to sign back in — it updates by itself.`;
-    else if (r === "signedout") { canvasNote = `${L} signed this browser out. Open ${L} once and LMK picks it back up.`; canvasAction = {label: "Open " + L, fn: () => window.open(canvasHref(), "_blank", "noopener")}; }
+    else if (r === "signedout") { canvasNote = `${L} signed this browser out. Open ${L} once and LMK picks it back up.`; canvasAction = canvasHref() ? {label: "Open " + L, fn: () => window.open(canvasHref(), "_blank", "noopener")} : null; }
     else if (r === "failed") failed.unshift(L);
     else if (r === "slow") canvasNote = `${L} is still being read — it updates by itself.`;
-    else if (r === "old") { canvasNote = `This extension can't read ${L} from here yet — update it, or open ${L} once.`; canvasAction = {label: "Open " + L, fn: () => window.open(canvasHref(), "_blank", "noopener")}; }
+    else if (r === "old") { canvasNote = `This extension can't read ${L} from here yet — update it, or open ${L} once.`; canvasAction = canvasHref() ? {label: "Open " + L, fn: () => window.open(canvasHref(), "_blank", "noopener")} : null; }
   }
   if (canvasRead) { loadData(); render(); }
 
@@ -6726,10 +6830,13 @@ function welcomeSync(){
     return;
   }
   if (chips) chips.hidden = true;
-  const d2l = !(EXT.lms || (store.ext || {}).lms) && lmsHint() === "d2l";   // the chip on the first-run card, until a school answers
+  /* the setup steps behind this sheet know the platform and the school once the student has said (v73.4) */
+  const P = platform(EXT.lms || (store.ext || {}).lms || lmsHint()), host = schoolHost();
+  const where = host ? `<b>${esc(host)}</b>` : P ? `your school's ${esc(P.name)}` : "your school's site";
+  const setHtml = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
   if (store.custom) { set("wHead2", "Your calendar is loaded."); set("wBody2", "The Chrome extension adds what's submitted and graded. It's under the gear whenever you want it."); }
-  else if (EXT.present) { set("wHead2", "Extension added \u2713"); set("wBody2", d2l ? "Now open your school's Brightspace in another tab; if it asks you to sign in, do that and the rest happens by itself. The card behind this window shows where it's at." : "Canvas or Brightspace is loading in another tab; if it asks you to sign in, do that and the rest happens by itself. The card behind this window shows where it's at."); }
-  else { set("wHead2", "Add the extension — the one required step."); set("wBody2", d2l ? "LMK reads your classes through the Chrome extension; there is no automatic way in without it. It's the card right behind this window: one click, then open your school's Brightspace once and your classes land here. About a minute, once." : "LMK reads your classes through the Chrome extension; there is no automatic way in without it. It's the card right behind this window: one click, and your classes arrive by themselves. About a minute, once."); }
+  else if (EXT.present) { set("wHead2", "Extension added \u2713"); setHtml("wBody2", host ? `Now open ${where} and sign in if it asks; the rest happens by itself. The card behind this window shows where it's at.` : "The card behind this window asks which platform your school uses and its address, then opens it for you."); }
+  else { set("wHead2", "Add the extension — the one required step."); setHtml("wBody2", `LMK reads your classes through the Chrome extension; there is no automatic way in without it. The card right behind this window walks you through it: ${P ? "" : "which platform your school uses, "}${host ? "" : "your school's address, "}then one click to add it. About a minute, once.`); }
 }
 function openWelcome(){
   { const cr = document.getElementById("wCloudRow"); if (cr) cr.hidden = true; }   // shown by the one branch where it applies
@@ -7258,8 +7365,10 @@ function renderAdmin(root){
           <td class="num">${f ? rate(a, f) : "—"}</td></tr>`)) : ""}
       <p class="adm-note" style="margin-top:10px">Links to hand out:<br>${CH.map(([k]) => `<span class="mono">https://lmktoday.app/?from=${k}</span>`).join("<br>")}</p></div>`;
 
-    if (LH.length) html += `<div class="card adm-card"><h3>Schools the extension has reported from</h3>
-      ${table(["School", "num:Reports", "Last", "num:Courses", "num:Items"], LH.map(h => `<tr><td>${esc(h.host)}${lmsFailNote(h)}</td><td class="num">${n(h.n)}</td><td>${h.last || h.at ? new Date(h.last || h.at).toLocaleDateString() : "—"}</td><td class="num">${n((h.counts || {}).courses || 0)}</td><td class="num">${n((h.counts || {}).items || 0)}</td></tr>`))}</div>`;
+    /* Always drawn (v73.4): with no rows the card used to vanish, which read as "the feature is missing" rather than
+       "nobody has reported yet". Reports need extension 0.9.7+ for a failed read; a success has reported since 0.6. */
+    html += `<div class="card adm-card"><h3>Schools the extension has reported from</h3>
+      ${LH.length ? table(["School", "num:Reports", "Last", "num:Courses", "num:Items"], LH.map(h => `<tr><td>${esc(h.host)}${lmsFailNote(h)}</td><td class="num">${n(h.n)}</td><td>${h.last || h.at ? new Date(h.last || h.at).toLocaleDateString() : "—"}</td><td class="num">${n((h.counts || {}).courses || 0)}</td><td class="num">${n((h.counts || {}).items || 0)}</td></tr>`)) : `<p class="adm-note" style="margin:0">None yet. A Brightspace school reports the first time the extension reads it, and since extension 0.9.7 a school added by hand reports when it <b>can't</b> be read, as "couldn't read · tried … · status". Students on an older extension report nothing.</p>`}</div>`;
   }
   if (ADMIN.tab === "ops") {
     html += `<div class="tiles">
