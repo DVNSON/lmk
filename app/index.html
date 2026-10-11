@@ -5699,16 +5699,20 @@ function sylExams(c){
   const out = [], seen = new Set();
   for (const raw of text.split(/\n|(?<=[.;])\s+(?=[A-Z])/)) {
     const line = raw.trim(); if (line.length > 300) continue;
-    const kw = line.match(/\b(mid-?term(?:\s*(?:exam\s*)?(?:\d+|[ivx]+)\b)?|final\s+exam(?:ination)?|final\b|exam(?:ination)?\s*(?:\d+|[ivx]+)?|test\s*(?:\d+|[ivx]+))/i);
-    if (!kw || /final\s+(paper|project|essay|presentation|draft|report|portfolio|grade)|practice|review\s+session|study\s+guide|no\s+(final|exam)|take-?home\s+essay/i.test(line)) continue;
-    const dates = [];
-    for (const m of line.matchAll(/\b(jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?\b/gi)) dates.push({at: m.index, mo: MONTHS3[m[1].toLowerCase().slice(0, m[1].toLowerCase().startsWith("sept") ? 4 : 3)], d: +m[2]});
+    /* every exam word on the line; the most specific one names it ("EXAM WEEK: Final Exam …" is the final, not a bare "exam") */
+    const kws = [...line.matchAll(/\b(mid-?term(?:\s*(?:exam\s*)?(?:\d+|[ivx]+)\b)?|final\s+exam(?:ination)?|final\b|exam(?:ination)?\s*(?:\d+|[ivx]+)?|test\s*(?:\d+|[ivx]+))/gi)];
+    const kw = kws.sort((a, b) => (/final|mid|\d|[ivx]$/i.test(b[0]) ? 1 : 0) - (/final|mid|\d|[ivx]$/i.test(a[0]) ? 1 : 0))[0];
+    if (!kw || /final\s+(paper|project|essay|presentation|draft|report|portfolio|grade)|practice|review\s+(session|for)|study\s+guide|no\s+(final|exam)|take-?home\s+essay/i.test(line)) continue;
+    const dates = [];   // month names take \s* before the day: a Word file gave "September21"
+    for (const m of line.matchAll(/\b(jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)[a-z]*\.?\s*(\d{1,2})(?:st|nd|rd|th)?\b/gi)) dates.push({at: m.index, mo: MONTHS3[m[1].toLowerCase().slice(0, m[1].toLowerCase().startsWith("sept") ? 4 : 3)], d: +m[2]});
     for (const m of line.matchAll(/(?<![\d/])(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?(?![\d/])/g)) if (+m[1] >= 1 && +m[1] <= 12 && +m[2] >= 1 && +m[2] <= 31) dates.push({at: m.index, mo: +m[1] - 1, d: +m[2]});
     if (!dates.length) continue;
     const k = kw.index, dt = dates.find(x => x.at > k) || dates[dates.length - 1];
     if (dt.mo == null || !(dt.d >= 1 && dt.d <= 31)) continue;
     const day = pickYear(dt.mo, dt.d);
-    const tm = line.slice(Math.max(0, dt.at)).match(/\b(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)/i);
+    const rest = line.slice(Math.max(0, dt.at));
+    const rg = rest.match(/\b(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?\s*(?:-|–|—|to)\s*\d{1,2}(?::\d{2})?\s*(a\.?m\.?|p\.?m\.?)/i);   // a range: its start, with the end's am/pm when the start has none
+    const tm = rg ? [rg[0], rg[1], rg[2], rg[3] || rg[4]] : rest.match(/\b(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)/i);
     let due = day, allDay = true;
     if (tm) { let h = +tm[1] % 12; if (/p/i.test(tm[3])) h += 12; due = new Date(day); due.setHours(h, +(tm[2] || 0), 0, 0); allDay = false; }
     const name = examName(kw[0]) || (/final/i.test(kw[0]) ? "final" : /mid/i.test(kw[0]) ? "midterm" : "exam");
