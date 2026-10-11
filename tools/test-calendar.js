@@ -54,7 +54,7 @@ async function open(mobile){
   await send(ws,'Emulation.setDeviceMetricsOverride',{width:mobile?390:1100,height:1000,deviceScaleFactor:1,mobile:!!mobile});
   if (mobile) await send(ws,'Emulation.setUserAgentOverride',{userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'});
   await send(ws,'Page.addScriptToEvaluateOnNewDocument',{source:STUB});
-  await send(ws,'Page.addScriptToEvaluateOnNewDocument',{source:`try{if(!sessionStorage.getItem('__s')){localStorage.clear();localStorage.setItem('lmk_gcid','test-client.apps.googleusercontent.com');localStorage.setItem('duenorth_v1',${JSON.stringify(JSON.stringify(SEED))});sessionStorage.setItem('__s','1')}}catch(_){}`});
+  await send(ws,'Page.addScriptToEvaluateOnNewDocument',{source:`try{if(!sessionStorage.getItem('__s')){localStorage.clear();localStorage.setItem('lmk_gcid','test-client.apps.googleusercontent.com');if(!/nogcal/.test(location.search))localStorage.setItem('lmk_gcal_test','1');localStorage.setItem('duenorth_v1',${JSON.stringify(JSON.stringify(SEED))});sessionStorage.setItem('__s','1')}}catch(_){}`});
   await send(ws,'Page.navigate',{url:'about:blank'}); await sleep(120); await send(ws,'Page.navigate',{url:'http://localhost:8899/app/'}); await sleep(2600);
   await ev(ws,`window.postMessage({lmk:'ext-hello',version:'0.9.3'},'*'); window.postMessage({lmk:'canvas-payload',payload:${JSON.stringify(payload())}},'*'); 1`); await sleep(2000);
   await ev(ws,`welcomeOverlay.classList.remove('open'); courseFilter=null; render(); 1`); await sleep(300);
@@ -127,6 +127,14 @@ const tk=`dayKey(addDays(startOfDay(now()),1))`;
   await ev(ws,`(()=>{const b=document.querySelector('[data-cal="write"]'); b.checked=false; b.dispatchEvent(new Event('change',{bubbles:true}));})(); __net.length=0; CAL.lastSig=''; calWrite(true); 1`); await sleep(1500);
   const off=JSON.parse(await ev(ws,`JSON.stringify({w:store.cal.write, n:__net.filter(x=>/googleapis/.test(x.u)).length})`));
   check('C3 "Put my study time on my calendar" off: nothing is written', off.w===false && off.n===0, off);
+  P.close();
+  /* until Google approves the scope, an ordinary student sees one "Connect your calendar" button, no Google one */
+  P=await open(false); ws=P.ws;
+  await ev(ws,`localStorage.removeItem('lmk_gcal_test'); calDisconnect(); store.cal=null; renderMyCal(); 1`); await sleep(300);
+  const plain=await ev(ws,`document.getElementById('myCalActs').innerText`);
+  await ev(ws,`location.hash='gcaltest'; renderMyCal(); 1`); await sleep(200);
+  const tester=await ev(ws,`document.getElementById('myCalActs').innerText`);
+  check('C6 before Google\'s approval: a student sees only "Connect your calendar"; #gcaltest (test users, the review video) brings the Google button back', !/Google/.test(plain) && /Connect your calendar/.test(plain) && /Connect Google Calendar/.test(tester), {plain, tester});
   P.close();
   /* phone */
   P=await open(true); ws=P.ws;
