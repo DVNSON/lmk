@@ -60,8 +60,13 @@ const planned=(ws)=>ev(ws,`JSON.stringify(Object.values(PLAN).map(d=>({k:d.key, 
   const ecn=await plan(ws,K.ecn);
   check('P2 an exam in 2 days gets its sessions in the 2 days left (fewer, longer, never past 2h)', ecn.sessions.length===2 && ecn.sessions.map(s=>s.d).join()==='0,1' && ecn.sessions.every(s=>s.m<=120 && s.m>=25), ecn);
   let hero=await ev(ws,`(document.querySelector('#view-now .hero')||{}).innerText||''`);
-  check('P3 "Next up" is the ECN study session (exam in 2 days), ahead of homework due today, and says what to do', /study for an exam/i.test(hero) && /Study for ECN 211 Midterm/.test(hero) && /exam in 2 days/i.test(hero) && /This session:/.test(hero) && /Done — session 1/.test(hero), hero.slice(0,300));
+  check('P3 "Next up" is the ECN problem set due today, not the midterm study: work due before an exam is what the exam needs first', /Problem set 6/.test(hero) && !/study for an exam/i.test(hero), hero.slice(0,300));
+  const order=JSON.parse(await ev(ws,`JSON.stringify((PLAN[dayKey(now())]||{items:[]}).items.map(c=>(c.prep?'P:':'')+c.e.course+' '+c.e.title.slice(0,20)))`));
+  const iHw=order.findIndex(x=>/ECN 211 Problem set/.test(x)), iStudy=order.findIndex(x=>/^P:ECN 211/.test(x));
+  check('P3 in Today, the problem set comes before the midterm\'s study session, which still follows the same day', iHw>=0 && iStudy>iHw, order);
   let rows=JSON.parse(await ev(ws,`JSON.stringify([...document.querySelectorAll('#view-now .item.prep')].map(r=>r.innerText.replace(/\\s+/g,' ').trim()))`));
+  const both=JSON.parse(await ev(ws,`JSON.stringify(Object.values(PLAN).map(d=>d.items.map(c=>(c.prep?'P:':'')+c.e.course+' '+c.e.title.slice(0,24))).filter(l=>l.some(x=>/^P:PSY 101/.test(x)) && l.some(x=>/^PSY 101 Chapter [56] Practice/.test(x))))`));
+  check('P3 on every day a PSY practice quiz and a PSY Exam 2 study session share, the quiz (due first) comes first — the live-data bug put study above homework due Sunday', both.length>0 && both.every(l=>l.findIndex(x=>/^PSY 101 Chapter/.test(x)) < l.findIndex(x=>/^P:PSY 101/.test(x))), both);
   check('P3 Today lists each session with its class, size, which session, the exam day and the step', rows.some(r=>/Study for PSY 101 Exam 2/.test(r) && /session 1 of 6/.test(r) && /First pass/.test(r)) && rows.some(r=>/Study for ECN 211 Midterm/.test(r)), rows);
   const pdays=JSON.parse(await ev(ws,`JSON.stringify({bundles:BUNDLE_LIST.some(b=>b.items.some(e=>e.exam)), ahead:Object.values(AHEAD).flat().some(a=>(a.e||a).exam), overdue:[...document.querySelectorAll('#view-now .triage .item, #view-now .triagecard .item')].map(r=>r.innerText).join('|')})`));
   check('P4 piles and head starts never hold an exam, and the exam sat 3 days ago is not "past due"', !pdays.bundles && !pdays.ahead && !/Exam 1/.test(pdays.overdue), pdays);

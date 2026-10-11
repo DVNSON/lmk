@@ -231,7 +231,7 @@ function pageHelpers(){
   /* ===== D: nothing loops past five seconds (2.2.2) ===== */
   if (want('D')) {
   const anim=`JSON.stringify(document.getAnimations().filter(a=>!(a.effect&&a.effect.target&&a.effect.target.closest&&a.effect.target.closest('.gear.spinning'))).map(a=>({n:a.animationName||'?', d:a.effect.getComputedTiming().activeDuration, t:a.effect.target?(a.effect.target.className||a.effect.target.tagName)+'':'' , p:a.effect.pseudoElement||''})).filter(a=>!(a.d<=5000)))`;
-  await fresh({seed:Object.assign({},SEED,{streakDays:[new Date().toISOString().slice(0,10)]})});
+  await fresh({seed:Object.assign({},SEED,{streakDays:[(d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'))(new Date())]   /* the LOCAL day: after 6 PM in Arizona/Mountain the UTC date is already tomorrow */})});
   await ev(ws,`welcomeOverlay.classList.remove('open'); 1`);
   const lit=await ev(ws,`document.getElementById('streakChip').classList.contains('lit')`);
   check('D Today (streak lit): no animation — blobs, drift, breathe, flicker — runs longer than 5 s', lit && JSON.parse(await ev(ws,anim)).length===0, {lit, a:JSON.parse(await ev(ws,anim))});

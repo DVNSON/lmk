@@ -33,7 +33,8 @@ const STUB=`(function(){
     window.__net.push({u,m,b});
     if (/\\/config$/.test(u)) return J({ok:true,rooms:{on:false},push:{key:''}});
     if (/\\/cal\\/fetch$/.test(u)) return new Response(${JSON.stringify(ICS)},{status:200,headers:{"content-type":"text/calendar"}});
-    if (/googleapis.com\\/calendar\\/v3\\/freeBusy/.test(u)) { const t=new Date(Date.now()+864e5); t.setHours(8,0,0,0); const e=new Date(t); e.setHours(21,0,0,0); return J({calendars:{primary:{busy:[{start:t.toISOString(),end:e.toISOString()}]}}}); }
+    if (/calendar\\/v3\\/calendars\\/primary\\/events/.test(u)) { const t=new Date(Date.now()+864e5); t.setHours(8,0,0,0); const e=new Date(t); e.setHours(21,0,0,0); const a=new Date(Date.now()+864e5); a.setHours(22,0,0,0);
+      return J({items:[{summary:"Work shift",start:{dateTime:t.toISOString()},end:{dateTime:e.toISOString()}},{summary:"Gym (free)",transparency:"transparent",start:{dateTime:a.toISOString()},end:{dateTime:new Date(+a+36e5).toISOString()}},{summary:"Birthday",start:{date:"2026-01-01"},end:{date:"2026-01-02"}},{summary:"Cancelled thing",status:"cancelled",start:{dateTime:a.toISOString()},end:{dateTime:new Date(+a+36e5).toISOString()}}]}); }
     if (/calendar\\/v3\\/calendars$/.test(u) && m==="POST") { window.__g.cal=true; return J({id:"lmkcal123@group.calendar.google.com"}); }
     if (/calendar\\/v3\\/calendars\\/[^/]+$/.test(u)) return window.__g.cal ? J({id:"lmkcal123@group.calendar.google.com"}) : J({},404);
     if (/\\/events\\?/.test(u)) return J({items:window.__g.events});
@@ -89,12 +90,19 @@ const tk=`dayKey(addDays(startOfDay(now()),1))`;
   check('C2 the link (webcal:// made https://) goes through /cal/fetch; store.cal says "ics"', r.cal && r.cal.src==='ics' && r.req.length && r.req[0].url==='https://p42-caldav.icloud.com/published/2/abc' && r.busy>=1, r);
   check('C2 tomorrow\'s plan holds no more than the 2 h left after a shift until 9 PM (budget 4 h)', r.cap===120 && r.full===240, {cap:r.cap, full:r.full});
   check('C2 every planned thing tomorrow gets a time at 9 PM or later', r.items.length>0 && r.items.every(s=>s!==null && s>=21*60), r.items);
-  check('C2 the card says it is connected and how many busy times it plans around', /Connected: your calendar link/.test(r.card) && /busy time/.test(r.card) && /Disconnect/.test(r.card), r.card);
+  const dl=await ev(ws,`(()=>{const d=PLAN[${tk}]; const h=dayListHtml(d.items,d,startOfDay(now())); const div=document.createElement('div'); div.innerHTML=h; return [...div.querySelectorAll('.item')].map(x=>(x.classList.contains('calev')?'CAL:':'LMK:')+x.querySelector('.t').textContent.trim()).join(' | ')})()`);
+  check('C2 your day is one list in time order: the 8 AM shift from your calendar, then LMK\'s work after 9 PM', /^CAL:Shift \| LMK:/.test(dl), dl);
+  check('C2 the card says it is connected and that your events are in your plan', /Connected: your calendar link/.test(r.card) && /Your events are in your plan/.test(r.card) && /Disconnect/.test(r.card), r.card);
   await ev(ws,`document.getElementById('overlay').classList.remove('open'); document.querySelector('[data-tab="plan"]').click(); 1`); await sleep(600);
   const tags=await ev(ws,`[...document.querySelectorAll('#view-plan .timetag, #view-now .timetag')].map(t=>t.textContent).join('|')`);
   await ev(ws,`document.querySelector('[data-tab="now"]').click(); 1`); await sleep(500);
   const line=await ev(ws,`(document.querySelector('#view-now .budget')||{}).innerText||''`);
-  check('C2 Today says how much is free from the calendar', /Your calendar: .*(free today|no free time left today)/.test(line), line);
+  check('C2 no "free time" line anywhere (people don\'t need an app to tell them when they\'re free)', !/free today|free time/i.test(line), line);
+  // your day: tomorrow's own event sits in the Plan tab line, by time
+  await ev(ws,`document.querySelector('[data-tab="plan"]').click(); 1`); await sleep(500);
+  const cl=await ev(ws,`[...document.querySelectorAll('#view-plan .calline')].map(x=>x.innerText).join(' | ')`);
+  check('C2 the Plan tab shows the day\'s own events as one quiet line with their times', /8:00\s?AM/i.test(cl), cl);
+  await ev(ws,`document.querySelector('[data-tab="now"]').click(); 1`); await sleep(300);
   /* C4 disconnect */
   await ev(ws,`calDisconnect(); 1`); await sleep(400);
   r=JSON.parse(await ev(ws,`JSON.stringify({cal:store.cal, cap:PLAN[${tk}].cap, times:PLAN_TIME.size, card:(renderMyCal(), document.getElementById('setupMyCal').innerText.replace(/\\s+/g,' '))})`));
@@ -104,9 +112,9 @@ const tk=`dayKey(addDays(startOfDay(now()),1))`;
   P=await open(false); ws=P.ws;
   await ev(ws,`document.getElementById('gearBtn').click(); 1`); await sleep(300);
   await ev(ws,`document.querySelector('[data-cal="google"]').click(); 1`); await sleep(6500);
-  r=JSON.parse(await ev(ws,`JSON.stringify({cal:store.cal, scope:window.__scope, fb:__net.filter(x=>/freeBusy/.test(x.u)).map(x=>x.b), created:__net.filter(x=>/calendars$/.test(x.u)&&x.m==='POST').map(x=>x.b.summary), puts:__net.filter(x=>x.m==='PUT').map(x=>x.u.split('/').pop()), posts:__net.filter(x=>/\\/events$/.test(x.u)&&x.m==='POST').map(x=>x.b), dels:__net.filter(x=>x.m==='DELETE').map(x=>x.u.split('/').pop()), cap:PLAN[${tk}].cap})`));
-  check('C3 one tap asks Google for availability and LMK\'s own calendar only (freebusy + app.created), nothing broader', /calendar\.freebusy/.test(r.scope) && /calendar\.app\.created/.test(r.scope) && !/auth\/calendar(\s|$)|calendar\.readonly|calendar\.events(\s|$)/.test(r.scope), r.scope);
-  check('C3 busy time comes from freeBusy on "primary" only, and caps tomorrow to 2 h', r.fb.length && JSON.stringify(r.fb[0].items)==='[{"id":"primary"}]' && r.cap===120, {fb:r.fb, cap:r.cap});
+  r=JSON.parse(await ev(ws,`JSON.stringify({cal:store.cal, scope:window.__scope, fb:__net.filter(x=>/calendars\\/primary\\/events/.test(x.u)).map(x=>x.u), ev:CAL.busy, created:__net.filter(x=>/calendars$/.test(x.u)&&x.m==='POST').map(x=>x.b.summary), puts:__net.filter(x=>x.m==='PUT').map(x=>x.u.split('/').pop()), posts:__net.filter(x=>/\\/events$/.test(x.u)&&x.m==='POST').map(x=>x.b), dels:__net.filter(x=>x.m==='DELETE').map(x=>x.u.split('/').pop()), cap:PLAN[${tk}].cap})`));
+  check('C3 one tap asks Google to read events and manage LMK\'s own calendar only (events.readonly + app.created), nothing broader', /calendar\.events\.readonly/.test(r.scope) && /calendar\.app\.created/.test(r.scope) && !/auth\/calendar(\s|$)|calendar\.readonly|calendar\.events(\s|$)/.test(r.scope), r.scope);
+  check('C3 events come from "primary" only; "free", cancelled and all-day ones are dropped; tomorrow is capped to 2 h', r.fb.length && r.fb.every(u=>/calendars\/primary\/events/.test(u)) && r.ev.length===1 && r.ev[0].t==='Work shift' && r.cap===120, {fb:r.fb, ev:r.ev, cap:r.cap});
   check('C3 an "LMK" calendar is created once and its id kept in store.cal (write on by default)', r.created.length===1 && r.created[0]==='LMK' && r.cal.src==='google' && r.cal.write===true && /lmkcal123/.test(r.cal.calId), {created:r.created, cal:r.cal});
   check('C3 study blocks and the exam are written with deterministic ids ("lmk…"), a PUT first then a POST when new', r.puts.length && r.puts.every(id=>/^lmk[0-9a-v]+$/.test(id)) && r.posts.length===r.puts.length && r.posts.some(p=>/PSY 101 · Exam 2/.test(p.summary)) && r.posts.some(p=>/^LMK · /.test(p.summary) && p.start.dateTime), {puts:r.puts.length, posts:r.posts.map(p=>p.summary)});
   check('C3 a stale LMK event is deleted and the student\'s own event is never touched', r.dels.includes('lmkstale1') && !r.dels.includes('partyAbc'), r.dels);
