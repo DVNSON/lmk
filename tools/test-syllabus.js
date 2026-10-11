@@ -4,7 +4,8 @@
               7:30 PM", and a "Final Project due Dec 4" and a "review session" that must NOT become exams
      ECN 211  numeric dates and roman/ordinal forms: "Exam 1 ... 9/23", "Midterm 2 – Nov. 4th"; and Canvas already has
               "Exam 1", which must win over the syllabus
-     CIS 105  an Exams category and a syllabus that is only a linked PDF: the gap says so honestly
+     CIS 105  a syllabus page that only links a Word file, whose text (sylDoc, extension 0.9.5) carries "Oct 21 | Midterm Exam 9:50 AM"
+     MAT 210  an Exams category and a syllabus that is only a linked file with no text read from it: the gap says so honestly
      WPC 101  an Exams category and no syllabus page at all
    Run: node test-syllabus.js   (needs :8899 serving ~/lmk-web and headless Chrome on :9333) */
 const {execSync}=require('child_process'); let id=0;
@@ -16,14 +17,15 @@ const Y=new Date().getFullYear();
 function payload(){ const items={}; let n=9800; const at=(mo,d,h=23,mi=59)=>new Date(Y,mo,d,h,mi).toISOString();
   const add=(c,cid,t,due,grp,pts)=>{const aid=String(n++); items[aid]={t,c,cid,due,pts,grp,st:'online_upload',k:'',sub:'',subAt:'',score:null,url:''};};
   // assignments spread across the fall term so the year is the term's
-  for (const [c,cid] of [['FMS 265','265'],['ECN 211','211'],['CIS 105','105'],['WPC 101','101']]) for (const mo of [8,9,10]) add(c,cid,`${c} work ${mo}`,at(mo,15),'g'+cid,10);
+  for (const [c,cid] of [['FMS 265','265'],['ECN 211','211'],['CIS 105','105'],['MAT 210','210'],['WPC 101','101']]) for (const mo of [8,9,10]) add(c,cid,`${c} work ${mo}`,at(mo,15),'g'+cid,10);
   add('ECN 211','211','Exam 1',at(8,23,10,0),'x211',100);
-  const groups={}; for (const cid of ['265','211','105','101']) groups[cid]=[{id:'g'+cid,name:'Work',w:60},{id:'x'+cid,name:'Exams',w:40}];
+  const groups={}; for (const cid of ['265','211','105','210','101']) groups[cid]=[{id:'g'+cid,name:'Work',w:60},{id:'x'+cid,name:'Exams',w:40}];
   const syl={
     '265':'FMS 265 Course Schedule\nWeek | Date | Topic\nWeek 7 | Oct 7 | Genre and Authorship\nWeek 8 | Oct 14 | Midterm Exam (in class) 10:30 AM\nThe midterm review session is Oct 12.\nFinal Project due Dec 4.\nFinal Exam: Thursday, December 10, 7:30 PM in our room.',
     '211':'Grading: Exams 40%.\nExam 1 will be on 9/23 in class.\nMidterm 2 – Nov. 4th, during class.\nPractice exam available Nov 1.',
-    '105':'', '101':''};
-  const courses=[['265','FMS 265'],['211','ECN 211'],['105','CIS 105'],['101','WPC 101']].map(([id,tag])=>({id,tag,name:tag,uuid:'u'+id+'x'.repeat(30),wt:true,cur:null,fin:null,syl:syl[id],sylFile:id==='105'?'/courses/105/files/555/download':''}));
+    '105':'Course syllabus: see the attached file.', '210':'', '101':''};
+  const sylDoc={'105':'CIS 105 Computer Applications\nDate | What\nOct 21 | Midterm Exam 9:50 AM\nDec 9 | Final Exam & party'};
+  const courses=[['265','FMS 265'],['211','ECN 211'],['105','CIS 105'],['210','MAT 210'],['101','WPC 101']].map(([id,tag])=>Object.assign({id,tag,name:tag,uuid:'u'+id+'x'.repeat(30),wt:true,cur:null,fin:null,syl:syl[id],sylFile:id==='105'||id==='210'?`/courses/${id}/files/555?wrap=1`:''}, sylDoc[id]?{sylDoc:sylDoc[id],sylDocId:'555',sylDocAt:Date.now(),sylDocKind:'docx'}:id==='210'?{sylDoc:'',sylDocId:'555',sylDocAt:Date.now(),sylDocKind:'none'}:{}));
   return {lmk:'canvas',v:3,at:Date.now(),host:'canvas.asu.edu',items,groups,courses}; }
 const STUB=`(function(){const J=o=>new Response(JSON.stringify(o),{status:200,headers:{"content-type":"application/json"}}); window.fetch=async(u)=>/\\/config$/.test(String(u))?J({ok:true,rooms:{on:false},push:{key:''}}):J({ok:false});})()`;
 (async()=>{
@@ -34,9 +36,9 @@ const STUB=`(function(){const J=o=>new Response(JSON.stringify(o),{status:200,he
   await send(ws,'Page.addScriptToEvaluateOnNewDocument',{source:STUB});
   await send(ws,'Page.addScriptToEvaluateOnNewDocument',{source:`try{if(!sessionStorage.getItem('__s')){localStorage.clear();localStorage.setItem('duenorth_v1',${JSON.stringify(JSON.stringify({onboarded:1,profile:{name:'Sam'},capacity:{weekday:3,weekend:3}}))});sessionStorage.setItem('__s','1')}}catch(_){}`});
   await send(ws,'Page.navigate',{url:'about:blank'}); await sleep(120); await send(ws,'Page.navigate',{url:'http://localhost:8899/app/'}); await sleep(2600);
-  await ev(ws,`window.postMessage({lmk:'ext-hello',version:'0.9.4'},'*'); window.postMessage({lmk:'canvas-payload',payload:${JSON.stringify(payload())}},'*'); 1`); await sleep(2000);
+  await ev(ws,`window.postMessage({lmk:'ext-hello',version:'0.9.5'},'*'); window.postMessage({lmk:'canvas-payload',payload:${JSON.stringify(payload())}},'*'); 1`); await sleep(2000);
   await ev(ws,`welcomeOverlay.classList.remove('open'); render(); 1`); await sleep(300);
-  const r=JSON.parse(await ev(ws,`JSON.stringify({fms:sylExams('FMS 265').map(x=>({n:x.name,m:x.due.getMonth(),d:x.due.getDate(),h:x.allDay?null:x.due.getHours()+':'+String(x.due.getMinutes()).padStart(2,'0'),y:x.due.getFullYear()})), ecn:sylExams('ECN 211').map(x=>({n:x.name,m:x.due.getMonth(),d:x.due.getDate()})), list:examList().map(x=>({k:x.key,syl:!!x.syl,gap:!!x.gap,ev:!!x.ev,approx:!!x.approx})), st:{cis:sylState('CIS 105'), wpc:sylState('WPC 101'), fms:sylState('FMS 265')}})`));
+  const r=JSON.parse(await ev(ws,`JSON.stringify({fms:sylExams('FMS 265').map(x=>({n:x.name,m:x.due.getMonth(),d:x.due.getDate(),h:x.allDay?null:x.due.getHours()+':'+String(x.due.getMinutes()).padStart(2,'0'),y:x.due.getFullYear()})), ecn:sylExams('ECN 211').map(x=>({n:x.name,m:x.due.getMonth(),d:x.due.getDate()})), list:examList().map(x=>({k:x.key,syl:!!x.syl,gap:!!x.gap,ev:!!x.ev,approx:!!x.approx})), st:{cis:sylState('CIS 105'), mat:sylState('MAT 210'), wpc:sylState('WPC 101'), fms:sylState('FMS 265')}, cis:sylExams('CIS 105').map(x=>({n:x.name,m:x.due.getMonth(),d:x.due.getDate(),h:x.allDay?null:x.due.getHours()+':'+String(x.due.getMinutes()).padStart(2,'0')}))})`));
   const f=r.fms;
   check('S1 FMS: the midterm comes from the schedule table row, with its time (Oct 14, 10:30)', f.some(x=>x.n==='midterm' && x.m===9 && x.d===14 && x.h==='10:30' && x.y===Y), f);
   check('S1 FMS: the final from prose ("Thursday, December 10, 7:30 PM")', f.some(x=>x.n==='final' && x.m===11 && x.d===10 && x.h==='19:30'), f);
@@ -45,10 +47,11 @@ const STUB=`(function(){const J=o=>new Response(JSON.stringify(o),{status:200,he
   const L=r.list;
   check('S3 Canvas wins: ECN 211 Exam 1 is the Canvas item, the syllabus adds Midterm 2', L.some(x=>x.k==='ECN 211|exam 1' && x.ev && !x.syl) && L.some(x=>x.k==='ECN 211|midterm 2' && x.syl), L.filter(x=>/ECN/.test(x.k)));
   check('S3 FMS has dated exams from the syllabus and no "exams with no date" gap', L.some(x=>x.k==='FMS 265|midterm' && x.syl) && L.some(x=>x.k==='FMS 265|final' && x.syl) && !L.some(x=>x.k==='FMS 265|gap'), L.filter(x=>/FMS/.test(x.k)));
-  check('S4 the gap says what LMK looked at: a PDF it can\'t read yet (CIS) vs no syllabus page (WPC)', r.st.cis==='file' && r.st.wpc==='none' && r.st.fms==='text', r.st);
+  check('S4 the gap says what LMK looked at: a file nothing was read from (MAT) vs no syllabus page (WPC); a file that was read counts as text (CIS)', r.st.mat==='file' && r.st.wpc==='none' && r.st.fms==='text' && r.st.cis==='text', r.st);
+  check('S4 the Word file\'s rows give CIS its midterm with the time, and the final; the gap is gone', r.cis.some(x=>x.n==='midterm' && x.m===9 && x.d===21 && x.h==='9:50') && r.cis.some(x=>x.n==='final' && x.m===11 && x.d===9) && L.some(x=>x.k==='CIS 105|midterm' && x.syl) && !L.some(x=>x.k==='CIS 105|gap'), {cis:r.cis, L:L.filter(x=>/CIS/.test(x.k))});
   await ev(ws,`document.querySelector('[data-tab="semester"]').click(); 1`); await sleep(600);
   const sem=await ev(ws,`document.getElementById('view-semester').innerText.replace(/\\s+/g,' ')`);
-  check('S5 Semester: syllabus exams say "from your syllabus"; the CIS gap says the syllabus is a file; WPC says there is no syllabus page', /Midterm\s.*FMS 265.*from your syllabus/i.test(sem) && /CIS 105: exams with no date.*syllabus is a file LMK can't read yet/i.test(sem) && /WPC 101: exams with no date.*no syllabus page/i.test(sem), sem.slice(0,900));
+  check('S5 Semester: syllabus exams say "from your syllabus" (FMS from the page, CIS from the file); the MAT gap says the syllabus is a file; WPC says there is no syllabus page', /Midterm\s.*FMS 265.*from your syllabus/i.test(sem) && /MAT 210: exams with no date.*syllabus is a file LMK can't read yet/i.test(sem) && /Midterm\s.*CIS 105.*from your syllabus/i.test(sem) && /WPC 101: exams with no date.*no syllabus page/i.test(sem), sem.slice(0,900));
   await ev(ws,`openExamSheet(examFind('FMS 265|midterm')); 1`); await sleep(400);
   const sh=await ev(ws,`document.getElementById('planModal').innerText.replace(/\\s+/g,' ')`);
   check('S6 the exam sheet quotes the syllabus line it came from', /From your syllabus: “Week 8 \| Oct 14 \| Midterm Exam \(in class\) 10:30 AM”/.test(sh), sh.slice(0,300));
