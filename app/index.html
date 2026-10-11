@@ -7064,6 +7064,10 @@ function renderAdmin(root){
   const full7 = ev => sum(ev, 22, 29), prevFull7 = ev => sum(ev, 15, 22);
   const AT = d.allTime || tot;                                        // "ever" means ever, not the last 90 days
   const LH = d.lmsHosts || [];                                        // schools the extension has reported from
+  /* a school the extension could NOT read reports too (0.9.7): its first diag row is lmk/fail/<reader>, then the page */
+  const lmsFailNote = h => { const dg = h.diag || [], f = dg[0] && /^lmk\/fail\//.test(dg[0].p || "") ? dg[0] : null; if (!f) return "";
+    const pg = dg[1] && /^lmk\/page/.test(dg[1].p || "") ? dg[1].p.slice(8) || "/" : "";
+    return `<br><span class="mono" style="font-size:11px;color:var(--warn-text)">couldn't read · tried ${f.p.endsWith("d2l") ? "Brightspace" : "Canvas"}${f.s ? " · " + n(f.s) : ""}${pg ? " · on " + esc(pg) : ""}</span>`; };
   /* A rate needs a denominator that COULD have produced the numerator. `back_d7` began on the day its
      counter shipped, so dividing it by all-time installs counts 45 devices that installed before the
      counter existed and can never appear on top — it read 4% when the cohort that can answer read 2 of 6.
@@ -7253,7 +7257,7 @@ function renderAdmin(root){
       <p class="adm-note" style="margin-top:10px">Links to hand out:<br>${CH.map(([k]) => `<span class="mono">https://lmktoday.app/?from=${k}</span>`).join("<br>")}</p></div>`;
 
     if (LH.length) html += `<div class="card adm-card"><h3>Schools the extension has reported from</h3>
-      ${table(["School", "num:Reports", "Last", "num:Courses", "num:Items"], LH.map(h => `<tr><td>${esc(h.host)}</td><td class="num">${n(h.n)}</td><td>${h.at ? new Date(h.at).toLocaleDateString() : "—"}</td><td class="num">${n((h.counts || {}).courses || 0)}</td><td class="num">${n((h.counts || {}).items || 0)}</td></tr>`))}</div>`;
+      ${table(["School", "num:Reports", "Last", "num:Courses", "num:Items"], LH.map(h => `<tr><td>${esc(h.host)}${lmsFailNote(h)}</td><td class="num">${n(h.n)}</td><td>${h.last || h.at ? new Date(h.last || h.at).toLocaleDateString() : "—"}</td><td class="num">${n((h.counts || {}).courses || 0)}</td><td class="num">${n((h.counts || {}).items || 0)}</td></tr>`))}</div>`;
   }
   if (ADMIN.tab === "ops") {
     html += `<div class="tiles">
