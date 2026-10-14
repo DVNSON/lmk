@@ -325,6 +325,13 @@
   /* An instructor's or a club's link says where it came from (?from=prof). The app counts that word once, so
      every way into the app from here carries it. */
   var from = ""; try { from = new URLSearchParams(location.search).get("from") || ""; } catch(_){}
+  /* ...and this page remembers it too (v73.5). The main button goes to the Chrome Web Store, and the extension then
+     opens the app with no ?from= on it, so until now a student who installed the usual way was never credited to the
+     link that brought them: not one tagged link had ever produced a count. Same origin as the app, whose
+     channelSaved() reads lmk_from on its first open. The same closed list, and the first door wins, as in the app. */
+  from = String(from).toLowerCase().slice(0, 12);
+  if (["chat", "reddit", "club", "prof", "card", "search"].indexOf(from) < 0) from = "";
+  if (from) { try { if (!localStorage.getItem("lmk_from")) localStorage.setItem("lmk_from", from); } catch(_){} }
   if (from) {
     var links = document.querySelectorAll("a[href]");
     for (var i = 0; i < links.length; i++) {
