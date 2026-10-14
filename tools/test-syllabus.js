@@ -8,6 +8,7 @@
      MAT 210  an Exams category and a syllabus that is only a linked file with no text read from it: the gap says so honestly
      WPC 101  an Exams category and no syllabus page at all
      DEV 202  a syllabus page that only links a Google Doc (sylLinks, extension 0.9.6): the gap names the link
+   S7: a read from LMK's server (no syllabus fields, no open dates) must not wipe what the extension read (v73.6)
    Run: node test-syllabus.js   (needs :8899 serving ~/lmk-web and headless Chrome on :9333) */
 const {execSync}=require('child_process'); let id=0;
 const send=(ws,m,p={})=>new Promise(r=>{const mid=++id;const h=e=>{const x=JSON.parse(e.data);if(x.id===mid){ws.removeEventListener('message',h);r(x.result)}};ws.addEventListener('message',h);ws.send(JSON.stringify({id:mid,method:m,params:p}))});
@@ -60,6 +61,18 @@ const STUB=`(function(){const J=o=>new Response(JSON.stringify(o),{status:200,he
   await ev(ws,`openExamSheet(examFind('FMS 265|midterm')); 1`); await sleep(400);
   const sh=await ev(ws,`document.getElementById('planModal').innerText.replace(/\\s+/g,' ')`);
   check('S6 the exam sheet quotes the syllabus line it came from', /From your syllabus: “Week 8 \| Oct 14 \| Midterm Exam \(in class\) 10:30 AM”/.test(sh), sh.slice(0,300));
+  // S7 (v73.6) a read from LMK's server (Sync from anywhere, worker sync.js) has no syllabus fields, and before worker v21 no open
+  // dates: it replaced the course list wholesale and took every syllabus exam (and its study plan) away until the next extension read
+  const P1=payload(); const first=Object.keys(P1.items)[0]; const openAt=new Date(Date.now()+3*864e5).toISOString(); P1.items[first].open=openAt; P1.at=Date.now()+1000;
+  await ev(ws,`applyCanvasPayload(${JSON.stringify(P1)}); 1`); await sleep(300);
+  const SV=JSON.parse(JSON.stringify(P1)); SV.at=Date.now()+2000; SV.courses=SV.courses.map(c=>({id:c.id,tag:c.tag,name:c.name,wt:c.wt})); for (const k in SV.items) delete SV.items[k].open;
+  await ev(ws,`applyDriveCanvas(${JSON.stringify(SV)}); render(); 1`); await sleep(300);
+  const k1=JSON.parse(await ev(ws,`JSON.stringify({at:store.ext.at, fms:sylExams('FMS 265').map(x=>x.name), cis:sylExams('CIS 105').map(x=>x.name), open:store.ext.items[${JSON.stringify(first)}].open, links:(courseMeta('DEV 202')||{}).sylLinks})`));
+  check('S7 a server read keeps the syllabus exams (from the page and from the file), the syllabus links and the open date the extension read', k1.at===SV.at && k1.fms.includes('midterm') && k1.cis.includes('midterm') && k1.open===openAt && Array.isArray(k1.links) && k1.links.length===1, k1);
+  const EX=JSON.parse(JSON.stringify(P1)); EX.at=Date.now()+3000; EX.courses=EX.courses.map(c=>c.tag==='FMS 265'?Object.assign({},c,{syl:''}):c);
+  await ev(ws,`applyCanvasPayload(${JSON.stringify(EX)}); 1`); await sleep(300);
+  const k2=JSON.parse(await ev(ws,`JSON.stringify({fms:sylExams('FMS 265').map(x=>x.name)})`));
+  check('S7 an extension read that finds the syllabus empty is believed: nothing is brought back', !k2.fms.includes('midterm'), k2);
   ws.close(); try{execSync('curl -s http://localhost:9333/json/close/'+t.id)}catch(_){}
   console.log(`\n${fail?fail+' FAILED':'ALL OK'}  (${pass} passed)`);
   process.exit(fail?1:0);
