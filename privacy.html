@@ -26,7 +26,7 @@
 <div class="wrap">
   <span class="brand"></span>
   <h1>LMK — Privacy Policy</h1>
-  <div class="sub">Effective October 14, 2026 · Applies to LMK at lmktoday.app and the "LMK Today" browser extension</div>
+  <div class="sub">Effective October 15, 2026 · Applies to LMK at lmktoday.app and the "LMK Today" browser extension</div>
 
   <p>LMK ("Let Me Know") is a planner for students. Its browser extension, LMK Today, reads your own Canvas or D2L Brightspace assignments, and the LMK app tells you what to do today. This page names everything LMK reads, everything that leaves your device, who handles it, how long it is kept, and how to delete it.</p>
 
@@ -65,7 +65,7 @@
     <li>LMK's server stores the token <b>encrypted</b>, with a key kept in the server's secret store and never in the database. Beside it, as ordinary database rows, it stores a copy of what it reads: <b>per course</b>, its name and Canvas's current and final grade; <b>per assignment</b>, the title, due, open and lock dates, points, link, submission state and time, score, late/missing/excused flags, the first 1,200 characters of the instructions, the rubric criteria, and the most recent comment someone other than you left on your submission (first 400 characters). It also keeps your school's Canvas address and the labels Canvas puts on each assignment (grading type, submission type, assignment group and its weight, quiz number).</li>
     <li>It stores <b>no email, no Canvas user id and no name from your Canvas profile</b>. Each student is a random sync id. A comment someone left on your work is free text, though, and can contain your name.</li>
     <li>Every few minutes the server reads a few courses for the student whose copy is oldest, and it reads yours when you open LMK and the copy is stale. Your devices read the copy back from the server.</li>
-    <li><b>How long it is kept:</b> until you turn Sync from anywhere off. That deletes the token, the course list and every assignment row from LMK's server at once, and removes the token from Canvas the next time you open Canvas with the extension. If you stop using LMK without turning it off, the copy stays until you turn it off or write to hello@lmktoday.app; Canvas itself expires the token after 180 days unless the extension renews it.</li>
+    <li><b>How long it is kept:</b> until you turn Sync from anywhere off. That deletes the token, the course list and every assignment row from LMK's server at once, and removes the token from Canvas the next time you open Canvas with the extension. If you stop using LMK without turning it off, the server deletes the token and the copy on its own once nothing has read the copy for <b>180 days</b> (neither LMK nor your calendar subscription), or once Canvas has refused the token for <b>30 days</b> in a row without a successful read (for example after you delete it in Canvas). Canvas itself also expires the token after 180 days unless the extension renews it.</li>
     <li><b>Turning it off does not take you out of your classes.</b> A classmates entry is kept separately (below): leave each class to remove it, or write to <a href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=hello%40lmktoday.app" target="_blank" rel="noopener">hello@lmktoday.app</a> to delete everything.</li>
   </ul>
   <p>Students on a phone with no laptop can paste a Canvas token they made themselves. Everything above applies to it, except that LMK cannot remove a token you made by hand from Canvas: delete it under Approved Integrations.</p>
@@ -147,10 +147,11 @@
   <h2>How long things are kept</h2>
   <ul>
     <li><b>In your browser and your Drive:</b> until you delete them (see below).</li>
-    <li><b>Sync from anywhere:</b> until you turn it off, or write to hello@lmktoday.app.</li>
-    <li><b>Classmates entry and sessions:</b> until you leave the class. <b>Reports:</b> until a person has dealt with them; write to have yours deleted.</li>
+    <li><b>Sync from anywhere:</b> until you turn it off, or write to hello@lmktoday.app. If you don't, it is deleted automatically once nothing has read it for 180 days (neither LMK nor your calendar subscription), or once Canvas has refused the token for 30 days in a row.</li>
+    <li><b>Classmates entry and sessions:</b> until you leave the class. <b>Reports:</b> deleted automatically 180 days after they are made; write to have yours deleted sooner.</li>
     <li><b>Morning note:</b> until you turn it off or the push service says the browser is gone.</li>
-    <li><b>Crash reports and usage counts:</b> kept as daily totals that identify no one, also per school once ten devices there have used LMK.</li>
+    <li><b>Crash reports</b> (the app's version and the error's message, counted per day): deleted after 90 days.</li>
+    <li><b>Usage counts:</b> kept as daily totals that identify no one, also per school once ten devices there have used LMK.</li>
     <li><b>Brightspace school report:</b> one row per school, replaced by each newer report.</li>
   </ul>
 
