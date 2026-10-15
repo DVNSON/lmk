@@ -16,6 +16,12 @@ code = io.open(sys.argv[3] if len(sys.argv) == 4 else os.path.join(HOME, "lmk-we
 m = re.search(r"<body>\n(.*?)\n*</body>\s*</html>\s*$", code, re.S)
 if code.lstrip()[:15].lower().startswith("<!doctype") and m: code = m.group(1) + "\n"
 if not code.startswith("<title>LMK</title>"): sys.exit("the app must start with <title>LMK</title> (the routine checks for it)")
+# The site serves its fonts itself (/assets/fonts, 2026-10-15: no page asks Google for them). The artifact runs on claude.ai's
+# sandbox origin, which cannot reach lmktoday.app's files, so its copy keeps loading the same families from Google Fonts.
+LOCAL_FONTS = '<link rel="stylesheet" href="/assets/fonts/fonts.css">'
+GOOGLE_FONTS = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Public+Sans:wght@400..700&family=Spline+Sans+Mono:wght@500..600&display=swap">'
+if code.count(LOCAL_FONTS) != 1: sys.exit("expected the app's one local fonts link")
+code = code.replace(LOCAL_FONTS, GOOGLE_FONTS)
 out = code
 for n in ("SEED_ROWS", "SEED_LABEL", "SYNCED_AT"):
     m = re.search(r"^const %s = .*;$" % n, live, re.M)

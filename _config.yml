@@ -1,0 +1,2 @@
+# The site is plain HTML. This file exists only so GitHub Pages publishes .well-known/ (security.txt), which it skips by default.
+include: [".well-known"]

@@ -32,7 +32,7 @@ const OVER=`(()=>{const W=innerWidth, out=[]; const path=e=>{let p=[]; while(e&&
   const t=JSON.parse(execSync('curl -s http://localhost:9333/json/new -X PUT').toString());
   const ws=new WebSocket(t.webSocketDebuggerUrl); await new Promise(r=>ws.addEventListener('open',r));
   const done=()=>{ try{Wk.kill()}catch(_){}; try{ ws.close(); execSync('curl -s http://localhost:9333/json/close/'+t.id,{stdio:'pipe'}); }catch(_){} };
-  await send(ws,'Page.enable'); await send(ws,'Runtime.enable'); await send(ws,'Emulation.setUserAgentOverride',{userAgent:IPHONE});
+  await send(ws,'Page.enable'); await send(ws,'Page.setBypassCSP',{enabled:true});   // this suite points the app at a local stand-in worker (http://localhost), which the app's Content-Security-Policy rightly refuses; tools/test-csp.js tests the policy itself await send(ws,'Runtime.enable'); await send(ws,'Emulation.setUserAgentOverride',{userAgent:IPHONE});
   await send(ws,'Emulation.setDeviceMetricsOverride',{width:W,height:844,deviceScaleFactor:3,mobile:true});
   await send(ws,'Page.addScriptToEvaluateOnNewDocument',{source:STUB});
   await send(ws,'Page.addScriptToEvaluateOnNewDocument',{source:`try{if(!sessionStorage.getItem('__s')){localStorage.clear();localStorage.setItem('duenorth_v1',${JSON.stringify(JSON.stringify(SEED))});sessionStorage.setItem('__s','1')}}catch(_){}`});

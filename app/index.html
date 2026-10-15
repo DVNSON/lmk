@@ -2,6 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<!-- Where this page may load code from and send data to (2026-10-15, for school security reviews). GitHub Pages cannot send
+     headers, so it lives here; frame-ancestors and HSTS need a host that sets headers. The app's own script is inline, the
+     Google pieces are sign-in (accounts.google.com/gsi) and Drive/Calendar (www.googleapis.com), and every server call goes to
+     LMK's worker. Anything new the app fetches from must be added here, or the browser blocks it. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://lmk-api.emieldieuvenson.workers.dev https://www.googleapis.com https://accounts.google.com/gsi/; frame-src https://accounts.google.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,viewport-fit=cover">
 <meta name="description" content="LMK — your Canvas assignments as a calm daily plan.">
 <meta name="theme-color" content="#0f1013" media="(prefers-color-scheme: dark)">
@@ -25,7 +31,7 @@
 </head>
 <body>
 <title>LMK</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Public+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
 <style>
   :root{
     --bg:#f2f3f6; --surface:#ffffff; --surface-2:#f7f8fa;

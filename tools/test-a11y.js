@@ -87,7 +87,7 @@ function pageHelpers(){
     t=JSON.parse(execSync(`curl -s ${CDP}/json/new -X PUT`).toString());
     ws=new WebSocket(t.webSocketDebuggerUrl); await new Promise(r=>ws.addEventListener('open',r));
     ws.addEventListener('message',e=>{const m=JSON.parse(e.data); if(m.method==='Runtime.exceptionThrown') errs.push(String((m.params.exceptionDetails.exception||{}).description||m.params.exceptionDetails.text||'').slice(0,200));});
-    await send(ws,'Page.enable'); await send(ws,'Runtime.enable'); await send(ws,'Network.enable'); await send(ws,'Network.setCacheDisabled',{cacheDisabled:true});
+    await send(ws,'Page.enable'); await send(ws,'Page.setBypassCSP',{enabled:true});   // this suite points the app at a local stand-in worker (http://localhost), which the app's Content-Security-Policy rightly refuses; tools/test-csp.js tests the policy itself await send(ws,'Runtime.enable'); await send(ws,'Network.enable'); await send(ws,'Network.setCacheDisabled',{cacheDisabled:true});
     await send(ws,'Page.addScriptToEvaluateOnNewDocument',{source:STUB}); await send(ws,'Page.bringToFront');
   };
   await openTab();

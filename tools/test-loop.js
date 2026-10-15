@@ -42,7 +42,7 @@ const TABS=[];
 async function open(who, ua, mobile, seed, hash){
   const t=JSON.parse(execSync('curl -s http://localhost:9333/json/new -X PUT').toString()); TABS.push(t.id);
   const ws=new WebSocket(t.webSocketDebuggerUrl); await new Promise(r=>ws.addEventListener('open',r));
-  await send(ws,'Page.enable'); await send(ws,'Runtime.enable');
+  await send(ws,'Page.enable'); await send(ws,'Page.setBypassCSP',{enabled:true});   // this suite points the app at a local stand-in worker (http://localhost), which the app's Content-Security-Policy rightly refuses; tools/test-csp.js tests the policy itself await send(ws,'Runtime.enable');
   if(ua) await send(ws,'Emulation.setUserAgentOverride',{userAgent:ua});
   await send(ws,'Emulation.setDeviceMetricsOverride',{width:mobile?430:1100,height:mobile?900:1000,deviceScaleFactor:1,mobile});
   await send(ws,'Page.addScriptToEvaluateOnNewDocument',{source:STUB});

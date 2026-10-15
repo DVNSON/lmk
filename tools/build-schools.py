@@ -63,7 +63,7 @@ HEAD = """<!doctype html>
 <meta property="og:type" content="website">
 <link rel="canonical" href="https://lmktoday.app/{path}">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23e0489a'/><text x='50' y='64' font-size='44' font-family='sans-serif' font-weight='800' fill='white' text-anchor='middle'>L</text></svg>">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Public+Sans:wght@400;600;700&family=Spline+Sans+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
 <style>{css}</style>
 </head>
 <body>
