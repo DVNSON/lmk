@@ -1,7 +1,7 @@
 /* Onboarding state machine, end to end, in a real headless Chrome. 40 checks: the checklist hero's states
    (fresh / checking / waiting / stuck / empty / phone), the welcome overlay's copy per state, the first-sync
    reveal and its 10-minute flag, the name draft, the sync-from-anywhere consent box, and (v73.4) the setup steps:
-   platform, school address, approval, and that nothing points at ASU.
+   platform, school address, approval, and that nothing points at ASU; (v73.9) a phone starts on a computer (T7, T22).
    Run:  cd ~/lmk-web && python3 -m http.server 8899 &
          "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --remote-debugging-port=9333 --user-data-dir=/tmp/lmk-cdp-wi about:blank &
          node tools/test-onboarding.js
@@ -104,11 +104,17 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
   await fresh(ws,{seed:Object.assign({},seeded,{onboarded:1,profile:{name:'Sam'}}), ls:{lmk_synced_first:String(Date.now()-11*60e3)}}); await sleep(600); r=JSON.parse(await ev(ws,Q));
   check('T6 stale: an 11-minute-old flag reveals nothing and is removed', !r.syncedIn && r.firstKey===null, {s:r.syncedIn,k:r.firstKey});
 
-  // T7 phone
+  // T7 phone (v73.9): the computer comes first, in the same six numbered steps as the homepage
   await fresh(ws,{mobile:true}); r=JSON.parse(await ev(ws,Q));
-  check('T7 phone: no checklist, laptop-first headline, install button hidden', r.rows.length===0 && r.h1==='Set up LMK on your laptop.' && r.wInstallHidden, {rows:r.rows,h1:r.h1});
-  { const ph=JSON.parse(await ev(ws,`JSON.stringify({first:(document.querySelector('section.view .hero .actions .btn')||{}).textContent||'', sample:!!document.querySelector('section.view .hero [data-act="try-sample"]')})`));
-    check('T7 phone: the main button sends the link to a laptop, and a sample is one tap away', ph.first==='Send this link to my laptop' && ph.sample, ph); }
+  check('T7 phone: "Set up on a computer first", the homepage\'s six numbered steps with the five computer ones first and row 1 current, install button hidden', r.rows.length===6 && r.h1==='Set up on a computer first.' && /^now:1\. On a computer/.test(r.rows[0]) && /^todo:6\. Here on this phone/.test(r.rows[5]) && r.wInstallHidden, {rows:r.rows,h1:r.h1});
+  { const ph=JSON.parse(await ev(ws,`JSON.stringify({first:(document.querySelector('section.view .hero .actions .btn')||{}).textContent||'', sample:!!document.querySelector('section.view .hero [data-act="try-sample"]'), token:!!document.querySelector('section.view .hero [data-act="open-token"]'), signin:(document.querySelector('section.view .hero [data-act="web-signin"]')||{}).textContent||''})`));
+    check('T7 phone: the main button sends the link to a computer, a sample is one tap away, and no shortcut skips the computer', ph.first==='Send this link to my computer' && ph.sample && !ph.token && (ph.signin==='' || ph.signin==='Done on a computer? Sign in'), ph); }
+  // T22 a phone signed in before any computer synced: it says so and waits, instead of a toast and the same card
+  await fresh(ws,{mobile:true, ls:{lmk_gsignin:'1'}}); r=JSON.parse(await ev(ws,Q));
+  { const w=JSON.parse(await ev(ws,`JSON.stringify({kicker:(document.querySelector('section.view .hero .kicker')||{}).textContent, recheck:!!document.querySelector('section.view .hero [data-act="phone-recheck"]'), why:(document.querySelector('section.view .hero .why')||{}).textContent||''})`));
+    check('T22 phone signed in, nothing from a computer: "Now finish on your computer", step 6 ticked, the computer\'s five to do, Check again', r.h1==='Signed in. Now finish on your computer.' && w.kicker==='Waiting for your computer' && /^done:6\. Signed in on this phone/.test(r.rows[5]) && r.rows.slice(0,5).every(x => /^todo:/.test(x)) && w.recheck && /same Google account/.test(w.why), {h1:r.h1, rows:r.rows, w}); }
+  await ev(ws,`window.postMessage({lmk:'canvas-payload', payload:${PAYLOAD}}, '*')`); await sleep(800); r=JSON.parse(await ev(ws,Q));
+  check('T22 once the computer\'s classes arrive, the phone shows the plan and the steps are gone', r.rows.length===0 && !!r.h1 && r.ext, {rows:r.rows, h1:r.h1});
 
   // T10 the hint suppresses the flash
   await fresh(ws,{ls:Object.assign({lmk_ping_ext:'1'}, READY)}); r=JSON.parse(await ev(ws,Q));

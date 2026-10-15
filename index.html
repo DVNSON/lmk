@@ -108,6 +108,11 @@
   .step .n{flex:none;width:32px;height:32px;border-radius:9px;background:var(--splash-strong);color:#fff;display:flex;align-items:center;justify-content:center;font:700 15px "Bricolage Grotesque"}
   .step h3{font-size:17px;margin-bottom:5px}
   .step p{margin:0;color:var(--ink-2);font-size:15px}
+  ol.steps{list-style:none;padding:0;margin:8px 0 0}
+  .stephead{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:26px 0 4px}
+  .stephead span{text-transform:none;letter-spacing:0}
+  .phonefirst{margin:14px 0 0;padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);font-size:15px}
+  .phonefirst b{color:var(--ink)}
 
   .split{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center}
   @media (max-width:820px){.split{grid-template-columns:1fr;gap:26px}}
@@ -142,7 +147,7 @@
     <span class="mark">LMK</span>
     <span class="brandname">Let Me Know</span>
     <span class="sp"></span>
-    <a class="lnk hide-sm" href="#how">How it works</a>
+    <a class="lnk hide-sm" href="#setup">Set up</a>
     <a class="lnk hide-sm" href="#learns">Why it's different</a>
     <a class="lnk" href="app/">Open LMK</a>
   </div>
@@ -153,36 +158,55 @@
   <h1>Know what to do <em>today.</em></h1>
   <p class="lede">Canvas tells you what's due. LMK tells you what to actually do today — one short list, sized to the hours you really have. It learns how long your work takes, so the plan gets more honest every week.</p>
   <div class="cta">
-    <a class="btn grad" id="ctaMain" href="https://chromewebstore.google.com/detail/lmk-today/efjeldekjgbggjedpboafbblcegmmdam" target="_blank" rel="noopener">Add to Chrome — it's free</a>
-    <a class="btn" id="ctaAlt" href="app/">Open LMK</a>
+    <a class="btn grad" id="ctaMain" href="app/">Set up LMK — it's free</a>
+    <a class="btn" id="ctaAlt" href="#setup">See the steps</a>
   </div>
   <p class="ctanote" id="browserNote" hidden>LMK's extension runs in Chrome, Edge, Brave or Arc, not Safari or Firefox. Open this page in one of those. <button type="button" class="btn link" id="copyLink">Copy link</button></p>
-  <p class="ctanote">No account required. Built at ASU; works at any school that uses Canvas or Brightspace.</p>
+  <p class="ctanote">No account required. Set up on a computer first; your phone works after that. Built at ASU; works at any school that uses Canvas or Brightspace.</p>
 
   <div class="shot">
     <img src="assets/screenshot-app.jpg" alt="LMK's Today view: one next step and today's plan sized to your hours">
   </div>
 </div>
 
-<section id="how">
+<section id="setup">
+  <span id="how"></span>
   <div class="wrap">
-    <div class="kicker">How it works</div>
-    <h2>Three minutes to set up. Then it runs itself.</h2>
-    <p class="sub">Nothing to paste, no password to type, no copying assignment lists by hand.</p>
-    <div class="steps">
-      <div class="step"><div class="n">1</div><div>
-        <h3>Add the Chrome extension</h3>
-        <p><b>This is the step that makes LMK work:</b> the extension is how it reads your school's site, so there is nothing to plan until it's added. <a href="https://chromewebstore.google.com/detail/lmk-today/efjeldekjgbggjedpboafbblcegmmdam" target="_blank" rel="noopener">Get it on the Chrome Web Store</a>, then open Canvas or Brightspace once like you normally would. LMK reads your courses, every assignment, what you've already submitted, and your scores — and opens your plan for you.</p>
-      </div></div>
-      <div class="step"><div class="n">2</div><div>
+    <div class="kicker">Set up</div>
+    <h2>Set up LMK in about three minutes, once.</h2>
+    <p class="sub">Start on a computer, in Chrome, Edge, Brave or Arc. LMK reads your classes through a browser extension, and a phone can't install one.</p>
+    <p class="phonefirst" id="phoneFirst" hidden><b>You're on a phone.</b> Do steps 1 to 5 on a computer first. Your phone can't show your plan until a computer has read your classes, so step 6 is the only one you do here.</p>
+    <h3 class="stephead">On a computer</h3>
+    <ol class="steps">
+      <li class="step"><div class="n">1</div><div>
+        <h3>Open LMK and tell it your school</h3>
+        <p>Press <a href="app/">Set up LMK</a>. Choose whether your school uses <b>Canvas</b> or <b>Brightspace</b>, then type your school's address: the start of the address bar when you're on it, like <b>canvas.yourschool.edu</b>.</p>
+      </div></li>
+      <li class="step"><div class="n">2</div><div>
+        <h3>Add the LMK Today extension</h3>
+        <p><b>This is the step that makes LMK work:</b> the extension is how it reads your classes, so nothing appears until it's in. <a href="https://chromewebstore.google.com/detail/lmk-today/efjeldekjgbggjedpboafbblcegmmdam" target="_blank" rel="noopener">Add it from the Chrome Web Store</a>. It's free.</p>
+      </div></li>
+      <li class="step"><div class="n">3</div><div>
+        <h3>Open your school's site and sign in</h3>
+        <p>LMK reads your courses, every assignment, what you've already handed in and your scores, and your classes appear in LMK by themselves a few seconds later. If your school's site has its own address, Chrome asks you once to allow it.</p>
+      </div></li>
+      <li class="step"><div class="n">4</div><div>
         <h3>Answer one question</h3>
-        <p>Roughly how many hours can you study on a weekday, and on a weekend? That's the whole setup. No availability grid, no daily planning ritual.</p>
-      </div></div>
-      <div class="step"><div class="n">3</div><div>
-        <h3>Open it in the morning</h3>
-        <p>You get today's list and a total: "about two hours of your two and a half, you're fine." Everything else stays out of your way until it matters.</p>
-      </div></div>
-    </div>
+        <p>Roughly how many hours can you study on a weekday, and on a weekend? That's the end of setup. Open LMK each morning for today's list: "about two hours of your two and a half, you're fine."</p>
+      </div></li>
+    </ol>
+    <h3 class="stephead">Then, for your phone <span>(optional)</span></h3>
+    <ol class="steps" start="5">
+      <li class="step"><div class="n">5</div><div>
+        <h3>On the computer: sign in with Google</h3>
+        <p>In LMK, press <b>Sync across devices</b> at the bottom and sign in with Google. Your plan is saved to a file in your own Google Drive, which is how your phone gets it.</p>
+      </div></li>
+      <li class="step"><div class="n">6</div><div>
+        <h3>On your phone: sign in with the same account</h3>
+        <p>Open <b>lmktoday.app</b> on your phone and sign in with the same Google account. <b>Only do this after steps 1 to 5:</b> until a computer has read your classes, there is nothing for your phone to show.</p>
+      </div></li>
+    </ol>
+    <div class="cta" style="margin-top:22px"><a class="btn grad" id="ctaSteps" href="app/">Set up LMK →</a></div>
   </div>
 </section>
 
@@ -271,7 +295,7 @@
     <h2>Stop guessing what tonight looks like.</h2>
     <p class="sub">Free, all of it. Built at ASU, works at any school that uses Canvas or Brightspace. Every remaining assignment ranked by what each hour is worth, and what you need to finish each class.</p>
     <div class="cta">
-      <a class="btn grad" href="https://chromewebstore.google.com/detail/lmk-today/efjeldekjgbggjedpboafbblcegmmdam" target="_blank" rel="noopener">Add to Chrome</a>
+      <a class="btn grad" href="app/">Set up LMK</a>
       <a class="btn" href="app/">Open LMK</a>
       <a class="btn" href="privacy.html">Read the privacy policy</a>
     </div>
@@ -301,18 +325,17 @@
   var brands = (navigator.userAgentData && navigator.userAgentData.brands) || [];
   var chromium = (brands.some(function(b){ return /Chromium/.test(b.brand); }) || /Chrome\/|Chromium\/|Edg\//.test(ua)) && !/Firefox|FxiOS|CriOS/.test(ua);
   var m = document.getElementById("ctaMain"), a = document.getElementById("ctaAlt");
-  function toApp(label){
-    m.textContent = label; m.href = "app/"; m.removeAttribute("target"); m.removeAttribute("rel");
-    a.textContent = "See how it works"; a.href = "#how";
-  }
+  function toApp(label){ m.textContent = label; m.href = "app/"; }
   function fallback(text){
     try { var t = document.createElement("textarea"); t.value = text; t.style.cssText = "position:fixed;opacity:0"; document.body.appendChild(t); t.select();
       var ok = document.execCommand("copy"); t.remove(); return ok; } catch(_) { return false; }
   }
   if (m && a) {
-    if (phone) toApp("Set up on your laptop");   // the app offers to send the link to a laptop
+    /* A phone starts on a computer: the button says so, and the steps say which one is done here (step 5). The app's phone
+       screen offers to send the link to a computer and waits for the computer before it shows anything. */
+    if (phone) { toApp("Set up — start on a computer"); var pf = document.getElementById("phoneFirst"); if (pf) pf.hidden = false; }
     else if (!chromium) {
-      toApp("Open LMK");
+      toApp("Set up LMK");
       var note = document.getElementById("browserNote"), btn = document.getElementById("copyLink");
       if (note) note.hidden = false;
       if (btn) btn.addEventListener("click", function(){
