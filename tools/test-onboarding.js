@@ -239,6 +239,18 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
   check('T21 "Something else": an honest no, a way to ask for it, and no store button', r.h1==="LMK can't read that one yet." && r.ask && !r.store, r);
   await ev(ws,`document.querySelector('[data-act="setup-change"][data-step="other"]').click()`); await sleep(300);
   check('T21 Back returns to the school box', !!(await ev(ws,`!!document.getElementById('schoolIn')`)) && (await ev(ws,`localStorage.getItem('lmk_lms_hint')`))===null);
+  // T23 every US school on Canvas or D2L Brightspace (v74.4): /assets/schools.json loads with the school step and is searched by name
+  await fresh(ws); for (let i=0;i<30 && !(await ev(ws,`!!SCHOOLS_ALL`));i++) await sleep(150);
+  r=JSON.parse(await ev(ws,`JSON.stringify({loaded:!!SCHOOLS_ALL, n:document.querySelectorAll('#schoolList option').length, ca:allSchools().filter(x=>x[3]==='Canada').length})`));
+  check('T23 the full list loads into the suggestions (1,500+ schools), US only', r.loaded && r.n>1500 && r.ca===0, r);
+  sv=await save('red rocks community college');
+  check('T23 a school found only in the full list (by its college system) saves its address and platform', sv.school==='mycourses.cccs.edu' && sv.hint==='d2l', sv);
+  await ev(ws,`document.querySelector('[data-act="setup-change"][data-step="school"]').click()`); await sleep(300);
+  sv=await save('Bethel University (IN)');
+  check('T23 two schools with one name are told apart by state', !!sv.school && sv.school!=='mycourses.cccs.edu' && sv.hidden, sv);
+  await ev(ws,`document.querySelector('[data-act="setup-change"][data-step="school"]').click()`); await sleep(300);
+  sv=await save('Middle Tennessee State University (Canvas)');
+  check('T23 a school on both platforms is picked by platform', sv.school==='mtsu.instructure.com' && sv.hint==='canvas', sv);
   console.log('\\nJS errors during run:', errs.length? errs.slice(0,4) : 'none');
   console.log(`\\n${fail? fail+' FAILED' : 'ALL OK'}  (${pass} passed)`);
   ws.close(); process.exit(fail?1:0);
