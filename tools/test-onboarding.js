@@ -1,7 +1,9 @@
-/* Onboarding state machine, end to end, in a real headless Chrome. 40 checks: the checklist hero's states
+/* Onboarding state machine, end to end, in a real headless Chrome (the count is what the run prints): the checklist hero's states
    (fresh / checking / waiting / stuck / empty / phone), the welcome overlay's copy per state, the first-sync
    reveal and its 10-minute flag, the name draft, the sync-from-anywhere consent box, and (v73.4) the setup steps:
-   platform, school address, approval, and that nothing points at ASU; (v73.9) a phone starts on a computer (T7, T22).
+   platform, school address, approval, and that nothing points at ASU; (v73.9) a phone starts on a computer (T7, T22);
+   (v74.5) no hours question (T24), a school named by a link or an invite (T25, T26), the press that opens the school (T27),
+   Sync from anywhere re-registering (T28), and the homepage: the phone's own screen, Add to Chrome first (H1–H5).
    Run:  cd ~/lmk-web && python3 -m http.server 8899 &
          "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --remote-debugging-port=9333 --user-data-dir=/tmp/lmk-cdp-wi about:blank &
          node tools/test-onboarding.js
@@ -60,7 +62,7 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
   // T2 hello arrives (posted FROM the page, satisfying ev.source === window)
   await fresh(ws,{ls:READY});
   await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.4.2'}, '*')`); await sleep(600); r=JSON.parse(await ev(ws,Q));
-  check('T2 hello: the extension row done, "read once" current, hero waiting', /^done:Extension added/.test(r.rows[1]) && /^now:Canvas read once/.test(r.rows[2]) && r.waiting, r.rows);
+  check('T2 hello: the extension row done and on top (v74.5), the school under it, "read once" current, hero waiting', /^done:Extension added/.test(r.rows[0]) && /^done:My school is at/.test(r.rows[1]) && /^now:Canvas read once/.test(r.rows[2]) && r.waiting, r.rows);
   check('T2 hello: the headline names the school to open, and the button opens it', r.h1==='Open myschool.instructure.com and sign in.' && /href="https:\/\/myschool\.instructure\.com\/#lmk-sync"/.test(await ev(ws,`document.querySelector('section.view .hero .actions').innerHTML`)), r.h1);
   check('T2 hello: overlay step 2 now says added', r.wHead2==='Extension added ✓' && r.wInstallHidden, r.wHead2);
   const stable = await ev(ws,`(function(){ const a=document.querySelector('section.view').innerHTML; render(); render(); return a===document.querySelector('section.view').innerHTML; })()`);
@@ -104,15 +106,15 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
   await fresh(ws,{seed:Object.assign({},seeded,{onboarded:1,profile:{name:'Sam'}}), ls:{lmk_synced_first:String(Date.now()-11*60e3)}}); await sleep(600); r=JSON.parse(await ev(ws,Q));
   check('T6 stale: an 11-minute-old flag reveals nothing and is removed', !r.syncedIn && r.firstKey===null, {s:r.syncedIn,k:r.firstKey});
 
-  // T7 phone (v73.9): the computer comes first, in the same six numbered steps as the homepage
+  // T7 phone (v73.9; v74.5 the landing page's words, five steps): the computer comes first, numbered as on the homepage
   await fresh(ws,{mobile:true}); r=JSON.parse(await ev(ws,Q));
-  check('T7 phone: "Set up on a computer first", the homepage\'s six numbered steps with the five computer ones first and row 1 current, install button hidden', r.rows.length===6 && r.h1==='Set up on a computer first.' && /^now:1\. On a computer/.test(r.rows[0]) && /^todo:6\. Here on this phone/.test(r.rows[5]) && r.wInstallHidden, {rows:r.rows,h1:r.h1});
-  { const ph=JSON.parse(await ev(ws,`JSON.stringify({first:(document.querySelector('section.view .hero .actions .btn')||{}).textContent||'', sample:!!document.querySelector('section.view .hero [data-act="try-sample"]'), token:!!document.querySelector('section.view .hero [data-act="open-token"]'), signin:(document.querySelector('section.view .hero [data-act="web-signin"]')||{}).textContent||''})`));
-    check('T7 phone: the main button sends the link to a computer, a sample is one tap away, and no shortcut skips the computer', ph.first==='Send this link to my computer' && ph.sample && !ph.token && (ph.signin==='' || ph.signin==='Done on a computer? Sign in'), ph); }
+  check('T7 phone: "Get your study plan ready.", the homepage\'s five numbered steps with the four computer ones first and row 1 current, install button hidden', r.rows.length===5 && r.h1==='Get your study plan ready.' && /^now:1\. On a computer/.test(r.rows[0]) && /^todo:5\. Here on this phone/.test(r.rows[4]) && r.wInstallHidden, {rows:r.rows,h1:r.h1});
+  { const ph=JSON.parse(await ev(ws,`JSON.stringify({first:(document.querySelector('section.view .hero .actions .btn')||{}).textContent||'', mail:(document.querySelector('section.view .hero .actions .btn')||{}).href||'', other:!!document.querySelector('section.view .hero [data-act="send-laptop"]'), why:(document.querySelector('section.view .hero .why')||{}).textContent||'', sample:!!document.querySelector('section.view .hero [data-act="try-sample"]'), token:!!document.querySelector('section.view .hero [data-act="open-token"]'), signin:(document.querySelector('section.view .hero [data-act="web-signin"]')||{}).textContent||''})`));
+    check('T7 phone: the main button mails the setup link (the phone\'s own mail app), another way is one tap away, a sample too, and no shortcut skips the computer', ph.first==='Email me the setup link' && /^mailto:\?subject=/.test(ph.mail) && decodeURIComponent(ph.mail).includes('https://lmktoday.app/') && ph.other && /Google Chrome on your laptop or desktop/.test(ph.why) && ph.sample && !ph.token && (ph.signin==='' || ph.signin==='Done on a computer? Sign in'), ph); }
   // T22 a phone signed in before any computer synced: it says so and waits, instead of a toast and the same card
   await fresh(ws,{mobile:true, ls:{lmk_gsignin:'1'}}); r=JSON.parse(await ev(ws,Q));
   { const w=JSON.parse(await ev(ws,`JSON.stringify({kicker:(document.querySelector('section.view .hero .kicker')||{}).textContent, recheck:!!document.querySelector('section.view .hero [data-act="phone-recheck"]'), why:(document.querySelector('section.view .hero .why')||{}).textContent||''})`));
-    check('T22 phone signed in, nothing from a computer: "Now finish on your computer", step 6 ticked, the computer\'s five to do, Check again', r.h1==='Signed in. Now finish on your computer.' && w.kicker==='Waiting for your computer' && /^done:6\. Signed in on this phone/.test(r.rows[5]) && r.rows.slice(0,5).every(x => /^todo:/.test(x)) && w.recheck && /same Google account/.test(w.why), {h1:r.h1, rows:r.rows, w}); }
+    check('T22 phone signed in, nothing from a computer: "Now finish on your computer", step 5 ticked, the computer\'s four to do, Check again', r.h1==='Signed in. Now finish on your computer.' && w.kicker==='Waiting for your computer' && /^done:5\. Signed in on this phone/.test(r.rows[4]) && r.rows.slice(0,4).every(x => /^todo:/.test(x)) && w.recheck && /same Google account/.test(w.why), {h1:r.h1, rows:r.rows, w}); }
   await ev(ws,`window.postMessage({lmk:'canvas-payload', payload:${PAYLOAD}}, '*')`); await sleep(800); r=JSON.parse(await ev(ws,Q));
   check('T22 once the computer\'s classes arrive, the phone shows the plan and the steps are gone', r.rows.length===0 && !!r.h1 && r.ext, {rows:r.rows, h1:r.h1});
 
@@ -251,6 +253,83 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
   await ev(ws,`document.querySelector('[data-act="setup-change"][data-step="school"]').click()`); await sleep(300);
   sv=await save('Middle Tennessee State University (Canvas)');
   check('T23 a school on both platforms is picked by platform', sv.school==='mtsu.instructure.com' && sv.hint==='canvas', sv);
+  // T24 no study-hours question (v74.5): the plan starts at 2h weekdays / 3h weekends; the budget bar's ✎ changes it
+  await fresh(ws,{seed:{onboarded:1}}); await ev(ws,`window.postMessage({lmk:'canvas-payload', payload:${PAYLOAD}}, '*')`); await sleep(1000);
+  r=JSON.parse(await ev(ws,`JSON.stringify({ext:!!store.ext, cap:!!document.querySelector('.capcard'), edit:!!document.querySelector('[data-act="cap-edit"]'), capacity:store.capacity})`));
+  check('T24 after the first sync no question waits: no hours card, the budget bar has its ✎, nothing stored', r.ext && !r.cap && r.edit && r.capacity===null, r);
+  await ev(ws,`document.querySelector('[data-act="cap-edit"]').click()`); await sleep(300);
+  r=JSON.parse(await ev(ws,`JSON.stringify({title:(document.querySelector('.capcard div')||{}).textContent, done:!!document.querySelector('.capcard [data-act="cap-close"]')})`));
+  check('T24 ✎ opens "Your study hours" with a Done button', r.title==='Your study hours' && r.done, r);
+  await ev(ws,`document.querySelector('.capcard [data-act="cap"][data-kind="weekday"][data-v="3"]').click()`); await sleep(250);
+  await ev(ws,`document.querySelector('.capcard [data-act="cap-close"]').click()`); await sleep(250);
+  r=JSON.parse(await ev(ws,`JSON.stringify({c:store.capacity, card:!!document.querySelector('.capcard')})`));
+  check('T24 a chip saves that day kind and keeps the other default; Done closes it', r.c && r.c.weekday===3 && r.c.weekend===3 && !r.card, r);
+
+  // T25 a link names the school (v74.5): ?school= fills the step, but only with an address LMK knows as a school's
+  const sch = async (q) => { await send(ws,'Page.navigate',{url:'about:blank'}); await sleep(200); await send(ws,'Page.navigate',{url:'http://localhost:8899/app/'+q}); await sleep(1800);   // via about:blank: a hash-only change would not reload the app
+    for (let i=0;i<30 && (await ev(ws,`SCHOOLS_LOADING`));i++) await sleep(150); await sleep(300);
+    return JSON.parse(await ev(ws,`JSON.stringify({school:localStorage.getItem('lmk_school'), hint:localStorage.getItem('lmk_lms_hint'), link:localStorage.getItem('lmk_school_link'), url:location.search, rows:[...document.querySelectorAll('.checks li')].map(li=>li.className+':'+li.textContent.trim())})`)); };
+  await fresh(ws); r=await sch('?school=canvas.uw.edu&from=club');
+  check('T25 ?school=canvas.uw.edu: the school step is done, the platform known, and the address bar drops it (from= stays)', r.school==='canvas.uw.edu' && r.hint==='canvas' && r.url==='?from=club' && /^done:My school is at canvas\.uw\.edu/.test(r.rows[0]), r);
+  await fresh(ws); r=await sch('?school=mycourses.cccs.edu');
+  check('T25 an address only the full list knows is taken once the list loads', r.school==='mycourses.cccs.edu' && r.hint==='d2l' && r.link===null, r);
+  await fresh(ws); r=await sch('?school=login.example-phish.com');
+  check('T25 an address that is no known school is dropped: the step still asks, nothing stored', r.school===null && r.link===null && /^now:Your school/.test(r.rows[0]), r);
+  await fresh(ws); r=await sch('?school=instructure.com');
+  check('T25 a platform\'s bare domain is the vendor, not a school: dropped', r.school===null && r.link===null, r);
+  await fresh(ws); r=await sch('?school=lmk-phish-test.instructure.com');
+  check('T25 nor is any tenant of a platform that is not on the list (anyone can have one)', r.school===null && r.link===null, r);
+  await fresh(ws,{ls:{lmk_school_link:'canvas.uw.edu'}}); r=await sch('?school=%3Cscript%3E');
+  check('T25 a bad ?school= never wipes the school the homepage left', r.school==='canvas.uw.edu' && r.link===null, r);
+  await fresh(ws,{ls:{lmk_school:'canvas.asu.edu', lmk_lms_hint:'canvas'}}); r=await sch('?school=canvas.uw.edu');
+  check('T25 a school the student already named is never replaced by a link', r.school==='canvas.asu.edu' && r.link===null, r);
+  // T26 an invite carries its school (#join=host.cid)
+  await fresh(ws); r=await sch('#join=canvas.uw.edu.12345&c=BIO%20202');
+  check('T26 an invite link fills the school step with the class\'s school', r.school==='canvas.uw.edu' && /^done:My school is at canvas\.uw\.edu/.test(r.rows[0]), r);
+
+  // T27 with the extension in, naming the school is the last press (v74.5): the same click opens the school's site
+  await fresh(ws); await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.9.11'}, '*')`); await sleep(500); r=JSON.parse(await ev(ws,Q));
+  check('T27 extension first: its row done and on top, the school asked next, and the copy says what happens next', /^done:Extension added/.test(r.rows[0]) && /^now:Your school/.test(r.rows[1]) && /LMK opens your school's site next/.test(await ev(ws,`document.querySelector('section.view .hero .why').textContent`)), r.rows);
+  await ev(ws,`window.__opened=[]; window.open=(u)=>{window.__opened.push(u); return null;}; window.__posted=[]; const _pm=window.postMessage.bind(window); window.postMessage=(d,o)=>{window.__posted.push(d); return _pm(d,o);};`);
+  await save('Arizona State University');
+  r=JSON.parse(await ev(ws,`JSON.stringify({opened:window.__opened, h1:document.querySelector('section.view .hero h1').textContent, why:document.querySelector('section.view .hero .why').textContent, again:(document.querySelector('section.view .hero .actions a')||{}).textContent})`));
+  check('T27 a school read out of the box: its site opens in the same press, and the step says so', JSON.stringify(r.opened)==='["https://canvas.asu.edu/#lmk-sync"]' && r.h1==='Open canvas.asu.edu and sign in.' && /LMK opened canvas\.asu\.edu in a new tab/.test(r.why) && r.again==='Open canvas.asu.edu again →', r);
+  await ev(ws,`document.querySelector('[data-act="setup-change"][data-step="school"]').click()`); await sleep(300);
+  await ev(ws,`window.__opened=[]; window.__posted=[];`); await save('University of Washington');
+  r=JSON.parse(await ev(ws,`JSON.stringify({opened:window.__opened, posted:window.__posted.filter(d=>d&&d.lmk==='host-page')})`));
+  check('T27 a school on its own address: the same press opens Chrome\'s approval page instead', r.opened.length===0 && r.posted.length===1 && r.posted[0].host==='canvas.uw.edu', r);
+  await fresh(ws); await ev(ws,`window.__opened=[]; window.open=(u)=>{window.__opened.push(u); return null;};`); await save('Arizona State University');
+  check('T27 without the extension nothing opens: the extension step comes next', (await ev(ws,`window.__opened.length`))===0 && /Add the LMK Today extension/.test(await ev(ws,`document.querySelector('section.view .hero h1').textContent`)));
+
+  // H the homepage (v74.5): a phone gets its own first screen; a computer that can take the extension is sent to install it
+  const home = async (url, mobile, ua) => { await send(ws,'Emulation.setDeviceMetricsOverride',{width:mobile?390:1100,height:900,deviceScaleFactor:1,mobile}); await send(ws,'Emulation.setUserAgentOverride',{userAgent:ua});
+    await send(ws,'Page.navigate',{url:'http://localhost:8899/'}); await sleep(300); await ev(ws,`localStorage.clear()`); await send(ws,'Page.navigate',{url}); await sleep(900); };
+  const IPHONE='Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+  const CHROME='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
+  const FF='Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:131.0) Gecko/20100101 Firefox/131.0';
+  await home('http://localhost:8899/?from=club&school=canvas.asu.edu', true, IPHONE);
+  r=JSON.parse(await ev(ws,`JSON.stringify({h1:[...document.querySelectorAll('.hero h1')].filter(h=>h.offsetParent).map(h=>h.textContent), lede:[...document.querySelectorAll('.hero .lede')].filter(h=>h.offsetParent).map(h=>h.textContent), need:(document.querySelector('.hero .need')||{}).textContent, mail:document.getElementById('mailLink').href, btn:document.getElementById('mailLink').textContent, vis:!!document.getElementById('mailLink').offsetParent, desk:!!document.getElementById('ctaMain').offsetParent, link:localStorage.getItem('lmk_school_link'), wide:document.documentElement.scrollWidth})`));
+  check('H1 phone: one first screen in Emiel\'s words, nothing of the computer\'s, no sideways scroll', r.h1.length===1 && r.h1[0]==='Get your study plan ready.' && r.lede[0]==='LMK Today connects to Canvas or D2L Brightspace and turns your coursework into a personalized daily plan.' && r.need==="To get started, you'll need Google Chrome on your laptop or desktop." && r.vis && !r.desk && r.wide<=390, r);
+  check('H1 phone: "Email me the setup link" opens the mail app with the link, carrying the door and the school', r.btn==='Email me the setup link' && /^mailto:\?subject=/.test(r.mail) && decodeURIComponent(r.mail).includes('https://lmktoday.app/?from=club&school=canvas.asu.edu') && r.link==='canvas.asu.edu', r);
+  await home('http://localhost:8899/', false, CHROME);
+  r=JSON.parse(await ev(ws,`JSON.stringify({main:document.getElementById('ctaMain').textContent, href:document.getElementById('ctaMain').href, steps:document.getElementById('ctaSteps').href, note:!document.getElementById('chromeNote').hidden && !!document.getElementById('chromeNote').offsetParent, phone:!!document.getElementById('mailLink').offsetParent, nsteps:document.querySelectorAll('#setup .step').length, hours:/one question|study on a weekday/i.test(document.getElementById('setup').textContent)})`));
+  check('H2 a computer in Chrome: every set-up button installs the extension, Chrome\'s warning is explained, five steps and no hours question', r.main==="Add to Chrome — it's free" && /^https:\/\/chromewebstore\.google\.com\/detail\/lmk-today\/efjeldekjgbggjedpboafbblcegmmdam$/.test(r.href) && r.steps===r.href && r.note && !r.phone && r.nsteps===5 && !r.hours, r);
+  await home('http://localhost:8899/', false, FF);
+  r=JSON.parse(await ev(ws,`JSON.stringify({main:document.getElementById('ctaMain').textContent, href:document.getElementById('ctaMain').getAttribute('href'), browser:!document.getElementById('browserNote').hidden, note:!document.getElementById('chromeNote').hidden})`));
+  check('H3 a browser that cannot take the extension keeps the app link and the switch-browser note, not the store', r.main==='Set up LMK' && r.href==='app/' && r.browser && !r.note, r);
+  await home('http://localhost:8899/?school=canvas.uw.edu', false, CHROME); await send(ws,'Page.navigate',{url:'http://localhost:8899/app/'}); await sleep(1800);
+  r=JSON.parse(await ev(ws,`JSON.stringify({school:localStorage.getItem('lmk_school'), link:localStorage.getItem('lmk_school_link')})`));
+  check('H4 a school named on the homepage\'s link is waiting in the app (same origin)', r.school==='canvas.uw.edu' && r.link===null, r);
+  await home('http://localhost:8899/canvas/uw/', false, CHROME);
+  await ev(ws,`document.querySelector('a.btn[data-school][href="/app/"]').click()`); await sleep(2200);
+  r=JSON.parse(await ev(ws,`JSON.stringify({path:location.pathname, school:localStorage.getItem('lmk_school'), hint:localStorage.getItem('lmk_lms_hint')})`));
+  check('H5 a school page\'s button carries its school into LMK (UW\'s own address, so approval comes next)', r.path==='/app/' && r.school==='canvas.uw.edu' && r.hint==='canvas', r);
+
+  // T28 Sync from anywhere lost its server copy (v74.5 / extension 0.9.12): the 401 asks the extension, once, to register afresh
+  await send(ws,'Emulation.setUserAgentOverride',{userAgent:CHROME});
+  await fresh(ws,{seed:{onboarded:1}, ua:CHROME}); await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.9.12'}, '*')`); await sleep(400);
+  r=JSON.parse(await ev(ws,`(async()=>{ store.cloud={sid:'abc',secret:'s',on:true,onAt:1,at:1}; EXT.cloud={registered:true,sid:'abc'}; window.__posted=[]; const _pm=window.postMessage.bind(window); window.postMessage=(d,o)=>{window.__posted.push(d); return _pm(d,o);}; window.cloudFetch=async()=>({status:401, ok:false, json:async()=>({})}); CLOUD.busy=false; await cloudPull('force'); const a=window.__posted.filter(d=>d&&d.lmk==='cloud-set').map(d=>d.cloud); EXT.cloud={registered:false,sid:'abc'}; CLOUD.busy=false; await cloudPull('force'); const b=window.__posted.filter(d=>d&&d.lmk==='cloud-set').length; return JSON.stringify({a, b, reg:CLOUD.registered}); })()`));
+  check('T28 a 401 while the extension says it is registered posts one reset; once it no longer says so, nothing more', r.a.length===1 && r.a[0].reset===true && r.a[0].sid==='abc' && r.a[0].wanted===true && r.b===1 && r.reg===false, r);
   console.log('\\nJS errors during run:', errs.length? errs.slice(0,4) : 'none');
   console.log(`\\n${fail? fail+' FAILED' : 'ALL OK'}  (${pass} passed)`);
   ws.close(); process.exit(fail?1:0);
