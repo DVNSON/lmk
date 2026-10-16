@@ -1,4 +1,4 @@
-/* The refresh button reads Canvas for real (v71.0). Until then it only sent canvas-ping, which re-delivers the copy the
+/* The refresh button reads Canvas for real (v71.0), and (v74.6) LMK asks for a read by itself when opened or looked at again (R8). Until then it only sent canvas-ping, which re-delivers the copy the
    extension already holds: with Canvas an hour old it refreshed Drive and said "Already up to date" (Emiel, 2026-10-06).
    A stand-in extension answers canvas-resync the way each build does; the button must wait for the answer and say what
    happened. Run: node test-refresh.js (needs :8899 serving ~/lmk-web and Chrome :9333) */
@@ -29,15 +29,21 @@ async function open(version){
   await send(ws,'Page.addScriptToEvaluateOnNewDocument',{source:`try{localStorage.clear();localStorage.setItem('duenorth_v1',${JSON.stringify(JSON.stringify(SEED))});}catch(_){}`});
   await send(ws,'Page.navigate',{url:'about:blank'}); await sleep(120); await send(ws,'Page.navigate',{url:'http://localhost:8899/app/'}); await sleep(2600);
   await ev(ws,`window.__fresh=${payload.toString().replace(/^at=>/,'(at)=>').replace(/HOST/g,JSON.stringify(HOST))}; 1`);
-  await ev(ws,`window.postMessage({lmk:'ext-hello',version:'${version}'},'*'); window.postMessage({lmk:'canvas-payload',payload:${JSON.stringify(payload(Date.now()-79*60e3))}},'*'); 1`); await sleep(1500);
+  await ev(ws,`window.postMessage({lmk:'ext-hello',version:'${version}'},'*'); window.postMessage({lmk:'canvas-payload',payload:${JSON.stringify(payload(Date.now()-79*60e3))}},'*'); 1`); await sleep(3600);   // past the read-on-open ask (hello + 3 s, v74.6)
+  const autoAsked = await ev(ws,`window.__asked||0`);
   await ev(ws,`welcomeOverlay.classList.remove('open'); 1`);
-  return {ws, close:()=>{ws.close(); execSync('curl -s http://localhost:9333/json/close/'+t.id);}};
+  return {ws, autoAsked, close:()=>{ws.close(); execSync('curl -s http://localhost:9333/json/close/'+t.id);}};
 }
 const press=async(ws,mock,waitMs=12000)=>{ await ev(ws,`window.__mock=${JSON.stringify(mock)}; window.__asked=0; document.getElementById('syncBtn').click(); 1`);
   const t0=Date.now(); while(Date.now()-t0<waitMs){ await sleep(300); if(!(await ev(ws,`refreshing`))) break; }
   return JSON.parse(await ev(ws,`JSON.stringify({toast:document.getElementById('toast').textContent, btn:[...document.querySelectorAll('#toast button')].map(b=>b.textContent), asked:window.__asked||0, head:(document.getElementById('syncedAgo')||{textContent:''}).textContent, spinning:document.getElementById('syncBtn').classList.contains('spinning')})`)); };
 (async()=>{
   let P=await open('0.9.1'), r;
+  // R8 (v74.6) LMK asks for a read by itself when it is opened or looked at again and the last read is over 5 minutes old
+  check('R8 opening LMK with a 79-minute-old read asks the extension for a real read, once, by itself', P.autoAsked===1, P.autoAsked);
+  r=JSON.parse(await ev(P.ws,`(async()=>{ const tick=()=>new Promise(r=>setTimeout(r,80)); window.__asked=0; document.dispatchEvent(new Event('visibilitychange')); await tick(); const a=window.__asked; EXT_ASKED=Date.now()-6*60e3; document.dispatchEvent(new Event('visibilitychange')); await tick(); const b=window.__asked; store.ext.at=Date.now()-60e3; EXT_ASKED=0; document.dispatchEvent(new Event('visibilitychange')); await tick(); return JSON.stringify({a, b, c:window.__asked}); })()`));   // postMessage lands a task later
+  check('R8 coming back to the tab asks again only after 5 minutes, and never when the read is fresh', r.a===0 && r.b===1 && r.c===1, r);
+  await ev(P.ws,`store.ext.at=Date.now()-79*60e3; EXT_ASKED=Date.now(); 1`);
   r=await press(P.ws,'read');
   check('R1 the button asks the extension for a real read, waits for it, says "Refreshed Canvas", and the header says just now', r.asked===1 && /^Refreshed Canvas/.test(r.toast) && !/up to date|plans/i.test(r.toast) && !/Refreshed[^.]*cloud/.test(r.toast) && /just now/.test(r.head) && !r.spinning, r);
   await ev(P.ws,`store.ext.at=Date.now()-79*60e3; renderInner(); 1`);
@@ -54,7 +60,9 @@ const press=async(ws,mock,waitMs=12000)=>{ await ev(ws,`window.__mock=${JSON.str
   r=await press(P.ws,'read');
   check('R7 the cloud answered with an error: the toast says "Couldn\'t reach cloud", never "Refreshed … cloud"', /^Refreshed Canvas\./.test(r.toast) && /Couldn't reach cloud/.test(r.toast) && !/Refreshed[^.]*cloud/.test(r.toast), r);
   P.close();
-  P=await open('0.8.8'); r=await press(P.ws,'read');
+  P=await open('0.8.8');
+  check('R8 an extension older than 0.9.0 is never asked on open (it cannot read on request)', P.autoAsked===0, P.autoAsked);
+  r=await press(P.ws,'read');
   check('R6 an extension older than 0.9.0 cannot be asked: no wait, the toast says update it or open Canvas', r.asked===0 && /can't read Canvas from here yet/.test(r.toast) && r.btn.includes('Open Canvas'), r);
   P.close();
   console.log(`\n${fail?fail+' FAILED':'ALL OK'}  (${pass} passed)`);
