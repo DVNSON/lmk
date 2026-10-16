@@ -47,6 +47,12 @@ const state=ws=>ev(ws,`JSON.stringify((()=>{const a=document.getElementById('src
   // a stale read + a newer failure that is not a 401
   await ev(ws,`store.ext.at=${OLD}; renderInner(); window.postMessage({lmk:'resync-status',resync:{at:${Date.now()-60e3},ok:false,n:0,err:'net /api/v1/courses'},at:${OLD}},'*'); 1`); await sleep(500); r=await state(ws);
   check('S6 a non-401 failure on an old read says the read failed, still with the link', /the last background read of Canvas failed — open Canvas once/.test(r.fix) && r.stale, r);
+  // 0.9.12: signed out, the extension reads the Canvas calendar feed: same read (at), newer feedAt, a new assignment
+  await ev(ws,`(()=>{ const p=${JSON.stringify(payload(0))}; p.at=store.ext.at; p.feedAt=Date.now(); p.items['9100']={t:'Feed-only quiz',c:'MAT 210',cid:'210',due:new Date(Date.now()+2*864e5).toISOString(),pts:null,st:'',grp:'',k:'',sub:'',score:null,src:'feed'}; window.postMessage({lmk:'canvas-payload',payload:p},'*'); return 1; })()`); await sleep(1200);
+  const fd=JSON.parse(await ev(ws,`JSON.stringify({has:!!(store.ext.items||{})['9100'], at:store.ext.at, feedAt:store.ext.feedAt||0, shown:/Feed-only quiz/.test(document.body.innerText)})`));
+  check('S7 a calendar-feed update (same read, newer feedAt) is applied: the new assignment is there, the last real read is unchanged', fd.has && fd.at===OLD && fd.feedAt>0, fd);
+  await ev(ws,`window.postMessage({lmk:'resync-status',resync:{at:${Date.now()-20e3},ok:false,n:0,err:'Canvas signed this browser out (401) — open Canvas once and it picks back up',feed:${Date.now()-20e3}},at:${OLD}},'*'); 1`); await sleep(400); r=await state(ws);
+  check('S8 while the feed is being read, the footer says dates still update and what waits for a sign-in', /Canvas signed this browser out — dates still update from your Canvas calendar; open Canvas once for hand-ins and grades/.test(r.fix) && r.stale, r);
   // the phone: the date line must still fit — no ellipsis eating the end of it
   await send(ws,'Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true}); await sleep(400);
   const ph=JSON.parse(await ev(ws,`JSON.stringify((()=>{const t=document.getElementById('todayLine'); const w=document.querySelector('#syncedAgo .syn-w'); return {fits:t.scrollWidth<=t.clientWidth, text:t.innerText.replace(/\\s+/g,' '), synWord:w?getComputedStyle(w).display:'none', w:t.clientWidth}})())`));

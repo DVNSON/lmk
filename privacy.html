@@ -26,7 +26,7 @@
 <div class="wrap">
   <span class="brand"></span>
   <h1>LMK — Privacy Policy</h1>
-  <div class="sub">Effective October 15, 2026 · Applies to LMK at lmktoday.app and the "LMK Today" browser extension</div>
+  <div class="sub">Effective October 16, 2026 · Applies to LMK at lmktoday.app and the "LMK Today" browser extension</div>
 
   <p>LMK ("Let Me Know") is a planner for students. Its browser extension, LMK Today, reads your own Canvas or D2L Brightspace assignments, and the LMK app tells you what to do today. This page names everything LMK reads, everything that leaves your device, who handles it, how long it is kept, and how to delete it.</p>
 
@@ -46,6 +46,7 @@
     <li><b>From Canvas</b>, through Canvas's own API and the login session already in your browser: your active courses (name, course code, Canvas's current and final grade for you, and the course's syllabus page — its text, up to 15,000 characters, and, when the page links a syllabus file in Word or PDF form, that file's text (up to about 30,000 characters; the file itself is never kept) — so LMK can find exam dates itself); for each assignment its title, open, due and lock dates, points, assignment group and weight, submission type, link, the first 1,200 characters of the instructions and the rubric criteria; your own submission's state, time and score and whether Canvas marked it late, missing or excused; the most recent comment someone other than you left on your submission (first 400 characters); the time Canvas recorded on your quiz attempts; and each course's internal code, which Canvas shows only to people in the course (see Classmates).</li>
     <li><b>From Brightspace</b>, the same kinds of things through Brightspace's API: your enrollments; your assignments, quizzes and graded discussions; work your instructor set in Content with a due date (such as publisher homework, surveys and self-assessments); exams on your course calendar; each entry in your grade book with your grade, your instructor's comment on it and your final grade; your submissions and the feedback on them; and how long your quiz attempts took. To tell whether you have posted in a graded discussion, LMK reads that topic's posts and keeps only the times of your own; nothing anyone else wrote is kept.</li>
     <li>If Canvas has signed your browser out, the extension may open your school's Canvas once in an unfocused background tab, so your school's sign-on can renew the session, and closes it as soon as the read finishes or after 90 seconds.</li>
+    <li><b>Your Canvas calendar feed</b> (from version 0.9.12): every Canvas account has a private calendar feed, the address you would give Google Calendar to subscribe. While you are signed in, the extension reads that address, and the time zone set in your Canvas profile (so due dates land on the right day), from your own Canvas profile and keeps them <b>only in the extension on your computer</b>. It is never sent to the LMK page, your Drive or LMK's server. While Canvas has signed your browser out, the extension reads the feed, at most every 15 minutes, for the titles and due dates of your assignments, so new work and changed dates still reach your plan; your submissions, scores and grades wait until you sign in again. If the address ever stops working, the extension forgets it; removing the extension deletes it.</li>
     <li>Your user number, which both systems use to mark which submissions are yours, is used only to pick out your own work. It is never stored or sent. The extension never sees or stores your password.</li>
     <li><b>Time you spend working</b>: while an assignment page or a quiz on your school's Canvas or Brightspace is visible and you are active, the extension counts minutes toward that assignment. It records only a minute tally per assignment, never what you type, read or click. (A private build that LMK's author runs also times course tools such as MyEducator or Edfinity; the build in the Chrome Web Store does not.)</li>
   </ul>
@@ -123,7 +124,7 @@
   <p>These are everything the extension in the Chrome Web Store asks Chrome for:</p>
   <ul>
     <li><b>storage</b>: to keep the collected assignment data and minute tallies in your browser between visits.</li>
-    <li><b>alarms</b>: to wake the extension to re-read your school's site in the background about every half hour, to show the morning notification, and to close the background tab described above if a sign-in does not finish.</li>
+    <li><b>alarms</b>: to wake the extension to re-read your school's site in the background about every 15 minutes (every half hour before version 0.9.12), to show the morning notification, and to close the background tab described above if a sign-in does not finish.</li>
     <li><b>notifications</b>: to show that morning notification on your computer.</li>
     <li><b>identity</b>: to let you sign in with Google for Keep your phone fresh. The sign-in token stays in the extension.</li>
     <li><b>scripting</b>: to run LMK's reader on a school address you approved yourself, and nowhere else.</li>

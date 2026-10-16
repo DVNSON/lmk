@@ -15,13 +15,22 @@ function grab(name){
   }
   throw new Error("unbalanced " + name);
 }
-const merge = new Function("let store = {};\n" + grab("migrateIds") + "\n" + grab("mergeStores") + "\nreturn mergeStores;")();
+const merge = new Function("let store = {};\n" + grab("migrateIds") + "\n" + grab("extNewer") + "\n" + grab("mergeStores") + "\nreturn mergeStores;")();
 let pass = 0, fail = 0;
 const check = (n, ok, d) => { console.log((ok ? "ok   " : "FAIL ") + n + (ok ? "" : "  -> " + JSON.stringify(d))); ok ? pass++ : fail++; };
 const t = Date.now();
 
 // 1. two empty stores merge to something sane — the regression that broke sync threw here
 let m; try { m = merge({}, {}); check("empty ⨯ empty merges without throwing", !!m && typeof m === "object"); } catch(e) { check("empty ⨯ empty merges without throwing", false, String(e)); }
+
+// 1b. the extension's copy (v74.6): the newer read wins; the same read with a newer calendar-feed update wins too.
+//     No case merged two ext copies before, so the rule could call a helper this file never loaded and still pass.
+{ const ra = {ext: {at: t - 5000, items: {1: {}}}}, rb = {ext: {at: t, items: {2: {}}}};
+  check("ext: the newer read wins, either order", merge(JSON.parse(JSON.stringify(ra)), JSON.parse(JSON.stringify(rb))).ext.at === t && merge(JSON.parse(JSON.stringify(rb)), JSON.parse(JSON.stringify(ra))).ext.at === t);
+  const fa = {ext: {at: t, feedAt: 0, items: {1: {}}}}, fb = {ext: {at: t, feedAt: t + 60e3, items: {1: {}, 3: {}}}};
+  check("ext: same read, the calendar-feed update wins, either order", merge(JSON.parse(JSON.stringify(fa)), JSON.parse(JSON.stringify(fb))).ext.feedAt === t + 60e3 && merge(JSON.parse(JSON.stringify(fb)), JSON.parse(JSON.stringify(fa))).ext.feedAt === t + 60e3);
+  const fc = {ext: {at: t + 1000, items: {1: {}}}};
+  check("ext: a later real read beats an older read's feed update", merge(JSON.parse(JSON.stringify(fb)), JSON.parse(JSON.stringify(fc))).ext.at === t + 1000 && merge(JSON.parse(JSON.stringify(fc)), JSON.parse(JSON.stringify(fb))).ext.at === t + 1000); }
 
 // 2. maps union, newer wins per key; done marks survive both ways
 const a = {savedAt: t - 1000, done: {a1: t - 5000, a2: t - 4000}, starred: {a1: t}, adminKey: "K", roomName: "Emiel", roomHandle: "Discord: e", roomNudge: t - 9000, recapSeen: {r1: 1}};
