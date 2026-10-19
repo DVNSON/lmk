@@ -29,7 +29,7 @@ let pass=0,fail=0; const check=(n,ok,d)=>{console.log((ok?'ok   ':'FAIL ')+n+(ok
   await go('');
   check('a door set on an earlier visit still applies with no query string', (await ev(ws,`channelSaved()`))==='prof', await ev(ws,`channelSaved()`));
   check('and it names the event the worker expects', (await ev(ws,`(()=>{let sent='';const old=window.ping;window.ping=e=>{sent=e;return Promise.resolve(false)};pingChannel('act');window.ping=old;return sent})()`))==='act_prof', 'wrong event');
-  check('only closed-set names are ever produced', (await ev(ws,`JSON.stringify(CHANNELS)`))==='["chat","reddit","club","prof","card","search"]', await ev(ws,`JSON.stringify(CHANNELS)`));
+  check('only closed-set names are ever produced', (await ev(ws,`JSON.stringify(CHANNELS)`))==='["chat","reddit","club","prof","card","search","friend"]', await ev(ws,`JSON.stringify(CHANNELS)`));
   /* v73.5, in a fresh tab so the start-up scripts above (which clear storage and plant lmk_from) never run here. The
      homepage must keep the door through a Chrome Web Store install (until v73.5 not one tagged link had ever counted),
      a return is credited to its door, and the counter's message is a word, a day and, only once a school has answered

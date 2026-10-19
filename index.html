@@ -94,6 +94,7 @@
   .need{font-size:16px;font-weight:600;color:var(--ink);margin:0 0 18px;max-width:40ch}
   .textlink{background:none;border:0;padding:0;font:inherit;color:inherit;text-decoration:underline;cursor:pointer}
   .phone-only .lede{margin-bottom:16px}
+  .friendnote{display:block;width:fit-content;max-width:100%;font-weight:600;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:6px 14px;margin:0 0 16px}
 
   .shot{margin:44px 0 0;border-radius:18px;overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow);background:var(--surface)}
   .shot img{display:block;width:100%;height:auto}
@@ -161,6 +162,7 @@
 
 <div class="wrap hero">
   <div class="desk-only">
+  <p class="friendnote" hidden>A friend sent you LMK. It's free, and it takes about two minutes.</p>
   <span class="eyebrow"><b>●</b> Built by a student at ASU</span>
   <h1>Know what to do <em>today.</em></h1>
   <p class="lede">Canvas tells you what's due. LMK tells you what to actually do today — one short list, sized to the hours you really have. It learns how long your work takes, so the plan gets more honest every week.</p>
@@ -173,6 +175,7 @@
   <p class="ctanote">No account required. Set up on a computer first; your phone works after that. Built at ASU; works at any school that uses Canvas or D2L Brightspace.</p>
   </div>
   <div class="phone-only">
+    <p class="friendnote" hidden>A friend sent you LMK. It's free.</p>
     <h1>Get your study plan ready.</h1>
     <p class="lede">LMK Today connects to Canvas or D2L Brightspace and turns your coursework into a personalized daily plan.</p>
     <p class="need">To get started, you'll need Google Chrome on your laptop or desktop.</p>
@@ -351,8 +354,11 @@
      link that brought them: not one tagged link had ever produced a count. Same origin as the app, whose
      channelSaved() reads lmk_from on its first open. The same closed list, and the first door wins, as in the app. */
   from = String(from).toLowerCase().slice(0, 12);
-  if (["chat", "reddit", "club", "prof", "card", "search"].indexOf(from) < 0) from = "";
+  if (["chat", "reddit", "club", "prof", "card", "search", "friend"].indexOf(from) < 0) from = "";
   if (from) { try { if (!localStorage.getItem("lmk_from")) localStorage.setItem("lmk_from", from); } catch(_){} }
+  /* A student's own invite (v74.9, the app's "Invite a friend"): say so, on the computer's hero and the phone's. The link
+     names nobody, so neither does this. */
+  if (from === "friend") { var fn = document.querySelectorAll(".friendnote"); for (var fi = 0; fi < fn.length; fi++) fn[fi].hidden = false; }
   if (from) {
     var links = document.querySelectorAll("a[href]");
     for (var i = 0; i < links.length; i++) {
