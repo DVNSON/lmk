@@ -127,8 +127,8 @@ const SYNCED = {onboarded:1, profile:{name:"Emiel"}, cloud:{sid:SID, secret:SEC,
   r=JSON.parse(await ev(ws,`JSON.stringify({days:recapDays(), txt:(document.querySelector('.recapline .txt')||{}).textContent, idx:[...document.querySelectorAll('#view-now > *')].findIndex(x=>x.classList.contains('recapline')), hide:!!document.querySelector('[data-act="recap-hide"]')})`));
   check('K1 countdown: 8 days (latest due +5d, +3), under the hero, no Hide button this close', r.days===8 && /lands in 8 days/.test(r.txt) && r.idx===1 && !r.hide, r);
   await ev(ws,`document.querySelector('[data-act="recap-info"]').click()`); await sleep(300);
-  r=JSON.parse(await ev(ws,`JSON.stringify({open:recapOverlay.classList.contains('open'), title:document.getElementById('recapTitle').textContent, items:document.querySelectorAll('#recapModal li').length, priv:/leaves your device/.test(document.getElementById('recapModal').textContent)})`));
-  check('K1 the sheet says the date, lists six things and the privacy line', r.open && /Ready 3 days after your last due date/.test(r.title) && r.items===6 && r.priv, r);
+  r=JSON.parse(await ev(ws,`JSON.stringify({open:recapOverlay.classList.contains('open'), title:document.getElementById('recapTitle').textContent, items:document.querySelectorAll('#recapModal li').length, priv:/leaves your device/.test(document.getElementById('recapModal').textContent), txt:document.getElementById('recapModal').textContent})`));
+  check('K1 the sheet says the date, lists five things (no time spent, v75.1) and the privacy line', r.open && /Ready 3 days after your last due date/.test(r.title) && r.items===5 && !/measured|hours|estimates/i.test(r.txt) && r.priv, r);
   await send(ws,'Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27}); await sleep(200);
   check('K1 Escape closes it', (await ev(ws,`recapOverlay.classList.contains('open')`))===false);
   // K2 a semester with 60 days left: the line sits at the bottom with Hide, and Hide sticks in the store
@@ -155,13 +155,18 @@ const SYNCED = {onboarded:1, profile:{name:"Emiel"}, cloud:{sid:SID, secret:SEC,
     sessLog:{s9:Date.now()-864e5}, since:Date.now()-30*864e5});
   await fresh(ws,{seed:WSEED});
   await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.6.1'}, '*'); window.postMessage({lmk:'canvas-payload', payload:${PAYLOAD}}, '*')`); await sleep(900);
-  r=JSON.parse(await ev(ws,`(function(){ openWrapped('semester'); const P=document.getElementById('recapPage'); const card=k=>(P.querySelector('[data-card="'+k+'"]')||{}).textContent||null;
-    return JSON.stringify({open:!P.hidden, title:(P.querySelector('.sp-title b')||{}).textContent, cards:[...P.querySelectorAll('[data-card]')].map(x=>x.dataset.card), head:card('headline'), ahead:card('ahead'), streak:card('streak'), tutor:card('tutor'), sprints:card('sprints'), mates:card('classmates'), grades:card('grades'), canvas:(()=>{const c=P.querySelector('#wrCanvas'); return c?[c.width,c.height]:null})(), leaked:/\\$\\{/.test(P.innerText)}); })()`));
-  check('W1 the recap opens as "so far" with the cards that have data, in order', r.open && /so far/i.test(r.title) && r.cards.slice(0,3).join()==='headline,ahead,rhythm' && r.cards.includes('byclass') && r.cards.includes('bykind') && r.cards.includes('bigone') && r.cards.includes('pace') && r.cards.includes('months') && r.cards.includes('share') && !r.leaked, {cards:r.cards, title:r.title});
-  check('W1 headline: 2 assignments across 2 classes, hours from measured minutes', /2 assignments/.test(r.head) && /2 classes/.test(r.head) && /1 h 50 m|1h 50m|110 min|1\.8 h/.test(r.head), r.head);
+  r=JSON.parse(await ev(ws,`(function(){ window.__txt=[]; const ft=CanvasRenderingContext2D.prototype.fillText; CanvasRenderingContext2D.prototype.fillText=function(t){ window.__txt.push(String(t)); return ft.apply(this,arguments); }; openWrapped('semester'); const P=document.getElementById('recapPage'); const card=k=>(P.querySelector('[data-card="'+k+'"]')||{}).textContent||null;
+    return JSON.stringify({open:!P.hidden, title:(P.querySelector('.sp-title b')||{}).textContent, cards:[...P.querySelectorAll('[data-card]')].map(x=>x.dataset.card), head:card('headline'), ahead:card('ahead'), streak:card('streak'), tutor:card('tutor'), sprints:card('sprints'), mates:card('classmates'), grades:card('grades'), canvas:(()=>{const c=P.querySelector('#wrCanvas'); return c?[c.width,c.height]:null})(), leaked:/\\$\\{/.test(P.innerText), all:[...P.querySelectorAll('[data-card]')].map(x=>x.textContent).join(' | '), drawn:window.__txt.join(' | ')}); })()`));
+  check('W1 the recap opens as "so far" with the cards that have data, in order', r.open && /so far/i.test(r.title) && r.cards.slice(0,3).join()==='headline,ahead,rhythm' && r.cards.includes('byclass') && r.cards.includes('bykind') && !r.cards.includes('bigone') && !r.cards.includes('pace') && r.cards.includes('months') && r.cards.includes('share') && !r.leaked, {cards:r.cards, title:r.title});
+  check('W1 headline: 2 assignments across 2 classes on 2 days, and no hours', /2 assignments/.test(r.head) && /2 classes/.test(r.head) && /2 different days/.test(r.head) && !/[0-9] ?(h|m|min)\b|hour/i.test(r.head), r.head);
+  // v75.1: LMK only times what happens on pages it can see (Docs, Slides and paper never show), so no card and no share
+  // image may print a time spent, though this seed has 110 measured minutes and a 25-minute sprint
+  const TIME = /[0-9] ?(h|min|minutes?|hours?)\b|[0-9]+ m\b|measured|hours went|of real work|took the most of you/i;
+  check('W1 no card prints time spent', !TIME.test(r.all), (r.all.match(TIME)||[])[0]);
+  check('W1 the share image prints no time spent, and counts the active days', r.drawn && !TIME.test(r.drawn) && /2 \| days with something finished/.test(r.drawn), (r.drawn||'').slice(0,300));
   check('W1 ahead of the clock: both finished before the due day', /2 of 2/.test(r.ahead), r.ahead);
   check('W1 streak card: longest 2', /2 days|2-day|2 day/.test(r.streak), r.streak);
-  check('W1 sprint and classmate cards only because they were used', /1 sprint/.test(r.sprints) && /25 min/.test(r.sprints) && !r.tutor, {s:r.sprints, t:r.tutor});
+  check('W1 sprint and classmate cards only because they were used', /1 sprint/.test(r.sprints) && !r.tutor, {s:r.sprints, t:r.tutor});
   check('W1 no grades card when Canvas sent no scores; no milestones under 50', r.grades===null && !r.cards.includes('milestones'), r.cards);
   check('W1 the share card is a story-sized canvas', r.canvas && r.canvas[0]===1080 && r.canvas[1]===1920, r.canvas);
   await ev(ws,`document.querySelector('#recapPage [data-act="wr-mode"][data-mode="year"]').click()`); await sleep(200);
