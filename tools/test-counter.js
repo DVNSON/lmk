@@ -87,6 +87,34 @@ async function page({mobile, seed, hash=''}){
   check('on a phone: plan_viewed_m and active_w_m', r.includes('plan_viewed_m') && r.includes('active_w_m') && !r.includes('plan_viewed') && !r.includes('active_w'), r);
   P.close();
 
+  // 6b. the cohort funnel (v75.0): only a device whose first open came after it shipped sends f_*, each once
+  P=await page({mobile:false});
+  r=JSON.parse(await ev(P.ws,`JSON.stringify({c:localStorage.getItem('lmk_cohort'), today:utcDayKey()})`));
+  check('a device opening LMK for the first time joins the cohort (its first day)', r.c===r.today, r);
+  await ev(P.ws,`__hits.length=0; pingFunnel('install'); pingFunnel('install'); 1`); await sleep(300);
+  await ev(P.ws,`window.postMessage({lmk:'ext-hello', version:'0.9.12'}, '*'); 1`); await sleep(400);
+  await ev(P.ws,`window.postMessage({lmk:'canvas-payload', payload:${JSON.stringify(payload())}}, '*'); 1`); await sleep(900);
+  await ev(P.ws,`welcomeOverlay.classList.remove('open'); store.planSeen=Date.now()-864e5; planSeenMaybe(); 1`); await sleep(5800);
+  r=JSON.parse(await ev(P.ws,`JSON.stringify(__hits.filter(x=>/^f_|plan_viewed/.test(x)))`));
+  check('cohort computer: f_install once, then f_ext, f_sync and f_plan (even for a student whose plan_viewed was already counted)', JSON.stringify(r)===JSON.stringify(['f_install','f_ext','f_sync','f_plan']), r);
+  await ev(P.ws,`__hits.length=0; localStorage.setItem('lmk_cohort', new Date(Date.now()-8*864e5).toISOString().slice(0,10)); localStorage.removeItem('lmk_ping_day'); pingDaily(); 1`); await sleep(400);
+  r=JSON.parse(await ev(P.ws,`JSON.stringify(__hits.filter(x=>/^f_/.test(x)))`));
+  check('eight days after its first open: f_back1 and f_back7', JSON.stringify(r)===JSON.stringify(['f_back1','f_back7']), r);
+  P.close();
+  P=await page({mobile:false});
+  await ev(P.ws,`localStorage.removeItem('lmk_cohort'); localStorage.setItem('lmk_ping_day','2026-01-01'); 1`);
+  await send(P.ws,'Page.navigate',{url:'about:blank'}); await sleep(100); await send(P.ws,'Page.navigate',{url:'http://localhost:8899/app/'}); await sleep(2200); await ev(P.ws,CAPTURE);
+  await ev(P.ws,`pingFunnel('install'); window.postMessage({lmk:'ext-hello', version:'0.9.12'}, '*'); window.postMessage({lmk:'canvas-payload', payload:${JSON.stringify(payload())}}, '*'); 1`); await sleep(900);
+  await ev(P.ws,`welcomeOverlay.classList.remove('open'); planSeenMaybe(); pingFunnelReturn(); 1`); await sleep(5800);
+  r=JSON.parse(await ev(P.ws,`JSON.stringify({cohort:localStorage.getItem('lmk_cohort'), f:__hits.filter(x=>/^f_/.test(x))})`));
+  check('a device that opened LMK before the cohort began never sends an f_ word', r.cohort===null && r.f.length===0, r);
+  P.close();
+  P=await page({mobile:true});
+  await ev(P.ws,`__hits.length=0; pingFunnel('install'); pingFunnel('ext'); pingFunnel('sync'); 1`); await sleep(400);
+  r=JSON.parse(await ev(P.ws,`JSON.stringify(__hits)`));
+  check('a phone in the cohort sends only f_install_m (discovery)', JSON.stringify(r)===JSON.stringify(['f_install_m']), r);
+  P.close();
+
   // 7. Mission control: phones folded back into the plain words once; the funnel shows them apart
   const today=new Date().toISOString().slice(0,10), off=k=>new Date(Date.parse(today+'T00:00:00Z')-k*864e5).toISOString().slice(0,10);
   P=await page({mobile:false});
@@ -94,9 +122,10 @@ async function page({mobile, seed, hash=''}){
     foldPhones(d); foldPhones(d); return JSON.stringify({o:d.days['${today}'].open, i:d.allTime.install, s:d.days['${today}'].school_seen||0, t:d.today.open}); })()`));
   check('foldPhones adds a phone word into its plain word once (twice is still once), and leaves other words alone', r.o===5 && r.i===7 && r.s===0 && r.t===5, r);
   P.close();
-  const AT={install:30,install_m:10,firstsync:12,firstsync_m:4,plan_viewed:7,plan_viewed_m:2,open:50,open_m:20,step_fresh:20};
+  const AT={install:30,install_m:10,firstsync:12,firstsync_m:4,plan_viewed:7,plan_viewed_m:2,open:50,open_m:20,step_fresh:20,step_waiting:14,
+    f_install:20,f_install_m:6,f_ext:12,f_sync:8,f_plan:6,f_back1:4,f_back7:2,f_stuck:1};
   const BUNDLE={ok:true,settings:{},lmsHosts:[],rooms:null,ops:{version:24,cronAt:Date.now()},cloud:{},problems:[],errs:[],today:{open:5,open_m:3},errToday:0,
-    since:off(60),totals:AT,allTime:AT,firstDay:off(60),todayKey:today,days:{[today]:{active_w:3,active_w_m:2,open:5,open_m:3},[off(7)]:{active_w:4}},schools:[],school:null,schoolMin:10};
+    since:off(60),totals:AT,allTime:AT,firstDay:off(60),todayKey:today,days:{[today]:{active_w:3,active_w_m:2,open:5,open_m:3},[off(7)]:{active_w:4},[off(3)]:{f_install:20,f_install_m:6,step_waiting:14}},schools:[],school:null,schoolMin:10};
   const t=JSON.parse(execSync('curl -s http://localhost:9333/json/new -X PUT').toString());
   const ws=new WebSocket(t.webSocketDebuggerUrl); await new Promise(r=>ws.addEventListener('open',r));
   await send(ws,'Page.enable'); await send(ws,'Runtime.enable');
@@ -110,8 +139,14 @@ async function page({mobile, seed, hash=''}){
   await send(ws,'Page.navigate',{url:'http://localhost:8899/app/#admin=test-key'}); await sleep(3000);
   await ev(ws,`(()=>{const b=[...document.querySelectorAll('[data-tab]')].find(x=>x.dataset.tab==='admin'); if(b) b.click(); ADMIN.tab='overview'; render(); return 1})()`); await sleep(1500);
   r=JSON.parse(await ev(ws,`JSON.stringify((()=>{ const rows={}; document.querySelectorAll('#view-admin .fnrow').forEach(x=>{ rows[x.querySelector('.fnl').textContent.trim()]=+x.querySelector('.fnv').textContent; });
-    const tiles=[...document.querySelectorAll('#view-admin .tile')].map(x=>[...x.children].map(c=>c.textContent.trim()).join(' ').replace(/\\s+/g,' ')); return {rows, wk:tiles.find(x=>/Active this week/.test(x))||'', act:tiles.find(x=>/Active today/.test(x))||''}; })())`));
-  check('funnel: computers and phones apart (30 and 10), syncs on a computer (12), and the first useful outcome (9)', r.rows['Opened LMK on a computer']===30 && r.rows['Opened LMK on a phone']===10 && r.rows['Synced at least once']===12 && r.rows['Saw their plan']===9, r.rows);
+    const pct={}; document.querySelectorAll('#view-admin .fnrow').forEach(x=>{ pct[x.querySelector('.fnl').textContent.trim()]=(x.querySelector('.fnp')||{}).textContent||''; });
+    const card=[...document.querySelectorAll('#view-admin .adm-card')].find(c=>/Where setup stops/.test(c.textContent))||{textContent:''};
+    const all=[...(card.querySelectorAll ? card.querySelectorAll('details tr') : [])].map(tr=>[...tr.children].map(td=>td.textContent.trim()));
+    const tiles=[...document.querySelectorAll('#view-admin .tile')].map(x=>[...x.children].map(c=>c.textContent.trim()).join(' ').replace(/\\s+/g,' ')); return {rows, pct, note:card.textContent.replace(/\\s+/g,' '), all, wk:tiles.find(x=>/Active this week/.test(x))||'', act:tiles.find(x=>/Active today/.test(x))||''}; })())`));
+  check('the funnel is the cohort: 20 computers opened, 12 added the extension, 8 synced, 6 saw their plan, 4 back next day, 2 after a week', JSON.stringify(r.rows)===JSON.stringify({'Opened LMK on a computer':20,'Added the extension':12,'Synced their school':8,'Saw their plan':6,'Came back the next day':4,'Came back after a week':2}), r.rows);
+  check('each row is a share of the computers that opened (60%, 40%, ...) and every row is at most the one above', r.pct['Added the extension']==='60%' && r.pct['Synced their school']==='40%' && Object.values(r.rows).every((v,i,a)=>!i||v<=a[i-1]), r.pct);
+  check('phones (6) and stuck computers (1) are named beside it, not as funnel rows', /Phones that opened LMK in the same time: 6\b/.test(r.note) && /school never answered: 1\b/.test(r.note), r.note.slice(0,400));
+  check('the all-time counters are kept, each with the day it began counting', r.all.some(x=>x[0]==='Waiting on the school after adding it' && x[1]==='14' && /[A-Z][a-z]{2} [0-9]{1,2}/.test(x[2])) && r.all.some(x=>x[0]==='Synced at least once' && x[1]==='16'), r.all);
   check('"Active this week" sums this week\'s active_w from phones and computers (5), with last week beside it (4)', /Active this week\s*5\b/.test(r.wk) && /last week 4\b/.test(r.wk), r.wk);
   check('"Active today" still counts every device (5 + 3)', /Active today\s*8\b/.test(r.act), r.act);
   try{ ws.close(); execSync('curl -s http://localhost:9333/json/close/'+t.id,{stdio:'pipe'}); }catch(_){}
