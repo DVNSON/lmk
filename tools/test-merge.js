@@ -32,6 +32,14 @@ let m; try { m = merge({}, {}); check("empty ⨯ empty merges without throwing",
   const fc = {ext: {at: t + 1000, items: {1: {}}}};
   check("ext: a later real read beats an older read's feed update", merge(JSON.parse(JSON.stringify(fb)), JSON.parse(JSON.stringify(fc))).ext.at === t + 1000 && merge(JSON.parse(JSON.stringify(fc)), JSON.parse(JSON.stringify(fb))).ext.at === t + 1000); }
 
+// 1c. the counter's once-per-student words (v74.8): the first plan view keeps the earliest, the week counted keeps the later
+{ const pa = {planSeen: t - 9000, activeWk: "2026-W42"}, pb = {planSeen: t - 1000, activeWk: "2026-W43"}, pc = {};
+  const m1 = merge(JSON.parse(JSON.stringify(pa)), JSON.parse(JSON.stringify(pb))), m2 = merge(JSON.parse(JSON.stringify(pb)), JSON.parse(JSON.stringify(pa)));
+  check("planSeen: the earliest first view wins, either order", m1.planSeen === t - 9000 && m2.planSeen === t - 9000, [m1.planSeen, m2.planSeen]);
+  check("activeWk: the later week wins, either order, so a second device does not count the student again", m1.activeWk === "2026-W43" && m2.activeWk === "2026-W43", [m1.activeWk, m2.activeWk]);
+  const m3 = merge(JSON.parse(JSON.stringify(pa)), pc), m4 = merge({}, {activeWk: "nonsense", planSeen: "x"});
+  check("one side only is kept; junk is dropped", m3.planSeen === t - 9000 && m3.activeWk === "2026-W42" && m4.activeWk === undefined && m4.planSeen === undefined, [m3, m4]); }
+
 // 2. maps union, newer wins per key; done marks survive both ways
 const a = {savedAt: t - 1000, done: {a1: t - 5000, a2: t - 4000}, starred: {a1: t}, adminKey: "K", roomName: "Emiel", roomHandle: "Discord: e", roomNudge: t - 9000, recapSeen: {r1: 1}};
 const b = {savedAt: t, done: {a3: t - 3000}, adminKey: "", roomName: "", roomHandle: "", roomNudge: 0, recapSeen: {r2: 1}};
