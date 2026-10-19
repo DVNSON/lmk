@@ -124,5 +124,24 @@ check("a connection on one side only is kept", m.cal && m.cal.src === "ics", m.c
 m = merge({savedAt: 1}, {savedAt: 2});
 check("no calendar on either side stays absent", m.cal === undefined, m.cal);
 
+// 4g. From your classes (v76.0): annSeen keeps the later look; annAi the newer read with both sides' "Not right" answers;
+//     dueFix the newer choice per assignment, an undo ({due:""}) included; each drops entries past its age
+{ const old = t - 50 * 864e5;
+  const A = {savedAt: 2, annSeen: {p1: t - 5000, p9: old}, annAi: {p1: {v: 1, at: t - 9000, s: "old read", ch: [], d: {0: "no"}}, p9: {v: 1, at: old, s: "", ch: []}}, dueFix: {a5: {due: "20261022T065900Z", was: "20261021T065900Z", at: t - 9000}}};
+  const B = {savedAt: 1, annSeen: {p1: t - 1000, p2: t - 2000}, annAi: {p1: {v: 1, at: t - 1000, s: "new read", ch: [{k: "moved"}], d: {1: "no"}}}, dueFix: {a5: {due: "", was: "20261021T065900Z", at: t - 1000}, a6: {due: "20261030T065900Z", was: "x", at: t - 500}}};
+  for (const [x, y, n] of [[A, B, "a,b"], [B, A, "b,a"]]) {
+    m = merge(JSON.parse(JSON.stringify(x)), JSON.parse(JSON.stringify(y))); m.annSeen = m.annSeen || {}; m.annAi = m.annAi || {p1: {d: {}}}; m.dueFix = m.dueFix || {a5: {}, a6: {}};
+    check(`annSeen: the later look per post, an old one pruned (${n})`, m.annSeen.p1 === t - 1000 && m.annSeen.p2 === t - 2000 && !("p9" in m.annSeen), m.annSeen);
+    check(`annAi: the newer read wins and both "Not right" answers survive, an old read pruned (${n})`, m.annAi.p1.s === "new read" && m.annAi.p1.d[0] === "no" && m.annAi.p1.d[1] === "no" && !("p9" in m.annAi), m.annAi);
+    check(`dueFix: the newer choice wins per assignment, so an undo travels (${n})`, m.dueFix.a5.due === "" && m.dueFix.a6.due === "20261030T065900Z", m.dueFix);
+  }
+  // a newer read by LMK's server (no announcements) must not take the laptop's list away: the side that READ them more recently keeps it
+  const L = {ext: {at: t - 9000, annAt: t - 9000, items: {}, ann: [{id: "41"}]}}, S = {ext: {at: t, annAt: 0, items: {1: {}}, ann: []}};
+  for (const [x, y, n] of [[L, S, "a,b"], [S, L, "b,a"]]) { const mm = merge(JSON.parse(JSON.stringify(x)), JSON.parse(JSON.stringify(y)));
+    check(`ext: the newer read wins, but the list of announcements comes from the side that read them last (${n})`, mm.ext.at === t && (mm.ext.ann || []).length === 1 && mm.ext.annAt === t - 9000, mm.ext); }
+  m = merge({savedAt: 1}, {savedAt: 2});
+  check("no announcement data on either side stays absent", m.annSeen === undefined && m.annAi === undefined && m.dueFix === undefined, [m.annSeen, m.annAi, m.dueFix]);
+}
+
 if (fail) { console.error(fail + " FAILED"); process.exit(1); }
 console.log("ALL OK (" + pass + ")");
