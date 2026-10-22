@@ -214,6 +214,15 @@ const card = ws => ev(ws, `JSON.stringify((function(){ const h=[...document.quer
   await fresh(ws, {ls: {__ai: 'available', lmk_ai: 'on'}}); await sync(ws); await sleep(3500);
   check('N10 turned on and the model is ready: new posts are read on their own', JSON.parse(await ev(ws, `JSON.stringify(window.__ai)`)).prompts >= 6 && !!(await ev(ws, `!!(store.annAi && store.annAi['9001'])`)));
 
+  // N12 LMK's remote off switch (worker v27 /config ai.paused): no model call, nothing it found shown, a line that says so
+  const cfgPaused = JSON.stringify({at: Date.now(), v: {ok: true, announce: null, storeUrl: '', ai: {paused: true}}});
+  await fresh(ws, {ls: {__ai: 'available', lmk_ai: 'on', lmk_cfg: cfgPaused}}); await sync(ws); await sleep(3500);
+  const pz = JSON.parse(await ev(ws, `JSON.stringify({prompts: (window.__ai||{}).prompts||0, read: !!store.annAi})`));
+  check('N12 paused by LMK: the model is never asked, though this computer turned it on and the model is ready', pz.prompts === 0 && !pz.read, pz);
+  await ev(ws, `store.annAi = ${JSON.stringify({9001: {v: 1, at: Date.now(), s: 'Quiz 4 moved.', ch: [{k: 'moved', id: 'a501', due: Date.now() + 3 * 864e5, q: 'Quiz 4 has been moved'}], d: {}}})}; AIRT.more = true; save(); render(); 1`); await sleep(300);
+  r = await card(ws);
+  check('N12 paused: what it found before is hidden too, and the card says the AI is paused', r.rows && r.rows.every(x => !x.ai) && /paused Chrome's built-in AI/.test(r.offer), {offer: r.offer, ai: r.rows && r.rows.map(x => x.ai)});
+
   // N11 LMK's own banner still closes (its ✕ is "ann-dismiss", which must not be taken for a post's action)
   await ev(ws, `showAnnouncement({on:true, text:'Test banner'}); 1`); await sleep(100);
   await ev(ws, `document.querySelector('#announce [data-act="ann-dismiss"]').click()`); await sleep(150);

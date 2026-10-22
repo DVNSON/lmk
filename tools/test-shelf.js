@@ -226,6 +226,11 @@ const shelf = ws => ev(ws, `JSON.stringify((function(){ const h=[...document.que
   await ev(ws, `(document.querySelector('nav.bottombar [data-tab="plan"]')||document.querySelector('[data-tab="plan"]')).click(); 1`); await sleep(600);
   r = await shelf(ws);
   check('B7 phone: the laptop\'s AI finds show (store.shelfAi), with no model here', (r.open.find(x => x.id === 'x901') || {}).why.startsWith('✦') && !(await ev(ws, `typeof LanguageModel !== 'undefined'`)), r.open.find(x => x.id === 'x901'));
+  // B11 LMK's remote off switch: the laptop's AI finds are hidden on the shelf (LMK's own rules still show)
+  await fresh(ws, {seed: laptop, ls: {lmk_cfg: JSON.stringify({at: Date.now(), v: {ok: true, ai: {paused: true}}})}}); await sleep(600);
+  await ev(ws, `document.querySelector('nav.topnav [data-tab="plan"]').click(); 1`); await sleep(500);
+  r = await shelf(ws);
+  check('B11 paused by LMK: no ✦ find is shown, the rules\' guesses still are', !(r.open.concat(r.past)).some(x => x.why.startsWith('✦')) && (r.open.find(x => x.id === 'x901') || {}).tag === 'no due date' && /about the week of/.test((r.open.find(x => x.id === 'x719') || {}).tag || ''), r.open.map(x => [x.id, x.tag]));
   check('JS errors during run: none', errs.length === 0, errs.slice(0, 3));
   console.log(fail ? `\n${fail} FAILED  (${pass} passed)` : `\nALL OK  (${pass} passed)`);
   ws.close(); process.exit(fail ? 1 : 0);
