@@ -139,6 +139,10 @@ check("no calendar on either side stays absent", m.cal === undefined, m.cal);
   const L = {ext: {at: t - 9000, annAt: t - 9000, items: {}, ann: [{id: "41"}]}}, S = {ext: {at: t, annAt: 0, items: {1: {}}, ann: []}};
   for (const [x, y, n] of [[L, S, "a,b"], [S, L, "b,a"]]) { const mm = merge(JSON.parse(JSON.stringify(x)), JSON.parse(JSON.stringify(y)));
     check(`ext: the newer read wins, but the list of announcements comes from the side that read them last (${n})`, mm.ext.at === t && (mm.ext.ann || []).length === 1 && mm.ext.annAt === t - 9000, mm.ext); }
+  // shelfAi (v76.1): what Chrome's AI found for a shelf item travels; the newer read wins; an old one is dropped
+  for (const [x, y, n] of [[{shelfAi: {x1: {v: 1, at: t - 5000, due: 1}, x9: {v: 1, at: t - 130 * 864e5, due: 2}}}, {shelfAi: {x1: {v: 1, at: t - 100}, x2: {v: 1, at: t - 50, due: 3}}}, "a,b"]]) {
+    for (const [p, q, nn] of [[x, y, n], [y, x, "b,a"]]) { const mm = merge(JSON.parse(JSON.stringify(p)), JSON.parse(JSON.stringify(q))); const sa = mm.shelfAi || {};
+      check(`shelfAi: the newer read wins per item, others are kept, past 120 days dropped (${nn})`, sa.x1 && sa.x1.at === t - 100 && !("due" in sa.x1) && sa.x2 && sa.x2.due === 3 && !("x9" in sa), sa); } }
   m = merge({savedAt: 1}, {savedAt: 2});
   check("no announcement data on either side stays absent", m.annSeen === undefined && m.annAi === undefined && m.dueFix === undefined, [m.annSeen, m.annAi, m.dueFix]);
 }
