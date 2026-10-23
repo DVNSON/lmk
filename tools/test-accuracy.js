@@ -25,6 +25,9 @@ function payload(){ const items={}; let n=9500;
   add('ecnHw','211','ECN 211','Ch. 9 Homework',3,'gh',10);
   for (let i=1;i<=6;i++) add('fin'+i,'211','ECN 211','Ch. '+i+' Homework',-10-i,'gh',10,{subAt:at(-11-i,20,0),sub:'submitted'});
   add('finLate','211','ECN 211','Ch. 7 Homework',-8,'gh',10,{subAt:at(-7,9,0),sub:'submitted',late:true});
+  // v76.3: two answered Play Journals give #6 a LEARNED estimate (series); it still has no timing of its own
+  add('pj4','265','FMS 265','Play Journal #4',-9,'ga',10,{st:'online_upload',subAt:at(-9,20,0),sub:'submitted'});
+  add('pj5','265','FMS 265','Play Journal #5',-5,'ga',10,{st:'online_upload',subAt:at(-5,20,0),sub:'submitted'});
   return {lmk:'canvas',v:3,at:Date.now(),host:'canvas.asu.edu',items,
     groups:{'105':[{id:'gc',name:'Quizzes',w:100}],'265':[{id:'ga',name:'Assignments',w:60},{id:'gm',name:'Midterm',w:20},{id:'gf',name:'Final Exam',w:20}],'211':[{id:'gh',name:'Homework',w:20},{id:'gx',name:'Exams',w:80}]},
     courses:[['105','CIS 105'],['265','FMS 265'],['211','ECN 211']].map(([id,tag])=>({id,tag,name:tag+': a class',uuid:'u'+id+'x'.repeat(30),wt:true,cur:null,fin:null}))}; }
@@ -35,6 +38,7 @@ const STUB=`(function(){const J=o=>new Response(JSON.stringify(o),{status:200,he
   const seenAt={}; for (const k of ['fin1','fin2','fin3','fin4','fin5','fin6','finLate']) seenAt[IDS[k]]=Date.now()-30*DAY;
   const dur={}; dur[IDS.tool]=[{m:3,src:'tracked',at:Date.now()-DAY,p:20}]; dur[IDS.upload]=[{m:7,src:'tracked',at:Date.now()-DAY,p:25}];
   dur[IDS.lab]=[{m:1,src:'quiz',at:Date.now()-DAY,p:5}];
+  dur[IDS.pj4]=[{m:30,src:'ask',at:Date.now()-9*DAY,p:null}]; dur[IDS.pj5]=[{m:35,src:'ask',at:Date.now()-5*DAY,p:null}];
   for (let i=1;i<=5;i++) dur[IDS['fin'+i]]=[{m:40,src:'quiz',at:Date.now()-2*DAY,p:i<5?45:120}];
   const SEED={onboarded:1, profile:{name:"Sam"}, capacity:{weekday:4, weekend:4}, ext:null, seenAt:Object.assign({x:1},seenAt), dur};
   const t=JSON.parse(execSync('curl -s http://localhost:9333/json/new -X PUT').toString());
@@ -76,6 +80,30 @@ const STUB=`(function(){const J=o=>new Response(JSON.stringify(o),{status:200,he
   await ev(ws,`document.querySelector('[data-tab="semester"]').click(); 1`); await sleep(700);
   const sem=await ev(ws,`document.getElementById('view-semester').innerText.replace(/\\s+/g,' ')`);
   check('A8 Semester shows "How well the plan worked": on time, and estimates close enough to plan with', /How well the plan worked/i.test(sem) && /[0-9]+ of [0-9]+ finished on time/.test(sem) && /5 of 6 time estimates were close enough to plan with/.test(sem), sem.slice(0,800));
+  // A9/A10 (v76.3) work done off Canvas gets asked "how long?": measured on Emiel's store, 16 such items finished in 12 days
+  //  and not one had a timing (the ask waited for "not learned" and three days; Canvas's own check-offs were never asked)
+  const toastTxt = () => ev(ws, `(document.getElementById('toast').classList.contains('show') ? document.getElementById('toast').textContent : '')`);
+  const waitAsk = async (re, ms) => { for (let i = 0; i < ms / 500; i++) { const tx = await toastTxt(); if (re.test(tx)) return tx; await sleep(500); } return await toastTxt(); };
+  await ev(ws, `localStorage.removeItem('lmk_askedAt'); localStorage.removeItem('lmk_askq'); 1`);
+  const learned = await ev(ws, `JSON.stringify([learnedMins(EVENTS.find(e=>e.id==='${IDS.upload}')).learned, measuredMins('${IDS.upload}').length])`);
+  await ev(ws, `toggleDone('${IDS.upload}'); 1`);
+  let tx = await waitAsk(/Quick one — was “Play Journal #6”/, 16000);
+  check('A9 checking off an upload with no timing of its own asks, even though LMK has a learned guess for it', JSON.parse(learned)[0] === true && JSON.parse(learned)[1] === 0 && /Quick one — was “Play Journal #6” about/.test(tx), {learned, tx});
+  await ev(ws, `([...document.querySelectorAll('#toast button')].find(b=>/About right/.test(b.textContent))||{click(){}}).click(); 1`); await sleep(300);
+  check('A9 the answer is its first timing (an "ask"), so the plan learns from it', (await ev(ws, `JSON.stringify(((store.dur||{})['${IDS.upload}']||[]).map(x=>x.src))`)).includes('ask'));
+  await ev(ws, `toggleDone('${IDS.tool}'); 1`); tx = await waitAsk(/Quick one/, 9000);
+  check('A9 a second off-Canvas check-off the same day is not asked (once a day at most)', !/Quick one/.test(tx), tx);
+  // a hand-in Canvas checks off: asked on the next sync, "You handed in …"; never from a first sync
+  await ev(ws, `localStorage.removeItem('lmk_askedAt'); 1`); await sleep(200);
+  const P2 = JSON.parse(JSON.stringify(P)); P2.at = Date.now() + 5000; P2.items['9890'] = Object.assign({}, P2.items[IDS.upload.slice(1)], {t: 'Play Journal #7', due: at(1), sub: 'submitted', subAt: new Date(Date.now() - 3600e3).toISOString()});
+  await ev(ws, `window.postMessage({lmk:'canvas-payload', payload:${JSON.stringify(P2)}}, '*'); 1`);
+  tx = await waitAsk(/You handed in “Play Journal #7”/, 14000);
+  check('A10 a hand-in Canvas checked off is asked on the next sync: "You handed in … Did it take about …?"', /You handed in “Play Journal #7”\. Did it take about/.test(tx), tx);
+  await ev(ws, `([...document.querySelectorAll('#toast button')].find(b=>/Longer/.test(b.textContent))||{click(){}}).click(); 1`); await sleep(200);
+  await ev(ws, `store.ext = null; save(); localStorage.removeItem('lmk_askedAt'); localStorage.removeItem('lmk_askq'); 1`);
+  const P3 = JSON.parse(JSON.stringify(P)); P3.at = Date.now() + 9000; P3.items['9891'] = Object.assign({}, P3.items[IDS.upload.slice(1)], {t: 'Play Journal #8', due: at(1), sub: 'submitted', subAt: new Date(Date.now() - 3600e3).toISOString()});
+  await ev(ws, `window.postMessage({lmk:'canvas-payload', payload:${JSON.stringify(P3)}}, '*'); 1`); await sleep(1500);
+  check('A10 a first sync queues no question (a new student is not asked about work handed in before LMK)', !(await ev(ws, `(localStorage.getItem('lmk_askq')||'').includes('a9891')`)));
   ws.close(); try{execSync('curl -s http://localhost:9333/json/close/'+t.id)}catch(_){}
   console.log(`\n${fail?fail+' FAILED':'ALL OK'}  (${pass} passed)`);
   process.exit(fail?1:0);
