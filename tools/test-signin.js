@@ -59,6 +59,25 @@ const STUB = `(function(){ if (location.port !== '8899') return;
   await ev(ws, `localStorage.setItem('lmk_ghint', '<script>x'); 1`);
   check('S5 a malformed remembered value is ignored, not sent', (await ev(ws, `gHint()`)) === '' && !('login_hint' in (await ev(ws, `JSON.stringify(gHinted({prompt: ''}))`).then(JSON.parse))));
 
+  // S6-S9 the extension renews the key (0.9.14): no tap, no window; checked against the account; any failure falls back
+  await ev(ws, `localStorage.setItem('lmk_ghint', 'sam.student@example.edu'); window.__acct = 'sam.student@example.edu'; EXT.present = true; gd.gesture = 0; window.__x = {asks: [], mode: 'ok'};
+    window.addEventListener('message', e => { const d = e.data; if (e.source !== window || !d || d.lmk !== 'gtoken-req') return; window.__x.asks.push({scope: d.scope, hint: d.hint}); if (window.__x.mode === 'silent') return;
+      window.postMessage({lmk: 'gtoken', id: d.id, token: 'exttok', exp: 3600, err: ''}, location.origin); }); 1`);
+  const before = (await G()).asks.length;
+  await ev(ws, `gdCacheClear(); window.__r = 'pending'; gdToken(false).then(t => window.__r = t, e => window.__r = 'ERR ' + (e.needsGesture ? 'tap' : e.message)); 1`); await sleep(900);
+  let x = JSON.parse(await ev(ws, `JSON.stringify(window.__x)`));
+  check('S6 with the extension, an hour-old key is renewed with NO tap and NO Google window', (await ev(ws, `window.__r`)) === 'exttok' && (await G()).asks.length === before, {r: await ev(ws, `window.__r`), asks: (await G()).asks.length, before});
+  check('S6 the page asked for its own scope and named the account', x.asks.length === 1 && /drive\.file/.test(x.asks[0].scope) && x.asks[0].hint === 'sam.student@example.edu', x.asks);
+  await ev(ws, `window.__acct = 'someone.else@gmail.com'; gdCacheClear(); GX.no = 0; window.__r = 'pending'; gd.gesture = 0; gdToken(false).then(t => window.__r = t, e => window.__r = 'ERR ' + (e.needsGesture ? 'tap' : e.message)); 1`); await sleep(900);
+  check('S7 a key that is another account\'s is dropped, and LMK falls back to the tap', (await ev(ws, `window.__r`)) === 'ERR tap', await ev(ws, `window.__r`));
+  await ev(ws, `window.__acct = 'sam.student@example.edu'; window.__x.mode = 'silent'; gdCacheClear(); GX.no = 0; window.__r = 'pending'; gd.gesture = 0; gdToken(false).then(t => window.__r = t, e => window.__r = 'ERR ' + (e.needsGesture ? 'tap' : e.message)); 1`); await sleep(4600);
+  check('S8 an extension that never answers (older, or not there) falls back after 4 s, as before', (await ev(ws, `window.__r`)) === 'ERR tap', await ev(ws, `window.__r`));
+  const n0 = JSON.parse(await ev(ws, `JSON.stringify(window.__x.asks.length)`));
+  await ev(ws, `gdCacheClear(); gd.gesture = 0; gdToken(false).then(() => 1, () => 1); 1`); await sleep(300);
+  check('S8 after a failure it does not ask again for a minute (a stuck extension never slows every request)', JSON.parse(await ev(ws, `JSON.stringify(window.__x.asks.length)`)) === n0, n0);
+  await ev(ws, `localStorage.removeItem('lmk_ghint'); window.__x.mode = 'ok'; GX.no = 0; gdCacheClear(); window.__r = 'pending'; gd.gesture = 0; gdToken(false).then(t => window.__r = t, e => window.__r = 'ERR ' + (e.needsGesture ? 'tap' : e.message)); 1`); await sleep(500);
+  check('S9 with no account named yet the extension is never asked', (await ev(ws, `window.__r`)) === 'ERR tap' && JSON.parse(await ev(ws, `JSON.stringify(window.__x.asks.length)`)) === n0, await ev(ws, `window.__r`));
+
   check('JS errors during run: none', errs.length === 0, errs.slice(0, 3));
   console.log(fail ? `\n${fail} FAILED  (${pass} passed)` : `\nALL OK  (${pass} passed)`);
   ws.close(); process.exit(fail ? 1 : 0);
