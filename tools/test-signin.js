@@ -78,6 +78,11 @@ const STUB = `(function(){ if (location.port !== '8899') return;
   await ev(ws, `localStorage.removeItem('lmk_ghint'); window.__x.mode = 'ok'; GX.no = 0; gdCacheClear(); window.__r = 'pending'; gd.gesture = 0; gdToken(false).then(t => window.__r = t, e => window.__r = 'ERR ' + (e.needsGesture ? 'tap' : e.message)); 1`); await sleep(500);
   check('S9 with no account named yet the extension is never asked', (await ev(ws, `window.__r`)) === 'ERR tap' && JSON.parse(await ev(ws, `JSON.stringify(window.__x.asks.length)`)) === n0, await ev(ws, `window.__r`));
 
+  // S10 the page tells the extension which account it is (its own silent renewal needs it with two accounts signed in)
+  await ev(ws, `localStorage.setItem('lmk_ghint', 'sam.student@example.edu'); window.__hm = []; window.addEventListener('message', e => { if (e.source === window && e.data && e.data.lmk === 'ghint') window.__hm.push(e.data.hint); }); EXT.present = false; gHintTell(); 1`); await sleep(200);
+  check('S10 with no extension nothing is posted', JSON.parse(await ev(ws, `JSON.stringify(window.__hm)`)).length === 0);
+  await ev(ws, `EXT.present = true; gHintTell(); 1`); await sleep(200);
+  check('S10 with the extension the page tells it the account (same origin only)', JSON.parse(await ev(ws, `JSON.stringify(window.__hm)`)).join() === 'sam.student@example.edu');
   check('JS errors during run: none', errs.length === 0, errs.slice(0, 3));
   console.log(fail ? `\n${fail} FAILED  (${pass} passed)` : `\nALL OK  (${pass} passed)`);
   ws.close(); process.exit(fail ? 1 : 0);
