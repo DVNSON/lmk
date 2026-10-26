@@ -150,7 +150,7 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
   check('T15 consent: unticked -> store.cloud kept with on:false, overlay closed', !r.on && r.sid && !r.overlay, r);
   await fresh(ws); await ev(ws,`openWelcome(); document.getElementById('wName').value='Sam'; document.getElementById('wGo').click()`); await sleep(400);
   r=JSON.parse(await ev(ws,`JSON.stringify({on: !!(store.cloud&&store.cloud.on), sid: !!(store.cloud&&store.cloud.sid)})`));
-  check('T15 consent: left as it opens (unticked) -> off, but the identity exists for rooms and the morning note', !r.on && r.sid, r);
+  check('T15 consent: left as it opens (unticked) -> off, but the identity exists for the morning note', !r.on && r.sid, r);
   await fresh(ws); await ev(ws,`openWelcome(); document.getElementById('wCloud').checked=true; document.getElementById('wName').value='Sam'; document.getElementById('wGo').click()`); await sleep(400);
   r=JSON.parse(await ev(ws,`JSON.stringify({on: !!(store.cloud&&store.cloud.on)})`));
   check('T15 consent: ticked -> on', r.on, r);
@@ -283,9 +283,9 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
   check('T25 a bad ?school= never wipes the school the homepage left', r.school==='canvas.uw.edu' && r.link===null, r);
   await fresh(ws,{ls:{lmk_school:'canvas.asu.edu', lmk_lms_hint:'canvas'}}); r=await sch('?school=canvas.uw.edu');
   check('T25 a school the student already named is never replaced by a link', r.school==='canvas.asu.edu' && r.link===null, r);
-  // T26 an invite carries its school (#join=host.cid)
+  // T26 an old room invite (#join=host.cid, retired v77.0) names nothing: the hash is stripped and the school step stays empty
   await fresh(ws); r=await sch('#join=canvas.uw.edu.12345&c=BIO%20202');
-  check('T26 an invite link fills the school step with the class\'s school', r.school==='canvas.uw.edu' && /^done:My school is at canvas\.uw\.edu/.test(r.rows[0]), r);
+  check('T26 an old #join link no longer fills the school step, and its hash is gone', r.school===null && !/join/.test(await ev(ws,`location.hash`)), r);
 
   // T27 with the extension in, naming the school is the last press (v74.5): the same click opens the school's site
   await fresh(ws); await ev(ws,`window.postMessage({lmk:'ext-hello', version:'0.9.11'}, '*')`); await sleep(500); r=JSON.parse(await ev(ws,Q));

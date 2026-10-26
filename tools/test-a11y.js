@@ -3,7 +3,7 @@
    <body>, the toast's button stayed tabbable after it faded, focus scrolled under the phone's bars, labels clipped at
    320px, and five animations looped forever. This drives the PUBLIC build at localhost:8899/app/ and checks each one:
    - axe-core 4.10.2 (wcag2a, wcag2aa, wcag21a, wcag21aa) reports zero violations on first run, the sample semester,
-     Today, Plan, Semester, the settings sheet, the room sheet, Study, the recap and the welcome, light and dark,
+     Today, Plan, Semester, the settings sheet, Study, the recap and the welcome, light and dark,
      desktop 1100 and phone 390 (iPhone UA). axe cannot judge text over a gradient, so G-checks sample every stop.
      No known exceptions since v71.2: pinch zoom is on, so axe's `meta-viewport` (1.4.4) is counted like everything else.
    - every sheet moves focus inside on open, makes the page behind inert, keeps Tab inside for 20 presses, closes on
@@ -11,13 +11,13 @@
    - the recap scrolls at 1280x720; focus stays on a row after Mark done; a hidden toast's buttons are not focusable;
      no tab stop hides under the phone's header or bottom bar; nothing loops past 5 s; labels wrap at 320px.
    Run: node test-a11y.js   (needs :8899 serving ~/lmk-web and headless Chrome on :9333; axe comes from $AXE or is
-   fetched once from cdnjs into the temp dir). Spawns the stand-in worker (loop-worker.js) on :8902 for the room sheet. */
+   fetched once from cdnjs into the temp dir). The worker is stubbed (every call answers {ok:false}). */
 const {execSync, spawn}=require('child_process'); const fs=require('fs'); const os=require('os'); const path=require('path'); let id=0;
 const send=(ws,m,p={})=>new Promise((r,j)=>{const mid=++id;const to=setTimeout(()=>j(new Error('CDP '+m+' did not answer in 45 s')),45000);const h=e=>{const x=JSON.parse(e.data);if(x.id===mid){clearTimeout(to);ws.removeEventListener('message',h);r(x.result)}};ws.addEventListener('message',h);ws.send(JSON.stringify({id:mid,method:m,params:p}))});
 const ev=(ws,e)=>send(ws,'Runtime.evaluate',{expression:e,returnByValue:true,awaitPromise:true}).then(r=>{if(r&&r.exceptionDetails)throw new Error((r.exceptionDetails.exception||{}).description||r.exceptionDetails.text);return r&&r.result?r.result.value:undefined});
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let pass=0,fail=0; const check=(n,ok,d)=>{console.log((ok?'ok   ':'FAIL ')+n+(ok?'':'  -> '+String(JSON.stringify(d)).slice(0,600)));ok?pass++:fail++;};
-const PORT=+process.env.LOOP_PORT||8902, CDP='http://localhost:9333', APP='http://localhost:8899/app/';
+const CDP='http://localhost:9333', APP='http://localhost:8899/app/';
 const IPHONE="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 const MAC="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36";
 const AXE_VER='4.10.2';
@@ -34,10 +34,9 @@ const payload=()=>{ const items={}, now=Date.now(); let n=9000;
   for (const [cid,tag] of COURSES) for (let k=0;k<4;k++){ const aid=String(n++); const due=new Date(now+(k===0?0.2:k*4-1)*864e5).toISOString();
     items[aid]={t:(cid==='210'&&k===2)?`${tag} Midterm exam 1`:`${tag} problem set ${k+1} with a reasonably long title that wraps`,c:tag,cid,due,pts:10,grp:'g'+cid,st:'online_upload',k:'',sub:'',subAt:'',score:null,url:`https://${HOST}/courses/${cid}/assignments/${aid}`,desc:'Read chapter 3 and answer the questions.',rub:'',fb:''}; }
   return {lmk:'canvas',v:3,at:now,host:HOST,items,groups:Object.fromEntries(COURSES.map(([cid])=>[cid,[{id:'g'+cid,name:'Homework',w:100}]])),courses:COURSES.map(([id,tag])=>({id,tag,name:tag+': a class',uuid:'u'+id+'x'.repeat(30),wt:false,cur:88,fin:40}))}; };
-const SEED={onboarded:1, profile:{name:"Emiel"}, cloud:{sid:'a1b2c3d4'+'e'.repeat(24), secret:'s'.repeat(40), on:true, at:1}, ext:null, roomName:'Emiel'};
-const STUB=`(function(){const real=window.fetch; window.fetch=(u,o)=>real(String(u).replace('https://lmk-api.emieldieuvenson.workers.dev','http://localhost:${PORT}'),o);})()`;
+const SEED={onboarded:1, profile:{name:"Emiel"}, cloud:{sid:'a1b2c3d4'+'e'.repeat(24), secret:'s'.repeat(40), on:true, at:1}, ext:null};
+const STUB=`(function(){const real=window.fetch; window.fetch=(u,o)=>/workers\\.dev/.test(String(u))?Promise.resolve(new Response('{"ok":false}',{status:200,headers:{'content-type':'application/json'}})):real(u,o);})()`;
 
-let Wk=null;   // the stand-in worker; killed on every exit, a crash included, so the next run does not find it on the port
 /* ---- page-side helpers, injected as source ---- */
 function pageHelpers(){
   const parse=s=>{ s=String(s||'').trim(); let m=s.match(/^rgba?\(([^)]+)\)$/); if(m){const p=m[1].split(/[ ,/]+/).filter(Boolean).map(Number); return [p[0],p[1],p[2],p.length>3?p[3]:1];}
@@ -76,10 +75,6 @@ function pageHelpers(){
 
 (async()=>{
   const AXE=axeSource();
-  let busy=false; try{ execSync(`curl -sf localhost:${PORT}/__state`,{stdio:'pipe'}); busy=true; }catch(_){}
-  if(busy){ console.log(`HARNESS ERROR: something already answers on :${PORT} — a stale loop worker? kill it (or set LOOP_PORT) and rerun`); process.exit(2); }
-  Wk=spawn(process.execPath,[__dirname+'/loop-worker.js'],{env:Object.assign({},process.env,{PORT:String(PORT)}),stdio:'ignore'});
-  for(let i=0;i<40;i++){ try{ execSync(`curl -sf localhost:${PORT}/__state`,{stdio:'pipe'}); break; }catch(_){ await sleep(100); } }
   const errs=[]; let t=null, ws=null;
   /* A tab of our own; the pointer sections (R, W) start a new one so nothing earlier in the run can leave it stuck. */
   const openTab=async()=>{
@@ -91,7 +86,7 @@ function pageHelpers(){
     await send(ws,'Page.addScriptToEvaluateOnNewDocument',{source:STUB}); await send(ws,'Page.bringToFront');
   };
   await openTab();
-  const done=()=>{ try{Wk.kill()}catch(_){}; try{ ws.close(); execSync(`curl -s ${CDP}/json/close/`+t.id,{stdio:'pipe'}); }catch(_){} };
+  const done=()=>{ try{ ws.close(); execSync(`curl -s ${CDP}/json/close/`+t.id,{stdio:'pipe'}); }catch(_){} };
   const key=async(k,mod=0)=>{ const m={Tab:[9,'Tab'],Escape:[27,'Escape'],Enter:[13,'Enter']}[k]; const base={key:k,code:m[1],windowsVirtualKeyCode:m[0],nativeVirtualKeyCode:m[0],modifiers:mod};
     await send(ws,'Input.dispatchKeyEvent',Object.assign({type:'keyDown'},base,k==='Enter'?{text:'\r'}:{})); await send(ws,'Input.dispatchKeyEvent',Object.assign({type:'keyUp'},base)); };
   const helpers=async()=>{ await ev(ws,`(${pageHelpers.toString()})(); typeof axe==='undefined' ? 0 : 1`).then(async has=>{ if(!has) await send(ws,'Runtime.evaluate',{expression:AXE}); }); };
@@ -142,9 +137,7 @@ function pageHelpers(){
     await axeRun(`${tag} · the settings sheet`);
     await ev(ws,`overlay.classList.remove('open'); openDetail(EVENTS.find(e=>!e.isCourse).id); 1`);
     await axeRun(`${tag} · an assignment's detail sheet`);
-    await ev(ws,`detailOverlay.classList.remove('open'); openRoom('210'); 1`); await sleep(900);
-    await axeRun(`${tag} · the room sheet`);
-    await ev(ws,`closeRoom(); openStudy(EVENTS.find(e=>!e.isCourse).id, {fromHistory:true}); 1`);
+    await ev(ws,`detailOverlay.classList.remove('open'); openStudy(EVENTS.find(e=>!e.isCourse).id, {fromHistory:true}); 1`);
     await axeRun(`${tag} · the Study screen`);
     await ev(ws,`closeStudy({fromHistory:true}); openWrapped('semester'); 1`);
     await axeRun(`${tag} · the recap`);
@@ -161,7 +154,6 @@ function pageHelpers(){
     ['find', '#findBtn', 'findOverlay', null],
     ['add your own', '#addBtn', 'addOverlay', null],
     ['assignment detail (Enter on a title)', '#view-now .item .t[data-act="detail"]', 'detailOverlay', 'Enter'],
-    ['room', '#view-now [data-act="room-open"]', 'roomOverlay', null],
     ['recap info', '#view-now [data-act="recap-info"]', 'recapOverlay', null],
     ['Study', '#view-now [data-act="study"]', 'studyPage', null],
     ['recap page (opened from the recap-info sheet)', '#view-now [data-act="recap-info"]', 'recapPage', 'via:#recapOverlay [data-act="recap-open"]'],
@@ -325,4 +317,4 @@ function pageHelpers(){
   done();
   console.log(`\n${fail?fail+' FAILED':'ALL OK'}  (${pass} passed)`);
   process.exit(fail?1:0);
-})().catch(e=>{console.log('HARNESS ERROR',e.stack||e.message);try{Wk&&Wk.kill()}catch(_){};process.exit(2)});
+})().catch(e=>{console.log('HARNESS ERROR',e.stack||e.message);process.exit(2)});
