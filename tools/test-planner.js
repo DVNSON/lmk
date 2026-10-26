@@ -6,6 +6,7 @@
      H3 nothing done, dropped, an exam, in class or ungraded becomes work     H4 a day goes over budget only with work due THAT day
      H5 overdue work joins only once the student kept it                     H6 one part of a thing a day, unless it is due that day
      H7 nothing due inside the 14 days is silently left unplanned             H8 today never holds more than the time left in it
+     H11 work due before noon is never planned on its due day (the deadline passes first), unless it is due today
      H9 finishing one thing never pushes other work LATER: by any day, each other item has at least as many minutes planned
         as before (pieces may swap labels; the work done by a date may only grow)        H10 an item's parts are numbered in date order
    Measured, printed as a table: pieces, overloaded days and minutes over, night-before cramming (a split item finishing
@@ -42,6 +43,7 @@ const SCEN = [
   ['a long project (10 hours, due in 10 days)', world([['61', 'HST 102', 'Final research paper', 10, {size: 'big'}], ['62', 'ECN 212', 'Problem set 10', 4]]), {effortOv: {a61: 'big'}, dur: {a61: [{m: 600, src: 'manual', at: Date.now() - 864e5}]}}],
   ['a day kept free (capOv 0 tomorrow)', world(many(5, 1, 5, 'medium')), {}],
   ['due later today', world([['71', 'MAT 210', 'Quick quiz', 0, {size: 'quick', h: 23}], ['72', 'ECN 212', 'Problem set 11', 0, {size: 'medium', h: 23}]])],
+  ['morning deadlines (10 AM and 9 AM) with the days before packed', world([...many(10, 1, 3, 'big'), ['91', 'ECN 212', 'Industry report', 4, {size: 'big', h: 10}], ['92', 'PSY 101', 'Quick form', 3, {size: 'quick', h: 9}], ['93', 'MAT 210', 'Evening set', 4, {size: 'medium'}]])],
   ['150 assignments (speed)', world(many(150, 0, 40, 'medium'))],
 ];
 // the free day needs its own capOv (tomorrow's key, in the page's own time zone): set in the page before computePlan
@@ -57,11 +59,12 @@ const CHECK = `(function(){
     if (store.dropped[id]) v.push('H3 dropped work planned: ' + id);
     if (e.exam || e.kind === 'inclass' || e.kind === 'fyi') v.push('H3 not work, planned: ' + id + ' (' + (e.exam ? 'exam' : e.kind) + ')');
     if (!c.late && d.date > startOfDay(e.due)) v.push('H1 after its due day: ' + id + ' on ' + d.key);
+    if (!c.late && !e.allDay && e.due.getHours() < 12 && startOfDay(e.due) > today && d.date.getTime() === startOfDay(e.due).getTime()) v.push('H11 work due before noon planned on its due day: ' + id + ' on ' + d.key + ' (due ' + e.due.toTimeString().slice(0, 5) + ')');
     const op = opensAt(e); if (op && d.date < startOfDay(op)) v.push('H2 before it opens: ' + id + ' on ' + d.key);
     if (c.late && !store.triaged[id]) v.push('H5 overdue work planned without being kept: ' + id);
   }
   for (const d of days) {
-    const must = d.items.filter(c => !c.late && !c.prep && startOfDay(c.e.due).getTime() === d.date.getTime());
+    const must = d.items.filter(c => !c.late && !c.prep && (typeof lastWorkDay === 'function' ? lastWorkDay(c.e, today) : startOfDay(c.e.due)).getTime() === d.date.getTime());
     const rest = d.mins - must.reduce((s, c) => s + c.mins, 0);
     if (rest > d.cap) v.push('H4 over budget with work not due that day: ' + d.key + ' ' + d.mins + '/' + d.cap);
     const ids = d.items.filter(c => !must.includes(c)).map(c => c.grp || c.e.id);
@@ -110,6 +113,7 @@ const CHECK = `(function(){
       if (name.startsWith('an exam')) check(`${tag}: the exam gets study sessions, not a work item`, r.prep > 0 && !Object.keys(r.map).some(k => k.startsWith('a41#')), {prep: r.prep, map: r.map});
       if (name.startsWith('done, dropped')) check(`${tag}: the kept overdue item is planned from today; the one not kept is not`, Object.keys(r.map).some(k => k.startsWith('a33#')) && !Object.keys(r.map).some(k => k.startsWith('a34#')), r.map);
       if (name.startsWith('a long project')) check(`${tag}: a 10-hour project is split into parts, one a day, all before it is due`, Object.keys(r.map).filter(k => k.startsWith('a61#')).length >= 5 && new Set(Object.entries(r.map).filter(([k]) => k.startsWith('a61#')).map(([, d]) => d)).size === Object.keys(r.map).filter(k => k.startsWith('a61#')).length, r.map);
+      if (name.startsWith('morning')) check(`${tag}: the 10 AM report and the 9 AM form are still planned (nothing is lost), by H11 never on their due day`, Object.keys(r.map).some(k => /^a91#/.test(k)) && Object.keys(r.map).some(k => /^a92#/.test(k)), r.map);
       if (name.startsWith('150')) check(`${tag}: the planner takes under 150 ms for 150 assignments (${r.ms} ms)`, r.ms < 150, r.ms);
       if (name.startsWith('dense week')) {   // H9: finishing one thing never pushes other work later
         const before = r.map, first = Object.keys(before).sort((a, b) => before[a].localeCompare(before[b]))[0].split('#')[0];
