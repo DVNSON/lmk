@@ -44,47 +44,15 @@ const SCEN = [
   ['a day kept free (capOv 0 tomorrow)', world(many(5, 1, 5, 'medium')), {}],
   ['due later today', world([['71', 'MAT 210', 'Quick quiz', 0, {size: 'quick', h: 23}], ['72', 'ECN 212', 'Problem set 11', 0, {size: 'medium', h: 23}]])],
   ['morning deadlines (10 AM and 9 AM) with the days before packed', world([...many(10, 1, 3, 'big'), ['91', 'ECN 212', 'Industry report', 4, {size: 'big', h: 10}], ['92', 'PSY 101', 'Quick form', 3, {size: 'quick', h: 9}], ['93', 'MAT 210', 'Evening set', 4, {size: 'medium'}]])],
+  /* v77.1: an exam's study sessions meet full days. Six things due day 4 fill days 2-4; sessions 3 and 4 (day 3, day 4) cannot fit; the
+     old planner forced the slipped one onto day 4 as if it were due (two sessions of one exam on one day, H6, and over budget, H4).
+     Weekend hours equal weekday hours so the day of the week the suite runs on cannot change the shape. */
+  ['an exam whose study sessions meet two full days', world([['44', 'MAT 210', 'Exam 1', 5, {st: 'on_paper', h: 9}], ...Array.from({length: 6}, (_, i) => [String(45 + i), C[i % 4], `Problem set ${String.fromCharCode(65 + i)}`, 4])]), {capacity: {weekday: 2, weekend: 2}}],
   ['150 assignments (speed)', world(many(150, 0, 40, 'medium'))],
 ];
 // the free day needs its own capOv (tomorrow's key, in the page's own time zone): set in the page before computePlan
 const FREE_DAY = 'a day kept free (capOv 0 tomorrow)';
-const CHECK = `(function(){
-  const t0 = performance.now(); computePlan(); const ms = performance.now() - t0;
-  const days = Object.values(PLAN).sort((a, b) => a.date - b.date), v = [], today = startOfDay(now()), end = addDays(today, HORIZON);
-  const all = []; days.forEach(d => d.items.forEach(c => all.push([d, c])));
-  for (const [d, c] of all) {
-    const e = c.e, id = e.id;
-    if (c.prep) { if (d.date > startOfDay(c.prep.x.due)) v.push('H1 study after its exam: ' + id + ' on ' + d.key); continue; }
-    if (store.done[id]) v.push('H3 done work planned: ' + id);
-    if (store.dropped[id]) v.push('H3 dropped work planned: ' + id);
-    if (e.exam || e.kind === 'inclass' || e.kind === 'fyi') v.push('H3 not work, planned: ' + id + ' (' + (e.exam ? 'exam' : e.kind) + ')');
-    if (!c.late && d.date > startOfDay(e.due)) v.push('H1 after its due day: ' + id + ' on ' + d.key);
-    if (!c.late && !e.allDay && e.due.getHours() < 12 && startOfDay(e.due) > today && d.date.getTime() === startOfDay(e.due).getTime()) v.push('H11 work due before noon planned on its due day: ' + id + ' on ' + d.key + ' (due ' + e.due.toTimeString().slice(0, 5) + ')');
-    const op = opensAt(e); if (op && d.date < startOfDay(op)) v.push('H2 before it opens: ' + id + ' on ' + d.key);
-    if (c.late && !store.triaged[id]) v.push('H5 overdue work planned without being kept: ' + id);
-  }
-  for (const d of days) {
-    const must = d.items.filter(c => !c.late && !c.prep && (typeof lastWorkDay === 'function' ? lastWorkDay(c.e, today) : startOfDay(c.e.due)).getTime() === d.date.getTime());
-    const rest = d.mins - must.reduce((s, c) => s + c.mins, 0);
-    if (rest > d.cap) v.push('H4 over budget with work not due that day: ' + d.key + ' ' + d.mins + '/' + d.cap);
-    const ids = d.items.filter(c => !must.includes(c)).map(c => c.grp || c.e.id);
-    if (new Set(ids).size !== ids.length) v.push('H6 two parts of one thing on one day: ' + d.key);
-  }
-  const lost = [];
-  EVENTS.filter(open).filter(e => e.kind !== 'inclass' && e.kind !== 'fyi' && !e.exam && e.due >= now() && startOfDay(e.due) <= end && !store.done[e.id] && !store.dropped[e.id]).forEach(e => {
-    const placed = all.filter(([d, c]) => !c.prep && c.e.id === e.id).reduce((s, [d, c]) => s + c.mins, 0);
-    if (placed < remainingMins(e)) lost.push(e.id + ' ' + placed + '/' + remainingMins(e));
-  });
-  if (lost.length) v.push('H7 due in the window but not fully planned: ' + lost.join(', '));
-  const td = PLAN[dayKey(today)]; if (td && td.cap > Math.ceil((addDays(today, 1) - now()) / 6e4) + 1) v.push('H8 today holds ' + td.cap + ' min, more than is left of it');
-  const overDays = days.filter(d => d.mins > d.cap);
-  const night = new Set(all.filter(([d, c]) => !c.late && !c.prep && c.parts > 1 && startOfDay(c.e.due).getTime() === d.date.getTime() && days.some(x => x.date < d.date && x.date >= startOfDay(c.release) && x.mins + c.mins <= x.cap)).map(([d, c]) => c.e.id)).size;
-  const order = {}; for (const [d, c] of all) if (!c.prep && c.parts > 1) (order[c.e.id] = order[c.e.id] || []).push([d.key, c.part]);
-  for (const id in order) { const p = order[id].sort((a, b) => a[0].localeCompare(b[0])).map(x => x[1]); if (p.some((x, i) => i && x < p[i - 1])) v.push('H10 parts out of order by date: ' + id + ' ' + JSON.stringify(order[id])); }
-  const cum = {}; for (const [d, c] of all) if (!c.prep) (cum[c.e.id] = cum[c.e.id] || {})[d.key] = ((cum[c.e.id] || {})[d.key] || 0) + c.mins;
-  return JSON.stringify({v, cum, ms: Math.round(ms * 10) / 10, chunks: all.length, prep: all.filter(([d, c]) => c.prep).length, overDays: overDays.length, overMins: overDays.reduce((s, d) => s + d.mins - d.cap, 0), night,
-    map: Object.fromEntries(all.filter(([d, c]) => !c.prep).map(([d, c]) => [c.e.id + '#' + c.part, d.key]))});
-})()`;
+const {CHECK} = require('./plan-rules');   // the H1-H11 checker and metrics, shared with bench-plan.js
 
 (async () => {
   const t = JSON.parse(execSync('curl -s http://localhost:9333/json/new -X PUT').toString());
@@ -114,6 +82,7 @@ const CHECK = `(function(){
       if (name.startsWith('done, dropped')) check(`${tag}: the kept overdue item is planned from today; the one not kept is not`, Object.keys(r.map).some(k => k.startsWith('a33#')) && !Object.keys(r.map).some(k => k.startsWith('a34#')), r.map);
       if (name.startsWith('a long project')) check(`${tag}: a 10-hour project is split into parts, one a day, all before it is due`, Object.keys(r.map).filter(k => k.startsWith('a61#')).length >= 5 && new Set(Object.entries(r.map).filter(([k]) => k.startsWith('a61#')).map(([, d]) => d)).size === Object.keys(r.map).filter(k => k.startsWith('a61#')).length, r.map);
       if (name.startsWith('morning')) check(`${tag}: the 10 AM report and the 9 AM form are still planned (nothing is lost), by H11 never on their due day`, Object.keys(r.map).some(k => /^a91#/.test(k)) && Object.keys(r.map).some(k => /^a92#/.test(k)), r.map);
+      if (name.startsWith('an exam whose study')) check(`${tag}: the sessions that fit are planned (${r.prep} of 4) and none is forced onto a full day`, r.prep >= 2 && r.v.length === 0, {prep: r.prep, v: r.v});
       if (name.startsWith('150')) check(`${tag}: the planner takes under 150 ms for 150 assignments (${r.ms} ms)`, r.ms < 150, r.ms);
       if (name.startsWith('dense week')) {   // H9: finishing one thing never pushes other work later
         const before = r.map, first = Object.keys(before).sort((a, b) => before[a].localeCompare(before[b]))[0].split('#')[0];
