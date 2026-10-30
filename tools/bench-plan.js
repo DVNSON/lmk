@@ -27,7 +27,7 @@
    suggested head start half the time.
 
    Run: node tools/bench-plan.js [--only <candidate>] [--scen <substring>] [--days 28] [--tz America/New_York] [--app <url>] [--port 9334]
-        [--student follows|behind|early|inconsistent|variable|ignores] [--set base|heldout|all] [--hours 1|2|3 (the student's true weekday hours)]
+        [--student follows|behind|early|inconsistent|variable|ignores|limit|partial|skips] [--set base|heldout|heldout2|all] [--hours 1|2|3 (the student's true weekday hours)]
         (needs :8899 serving ~/lmk-web; starts and stops its own Chrome). Results: a table, and JSON in the scratchpad. */
 const {execSync, spawn} = require('child_process'); const fs = require('fs'); const os = require('os'); const path = require('path');
 const {CHECK} = require('./plan-rules');
@@ -41,6 +41,11 @@ const APP = opt('--app', 'http://localhost:8899/app/'), APP_PORT = new URL(APP).
    student happens to have the hours the old 2 h / 3 h default assumed, which flatters any planner that fills days to 2 h; a planner with no hours in it
    has to hold up for the 1-hour student and the 3-hour student too, so a candidate is read at --hours 1, 2 and 3 before it is chosen. */
 const HOURS = +opt('--hours', 2);
+/* --confirm always|forget|never|optimist (2026-10-30, §3): how the student uses a candidate's part-level confirmation (window.__confirmPart) — always:
+   taps "Part k done" after working the planned part in full; forget: does so 60 % of the time; never: no tap; optimist: taps after half the part
+   (progress the student claims but did not do — counted as fab). A candidate without the hook ignores it. --pace fast|normal|slow: the truth is
+   0.7x / 1x / 1.4x of the drawn size — a student who works faster or slower than LMK's estimate. */
+const CONFIRM = opt('--confirm', 'always'), PACE = opt('--pace', 'normal');
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let id = 0;
@@ -82,6 +87,14 @@ const SCEN = [
 /* Held-out worlds (2026-10-29, directive §7): never used to choose a candidate; a candidate picked on the 11 above is checked here
    afterwards, so a rule tuned to the tuning set shows up as a loss here. `changes` moves a due date mid-run (the professor's doing);
    `truth` overrides the drawn minutes (an estimate that is badly wrong). */
+/* HELDOUT2 (2026-10-30, written before any run with them, for the planning-reliability audit and any candidate after it; the first held-out
+   set has been read by every candidate since 2026-10-29 and is no longer blind) */
+const HELDOUT2 = [
+  {name: 'HO2 two bigs two days apart on a one-hour week', items: [item(601, 'ECN 212', 'Term paper', 5, {size: 'big'}), item(602, 'HST 102', 'Lab report 3', 7, {size: 'big'}), ...many(6, 1, 12, 'quick')], avail: {weekday: 60, weekend: 90}},
+  {name: 'HO2 midterm week (three exams, two essays, the same Friday)', items: [item(611, 'MAT 210', 'Midterm', 4, {st: 'on_paper', h: 10}), item(612, 'PSY 101', 'Midterm exam', 5, {st: 'on_paper', h: 10}), item(613, 'ECN 212', 'Midterm 1', 6, {st: 'on_paper', h: 14}), item(614, 'HST 102', 'Essay 2', 4, {size: 'big'}), item(615, 'ECN 212', 'Policy essay', 4, {size: 'big'}), ...many(5, 7, 14, 'medium')]},
+  {name: 'HO2 everything due Friday (six mediums, one notice)', items: [item(621, 'MAT 210', 'Problem set 5', 4, {size: 'medium'}), item(622, 'PSY 101', 'Reading response 4', 4, {size: 'medium'}), item(623, 'HST 102', 'Source analysis', 4, {size: 'medium'}), item(624, 'ECN 212', 'Worksheet 6', 4, {size: 'medium'}), item(625, 'MAT 210', 'Lab 4', 4, {size: 'medium'}), item(626, 'PSY 101', 'Discussion 5', 4, {size: 'medium', k: 'discussion'}), ...many(6, 6, 16, 'medium')]},
+  {name: 'HO2 one big thing with two weeks and smalls every other day', items: [item(631, 'HST 102', 'Final project', 14, {size: 'big'}), item(632, 'MAT 210', 'Problem set 9', 9, {size: 'medium'}), ...many(8, 1, 16, 'quick')]},
+];
 const HELDOUT = [
   {name: 'HO heavy semester (three bigs, twelve mediums, two quizzes a week)', items: [item(301, 'HST 102', 'Research essay', 6, {size: 'big'}), item(302, 'ECN 212', 'Term project part 1', 13, {size: 'big'}), item(303, 'PSY 101', 'Lab report', 10, {size: 'big'}), ...many(12, 1, 14, 'medium'), ...Array.from({length: 8}, (_, i) => item(320 + i, C[i % 4], `Weekly quiz ${i + 1}`, 2 + i * 3, {k: 'quiz'}))]},
   {name: 'HO light semester (one thing every three days)', items: many(9, 2, 27, 'medium')},
@@ -96,12 +109,17 @@ const HELDOUT = [
    the hours they have, never a head start, rescues only what is due today. early: the plan, then every head start, then the next due
    open thing until the hours are gone. inconsistent: each row with probability 0.7 (a row skipped is not done that day). variable: hours
    swing 0.2x-1.6x day to day. ignores: skips one course's rows (PSY 101) unless due today. */
-const STUDENTS = {follows: {}, behind: {frac: 0.6, ahead: 0, rescueOverdue: false}, early: {ahead: 1, eager: true}, inconsistent: {rowP: 0.7}, variable: {swing: true}, ignores: {skipCourse: 'PSY 101'}};
+/* 2026-10-30 (planning-reliability directive, WS2): limit — stops at a fixed 90 minutes a day whatever the plan says, no head starts;
+   partial — does the first two rows of the plan and nothing else that day; skips — on a morning whose plan exceeds 1.5x the minutes they
+   truly have, does only what is due today and skips the rest (an overwhelming plan is skipped, so over-planning is no longer free). */
+const STUDENTS = {follows: {}, behind: {frac: 0.6, ahead: 0, rescueOverdue: false}, early: {ahead: 1, eager: true}, inconsistent: {rowP: 0.7}, variable: {swing: true}, ignores: {skipCourse: 'PSY 101'},
+  limit: {fixed: 90, ahead: 0}, partial: {rows: 2, ahead: 0, rescueOverdue: false}, skips: {overwhelm: 1.5}};
 function world(sc){
   const R = rng(hash(sc.name)), all = sc.items.concat(...(sc.later || []).map(l => l.items));
   const truth = {};
   for (const x of all) { const size = x.o.size || (/exam|midterm/i.test(x.t) ? 'big' : x.o.k === 'quiz' || x.o.k === 'discussion' ? 'quick' : /project|essay|paper|report/i.test(x.t) ? 'big' : 'medium'); truth['a' + x.aid] = Math.round(lognorm(R, SIZE_BASE[size], 0.4)); }
   Object.assign(truth, sc.truth || {});
+  if (PACE === 'fast' || PACE === 'slow') for (const id in truth) truth[id] = Math.round(truth[id] * (PACE === 'fast' ? 0.7 : 1.4));
   for (const x of all) if (/exam|midterm/i.test(x.t) && x.o.st === 'on_paper') truth['a' + x.aid] = 0;   // an exam is sat, not worked
   const av = sc.avail || {weekday: Math.round(HOURS * 60), weekend: Math.round(HOURS * 90)}, avail = [];
   for (let d = 0; d < DAYS; d++) { const dow = new Date(ORIGIN + d * 864e5).getUTCDay(); const base = dow === 0 || dow === 6 ? av.weekend : av.weekday; avail.push(R() < (sc.skipP || 0) ? 0 : Math.round(base * (0.8 + 0.3 * R()))); }
@@ -110,30 +128,38 @@ function world(sc){
   for (const d in (sc.availDays || {})) avail[d] = sc.availDays[d];
   if (M.swing) for (let d = 0; d < DAYS; d++) avail[d] = Math.round(avail[d] * (0.2 + 1.4 * R()));
   if (M.frac) for (let d = 0; d < DAYS; d++) avail[d] = Math.round(avail[d] * M.frac);
+  if (M.fixed) for (let d = 0; d < DAYS; d++) avail[d] = avail[d] > 0 ? M.fixed : 0;   // the fixed-limit student (a cancelled day stays cancelled)
   const rowP = Array.from({length: DAYS}, () => Array.from({length: 40}, () => R()));   // per-row draws for the inconsistent student
-  return {truth, avail, ahead: M.ahead == null ? ahead : ahead.map(() => M.ahead >= 1), rowP, tracks: sc.tracks !== false, M};
+  const cfP = Array.from({length: DAYS}, () => Array.from({length: 40}, () => R()));   // per-part draws for the student who forgets to confirm (drawn last: earlier worlds unchanged)
+  return {truth, avail, ahead: M.ahead == null ? ahead : ahead.map(() => M.ahead >= 1), rowP, cfP, tracks: sc.tracks !== false, M: Object.assign({confirm: CONFIRM}, M)};
 }
 /* ---- the student, inside the page ---- */
-const SIM = `window.__simWork = function(avail, tracks, ahead, M, rowP){
-  const today = startOfDay(now()), k = dayKey(today), T = window.__truth; let worked = 0, cram = 0, rescued = 0, aheadM = 0, planShort = 0, unfinished = 0, ri = 0; const done = [];
+const SIM = `window.__simWork = function(avail, tracks, ahead, M, rowP, cfP){
+  const today = startOfDay(now()), k = dayKey(today), T = window.__truth; let worked = 0, cram = 0, rescued = 0, aheadM = 0, planShort = 0, unfinished = 0, ri = 0, ci = 0, fab = 0; const done = [];
   const doPiece = (e, mins) => { const id = e.id; if (!(id in T.left)) return 0; const spend = Math.min(mins, T.left[id], avail - worked); if (spend <= 0) return 0;
     T.left[id] -= spend; worked += spend; if (tracks) { store.spent = store.spent || {}; store.spent[id] = (store.spent[id] || 0) + spend; }
     if (dayKey(e.due) === k && T.total[id] >= 90) cram += spend;
     if (T.left[id] <= 0) { const pred = learnedMins(e).mins, r = T.total[id] / pred, f = r < .8 ? .6 : r > 1.3 ? 1.6 : 1;
       store.done[e.id] = Date.now(); store.handDone = store.handDone || {}; store.handDone[e.id] = 1; markDoneToday(); recordDuration(e.id, pred * f, 'ask', pred); done.push(e.id); }
     return spend; };
-  const pass = () => { const d = PLAN[k]; if (!d) return; for (const c of d.items) { if (worked >= avail) { planShort += c.mins; continue; }
+  let rowsDone = 0;
+  const pass = () => { const d = PLAN[k]; if (!d) return; const overwhelmed = !!(M.overwhelm && d.mins > M.overwhelm * avail); for (const c of d.items) { if (worked >= avail) { planShort += c.mins; continue; }
     if (M.rowP != null && rowP[ri++] > M.rowP) { planShort += c.mins; continue; }   // the inconsistent student: a row skipped today
+    if (M.rows != null && rowsDone >= M.rows) { planShort += c.mins; continue; }   // the partial student: the first rows only
+    if (overwhelmed && !(!c.prep && dayKey(c.e.due) === k)) { planShort += c.mins; continue; }   // the skipping student: an overwhelming plan, only what is due today
+    rowsDone++;
     if (M.skipCourse && !c.prep && c.e.course === M.skipCourse && dayKey(c.e.due) !== k) { planShort += c.mins; continue; }
     if (c.prep) { const m = Math.min(c.mins, avail - worked); if (m < 10) { planShort += c.mins; continue; } prepMark(c.prep.x); worked += m; continue; }
-    if (store.done[c.e.id]) continue; const got = doPiece(c.e, c.mins); if (got >= c.mins && !store.done[c.e.id] && window.__confirmPart) window.__confirmPart(c); if (got < c.mins && !(c.e.id in T.left && T.left[c.e.id] <= 0)) planShort += c.mins - got; else if (got >= c.mins && c.part === c.parts && T.left[c.e.id] > 0) unfinished++; } };   // __confirmPart: a candidate's part-level confirmation (Phase 3) — the student taps it only for a planned part worked in full   // worked its last planned part in full and still open: the estimate was low
+    if (store.done[c.e.id]) continue; const got = doPiece(c.e, c.mins);
+    if (!store.done[c.e.id] && window.__confirmPart) { const full = got >= c.mins, cm = M.confirm || 'always', draw = (cfP || [])[ci++]; const tap = cm === 'never' ? false : cm === 'optimist' ? got >= c.mins / 2 : cm === 'forget' ? (full && draw < 0.6) : full; if (tap && window.__confirmPart(c) !== false && !full) fab++; }
+    if (got < c.mins && !(c.e.id in T.left && T.left[c.e.id] <= 0)) planShort += c.mins - got; else if (got >= c.mins && c.part === c.parts && T.left[c.e.id] > 0) unfinished++; } };   // __confirmPart: a candidate's part-level confirmation (Phase 3) — the student taps it only for a planned part worked in full   // worked its last planned part in full and still open: the estimate was low
   pass();
   if (done.length && worked < avail - 15) { save(); loadData(); computeBundles(); computePlan(); pass(); }   // the app re-plans after a finish; a pulled-in piece gets done too
   if (ahead) for (const x of (AHEAD[k] || [])) { if (worked >= avail) break; if (!store.done[x.e.id]) aheadM += doPiece(x.e, x.mins); }   // a head start, taken
   for (const e of EVENTS.filter(open)) { if (worked >= avail) break; if (e.exam || e.kind === 'inclass' || e.kind === 'fyi' || store.done[e.id] || !(e.due instanceof Date) || !(dayKey(e.due) === k || (M.rescueOverdue !== false && e.due < now() && store.triaged[e.id]))) continue; rescued += doPiece(e, T.left[e.id] || 0); }   // due today, or overdue and kept: a student with time left keeps going on it
   if (M.eager) for (const e of EVENTS.filter(open).filter(e => !e.exam && e.kind !== 'inclass' && e.kind !== 'fyi' && !store.done[e.id] && e.due instanceof Date && e.due > now()).sort((a, b) => a.due - b.due)) { if (worked >= avail) break; aheadM += doPiece(e, Math.min(90, T.left[e.id] || 0)); }   // the early student: the next due thing, a part at a time
   save(); loadData(); render();
-  return JSON.stringify({worked, cram, rescued, done, aheadM, planShort, unfinished});
+  return JSON.stringify({worked, cram, rescued, done, aheadM, planShort, unfinished, fab, overwhelmed: !!(M.overwhelm && PLAN[k] && PLAN[k].mins > M.overwhelm * avail)});
 };`;
 const CLOCK = off => `(function(){ const R = Date; let off = ${off};
   class D extends R { constructor(...a){ a.length ? super(...a) : super(R.now() + off); } static now(){ return R.now() + off; } }
@@ -164,14 +190,14 @@ async function runOne(sc, W, cand, tab){
     await ev(ws, `(() => { store.triaged = store.triaged || {}; for (const e of EVENTS) if (!store.done[e.id] && !store.dropped[e.id] && e.due instanceof Date && e.due < now() && !store.triaged[e.id]) store.triaged[e.id] = Date.now(); save(); })(); loadData(); computeBundles(); computePlan(); computeAhead(); 1`);   // overdue work is kept, as a student tapping "Still worth it" would
     const r = JSON.parse(await ev(ws, CHECK));
     const rows = (r.v.length || process.env.LMK_BENCH_ROWS) ? JSON.parse(await ev(ws, `JSON.stringify(Object.values(PLAN).filter(d => d.items.length).map(d => [d.key, d.cap, d.mins, d.items.map(c => (c.prep ? 'prep:' + c.prep.x.name + '#' + c.prep.s.n + '/' + c.prep.s.of : c.e.id + '#' + c.part + '/' + c.parts) + ':' + c.mins + (c.late ? 'L' : '') + '>' + dayKey(c.dueDay))]))`)) : null;
-    const td = JSON.parse(await ev(ws, `JSON.stringify((d => ({mins: d ? d.mins : 0, cap: d ? d.cap : 0, n: d ? d.items.length : 0, offer: (AHEAD[dayKey(startOfDay(now()))] || []).map(x => x.e.id + ':' + x.mins + ':' + x.why.slice(0, 40)), pending: EVENTS.filter(open).filter(e => !e.exam && e.kind !== 'inclass' && e.kind !== 'fyi' && e.due instanceof Date && e.due > now() && e.due - now() < 7 * 864e5).length}))(PLAN[dayKey(startOfDay(now()))]))`));
+    const td = JSON.parse(await ev(ws, `JSON.stringify((d => ({mins: d ? d.mins : 0, cap: d ? d.cap : 0, n: d ? d.items.length : 0, warn: (() => { try { const b = d ? budgetLine(d) : null; return b ? b.tone + ':' + String(b.txt || '').slice(0, 60) : ''; } catch (_) { return 'err'; } })(), lateOpen: EVENTS.filter(open).filter(e => !e.exam && e.kind !== 'inclass' && e.kind !== 'fyi' && e.due instanceof Date && e.due < now()).length, offer: (AHEAD[dayKey(startOfDay(now()))] || []).map(x => x.e.id + ':' + x.mins + ':' + x.why.slice(0, 40)), pending: EVENTS.filter(open).filter(e => !e.exam && e.kind !== 'inclass' && e.kind !== 'fyi' && e.due instanceof Date && e.due > now() && e.due - now() < 7 * 864e5).length}))(PLAN[dayKey(startOfDay(now()))]))`));
     const first = {}; for (const kp in r.map) { const i = kp.split('#')[0]; if (!first[i] || r.map[kp] < first[i]) first[i] = r.map[kp]; }
     /* Phase 5 (2026-10-29, fourth directive): the plan's shape and what it rests on, read each morning. peak / mean / cv — minutes on the horizon's
        heaviest planned day, the mean over its days with work, and the spread (sd/mean): balance relative to the student's own workload, no hours.
        est — every open item's estimate the first morning it is seen (compared with the truth at the end: under / severe / over, and whether the
        estimator's own range covers it). shrunk — items the planner holds for fewer minutes than their estimate with no confirmed progress and no
        done mark: fabricated completion, which must stay 0. */
-    const xt = JSON.parse(await ev(ws, `JSON.stringify((() => { const ds = Object.values(PLAN).filter(d => d.items.length).map(d => d.mins); const mean = ds.length ? ds.reduce((a, b) => a + b, 0) / ds.length : 0; const sd = ds.length ? Math.sqrt(ds.reduce((a, b) => a + (b - mean) ** 2, 0) / ds.length) : 0; const est = {}; let shrunk = 0; for (const e of EVENTS.filter(open)) { if (e.exam || e.kind === 'inclass' || e.kind === 'fyi' || !(e.due instanceof Date)) continue; const l = learnedMins(e); est[e.id] = {m: l.mins, lo: l.hint ? l.hint.lo : null, hi: l.hint ? l.hint.hi : null}; if (remainingMins(e) < l.mins && extProgress(e) == null && !store.done[e.id]) shrunk++; } return {peak: ds.length ? Math.max(...ds) : 0, mean: Math.round(mean), cv: mean ? Math.round(sd / mean * 100) / 100 : 0, est, shrunk}; })())`));
+    const xt = JSON.parse(await ev(ws, `JSON.stringify((() => { const ds = Object.values(PLAN).filter(d => d.items.length).map(d => d.mins); const mean = ds.length ? ds.reduce((a, b) => a + b, 0) / ds.length : 0; const sd = ds.length ? Math.sqrt(ds.reduce((a, b) => a + (b - mean) ** 2, 0) / ds.length) : 0; const est = {}; let shrunk = 0, remU = 0, remO = 0, remPU = 0, remPO = 0, remPN = 0; for (const e of EVENTS.filter(open)) { if (e.exam || e.kind === 'inclass' || e.kind === 'fyi' || !(e.due instanceof Date)) continue; const l = learnedMins(e); est[e.id] = {m: l.mins, lo: l.hint ? l.hint.lo : null, hi: l.hint ? l.hint.hi : null}; const pl = remainingMins(e); if (pl < l.mins && extProgress(e) == null && !store.done[e.id] && !((store.partDone || {})[e.id] || {}).k) shrunk++; const T = window.__truth, tl = T && T.left[e.id] != null ? T.left[e.id] : null; if (tl != null) { remU += Math.max(0, tl - pl); remO += Math.max(0, pl - tl); if (tl > 0 && tl < T.total[e.id]) { remPN++; remPU += Math.max(0, tl - pl); remPO += Math.max(0, pl - tl); } } } const t0 = PLAN[dayKey(startOfDay(now()))], pile = t0 ? Math.max(0, ...t0.items.filter(c => !c.prep && !c.late && c.dueDay.getTime() === startOfDay(now()).getTime()).map(c => c.mins)) : 0; return {peak: ds.length ? Math.max(...ds) : 0, mean: Math.round(mean), cv: mean ? Math.round(sd / mean * 100) / 100 : 0, est, shrunk, remU, remO, remPU, remPO, remPN, pile}; })())`));
     for (const i in xt.est) if (!est0[i]) est0[i] = xt.est[i];
     for (const i in first) if (!earliest[i] || first[i] < earliest[i]) earliest[i] = first[i];
     /* Why did the plan change overnight? (2026-10-29, directive §2.) Each item whose first planned day differs from yesterday's plan is
@@ -187,10 +213,10 @@ async function runOne(sc, W, cand, tab){
     const CAUSES = ['new', 'behind', 'unfinished', 'extra', 'relearn', 'done', 'planner'];
     let moved = 0, compared = 0, movedLater = 0; const mv = Object.fromEntries(CAUSES.map(k => [k, 0])), mvLater = Object.fromEntries(CAUSES.map(k => [k, 0])), moves = [];
     if (prevFirst) for (const i in prevFirst) { if (!(i in first) || prevFirst[i] < key) continue; compared++; if (first[i] !== prevFirst[i]) { moved++; mv[cause]++; if (first[i] > prevFirst[i]) { movedLater++; mvLater[cause]++; } if (moves.length < 40) moves.push(i + ' ' + prevFirst[i].slice(5) + '>' + first[i].slice(5)); } }
-    const w = JSON.parse(await ev(ws, `__simWork(${W.avail[d]}, ${W.tracks}, ${W.ahead[d]}, ${JSON.stringify(W.M)}, ${JSON.stringify(W.rowP[d])})`));
+    const w = JSON.parse(await ev(ws, `__simWork(${W.avail[d]}, ${W.tracks}, ${W.ahead[d]}, ${JSON.stringify(W.M)}, ${JSON.stringify(W.rowP[d])}, ${JSON.stringify(W.cfP[d])})`));
     for (const i of w.done) delete first[i];
     prevFirst = first; prev = Object.assign(w, {est});
-    days.push({key, viol: r.v, rows, ms: r.ms, planned: td.mins, cap: td.cap, over: Math.max(0, td.mins - td.cap), overTrue: Math.max(0, td.mins - W.avail[d]), peak: xt.peak, mean: xt.mean, cv: xt.cv, shrunk: xt.shrunk, avail: W.avail[d], worked: w.worked, idle: td.pending && W.avail[d] - w.worked > 15 ? W.avail[d] - w.worked : 0, cram: w.cram, rescued: w.rescued, ahead: w.aheadM, planShort: w.planShort, offer: td.offer, moved, movedLater, compared, cause, mv, mvLater, moves, done: w.done.length});
+    days.push({key, viol: r.v, rows, ms: r.ms, planned: td.mins, cap: td.cap, warn: td.warn, lateOpen: td.lateOpen, overwhelmed: !!w.overwhelmed, over: Math.max(0, td.mins - td.cap), overTrue: Math.max(0, td.mins - W.avail[d]), peak: xt.peak, mean: xt.mean, cv: xt.cv, shrunk: xt.shrunk, remU: xt.remU, remO: xt.remO, remPU: xt.remPU, remPO: xt.remPO, remPN: xt.remPN, pile: xt.pile, fab: w.fab || 0, avail: W.avail[d], worked: w.worked, idle: td.pending && W.avail[d] - w.worked > 15 ? W.avail[d] - w.worked : 0, cram: w.cram, rescued: w.rescued, ahead: w.aheadM, planShort: w.planShort, offer: td.offer, moved, movedLater, compared, cause, mv, mvLater, moves, done: w.done.length});
   }
   const end = JSON.parse(await ev(ws, `JSON.stringify({done: store.done, dur: store.dur || {}})`));
   /* exam prep (2026-10-29): sessions the planner wanted for each exam inside the window vs sessions the student sat — the bench was blind
@@ -207,7 +233,13 @@ async function runOne(sc, W, cand, tab){
   /* the estimator against the truth, first estimate per item: under = below three quarters, SEVERE = below a third, over = above one and a half */
   let estUnder = 0, estSevere = 0, estOver = 0, estHit = 0, estCover = 0, estCoverN = 0, estItems = 0; for (const id in est0) { const tr = W.truth[id]; if (!(tr > 0)) continue; const e = est0[id]; estItems++; if (e.m < tr / 3) estSevere++; else if (e.m < tr * 0.75) estUnder++; else if (e.m > tr * 1.5) estOver++; else estHit++; if (e.lo != null) { estCoverN++; if (tr >= e.lo && tr <= e.hi) estCover++; } }
   const mvSum = f => { const o = {}; for (const k of ['new', 'behind', 'unfinished', 'extra', 'relearn', 'done', 'planner']) o[k] = sum(d => f(d)[k]); return o; };
-  return {late: late.length, lateMins, lateDays, lateIds: late, prepWant: pr.want, prepDone: pr.done, exams: pr.n, overDays: days.filter(d => d.over > 0).length, overMins: sum(d => d.over), overTrueDays: days.filter(d => d.overTrue > 0).length, overTrueMins: sum(d => d.overTrue), peakMax: Math.max(0, ...days.map(d => d.peak)), peakAvg: Math.round(sum(d => d.peak) / days.length), cvAvg: Math.round(sum(d => d.cv) / days.length * 100) / 100, bigLate, bigN, estUnder, estSevere, estOver, estHit, estCover, estCoverN, estItems, shrunk: sum(d => d.shrunk), cram: sum(d => d.cram), rescued: sum(d => d.rescued), idle: sum(d => d.idle), moved: sum(d => d.moved), movedLater: sum(d => d.movedLater), compared: sum(d => d.compared), mv: mvSum(d => d.mv), mvLater: mvSum(d => d.mvLater), viol: sum(d => d.viol.length), violSample: days.flatMap(d => d.viol).slice(0, 3), violBy: days.flatMap(d => d.viol).reduce((m, s) => { const k = (s.match(/^H[0-9]+/) || ['?'])[0]; m[k] = (m[k] || 0) + 1; return m; }, {}), ms: Math.round(sum(d => d.ms) / days.length * 10) / 10, estOk, estN, done: sum(d => d.done), days};
+  /* WS2 (2026-10-30): does the plan say so early? warnFirst — first morning the bar is critical (needed > what is left of today); heavyFirst — first morning it names a heavy day;
+     overTrueFirst — first morning the plan exceeds the minutes the student truly has; lateFirst — first morning with overdue open work;
+     followed — minutes worked on the plan ÷ minutes planned (adherence); skipped — mornings the skipping student walked away from. */
+  const firstIdx = f => { const i = days.findIndex(f); return i < 0 ? null : i; };
+  const warnFirst = firstIdx(d => /^critical/.test(d.warn || '')), heavyFirst = firstIdx(d => /heav/i.test(d.warn || '')), overTrueFirst = firstIdx(d => d.overTrue > 0), lateFirst = firstIdx(d => d.lateOpen > 0);
+  const plannedSum = sum(d => d.planned), followed = plannedSum ? Math.round(sum(d => Math.min(d.worked, d.planned)) / plannedSum * 100) / 100 : null, skipped = sum(d => d.overwhelmed ? 1 : 0);
+  return {late: late.length, lateMins, lateDays, lateIds: late, warnFirst, heavyFirst, overTrueFirst, lateFirst, followed, skipped, prepWant: pr.want, prepDone: pr.done, exams: pr.n, overDays: days.filter(d => d.over > 0).length, overMins: sum(d => d.over), overTrueDays: days.filter(d => d.overTrue > 0).length, overTrueMins: sum(d => d.overTrue), peakMax: Math.max(0, ...days.map(d => d.peak)), peakAvg: Math.round(sum(d => d.peak) / days.length), cvAvg: Math.round(sum(d => d.cv) / days.length * 100) / 100, bigLate, bigN, estUnder, estSevere, estOver, estHit, estCover, estCoverN, estItems, shrunk: sum(d => d.shrunk), remU: Math.round(sum(d => d.remU) / days.length), remO: Math.round(sum(d => d.remO) / days.length), remPU: Math.round(sum(d => d.remPU) / days.length), remPO: Math.round(sum(d => d.remPO) / days.length), remPN: Math.round(sum(d => d.remPN) / days.length * 10) / 10, pileMax: Math.max(0, ...days.map(d => d.pile)), fab: sum(d => d.fab), cram: sum(d => d.cram), rescued: sum(d => d.rescued), idle: sum(d => d.idle), moved: sum(d => d.moved), movedLater: sum(d => d.movedLater), compared: sum(d => d.compared), mv: mvSum(d => d.mv), mvLater: mvSum(d => d.mvLater), viol: sum(d => d.viol.length), violSample: days.flatMap(d => d.viol).slice(0, 3), violBy: days.flatMap(d => d.viol).reduce((m, s) => { const k = (s.match(/^H[0-9]+/) || ['?'])[0]; m[k] = (m[k] || 0) + 1; return m; }, {}), ms: Math.round(sum(d => d.ms) / days.length * 10) / 10, estOk, estN, done: sum(d => d.done), days};
 }
 (async () => {
   try { execSync('curl -sf http://localhost:8899/app/ -o /dev/null'); } catch(_) { console.log('HARNESS: nothing serves :8899 — run `cd ~/lmk-web && python3 -m http.server 8899` first'); process.exit(2); }
@@ -216,8 +248,8 @@ async function runOne(sc, W, cand, tab){
   const bye = () => { try { chrome.kill(); } catch(_){} try { fs.rmSync(prof, {recursive: true, force: true}); } catch(_){} };
   process.on('exit', bye); process.on('SIGINT', () => { bye(); process.exit(2); });
   for (let i = 0; i < 60; i++) { try { execSync(`curl -sf http://localhost:${PORT}/json/version -o /dev/null`); break; } catch(_) { await sleep(150); } }
-  const cands = candidates(), scen = (SET === 'heldout' ? HELDOUT : SET === 'all' ? SCEN.concat(HELDOUT) : SCEN).filter(s => !SCEN_F || s.name.includes(SCEN_F)), results = {};
-  console.log(`bench-plan: ${scen.length} scenario(s) x ${cands.map(c => c.name).join(', ')} · ${DAYS} days from ${new Date(ORIGIN).toISOString().slice(0, 10)} · ${TZ} · app ${APP} · student ${STUDENT} (${HOURS} h weekdays) · set ${SET}`);
+  const cands = candidates(), scen = (SET === 'heldout' ? HELDOUT : SET === 'heldout2' ? HELDOUT2 : SET === 'all' ? SCEN.concat(HELDOUT) : SCEN).filter(s => !SCEN_F || s.name.includes(SCEN_F)), results = {};
+  console.log(`bench-plan: ${scen.length} scenario(s) x ${cands.map(c => c.name).join(', ')} · ${DAYS} days from ${new Date(ORIGIN).toISOString().slice(0, 10)} · ${TZ} · app ${APP} · student ${STUDENT} (${HOURS} h weekdays) · set ${SET} · confirm ${CONFIRM} · pace ${PACE}`);
   for (const sc of scen) {
     const W = world(sc); results[sc.name] = {};
     for (const cand of cands) {
@@ -234,21 +266,23 @@ async function runOne(sc, W, cand, tab){
     }
   }
   /* the table: one row per scenario per candidate, then totals per candidate (peak and cv are averaged over the rows in a total) */
-  const line = (r, n) => `${String(r.late).padStart(6)}${String(r.lateMins).padStart(9)}${String(r.lateDays).padStart(10)}${(r.bigLate + '/' + r.bigN).padStart(9)}${(r.overTrueDays + '/' + r.overTrueMins).padStart(17)}${(r.overDays + '/' + r.overMins).padStart(12)}${(r.peakMax + '/' + Math.round(r.peakAvg / n)).padStart(15)}${String(Math.round(r.cvAvg / n * 100) / 100).padStart(6)}${String(r.cram).padStart(6)}${String(r.idle).padStart(6)}${((r.prepDone || 0) + '/' + (r.prepWant || 0)).padStart(6)}${(r.moved + '/' + r.compared + ' (' + (r.movedLater || 0) + ')').padStart(18)}${String(r.viol).padStart(6)}${(r.estUnder + '/' + r.estSevere + '/' + r.estOver).padStart(12)}${String(r.shrunk).padStart(8)}${String(Math.round(r.ms / n * 10) / 10).padStart(5)}`;
-  console.log('\n  ' + 'scenario'.padEnd(50) + 'candidate'.padEnd(13) + '  late  lateMin  lateDays  bigLate  overTrue(d/min)  overStated  peak(max/avg)    cv  cram  idle  prep  moved/cmp(later)  viol  est(u/S/o)  shrunk   ms');
+  const line = (r, n) => `${String(r.late).padStart(6)}${String(r.lateMins).padStart(9)}${String(r.lateDays).padStart(10)}${(r.bigLate + '/' + r.bigN).padStart(9)}${(r.overTrueDays + '/' + r.overTrueMins).padStart(17)}${(r.overDays + '/' + r.overMins).padStart(12)}${(r.peakMax + '/' + Math.round(r.peakAvg / n)).padStart(15)}${String(Math.round(r.cvAvg / n * 100) / 100).padStart(6)}${String(r.cram).padStart(6)}${String(r.idle).padStart(6)}${((r.prepDone || 0) + '/' + (r.prepWant || 0)).padStart(6)}${(r.moved + '/' + r.compared + ' (' + (r.movedLater || 0) + ')').padStart(18)}${String(r.viol).padStart(6)}${(r.estUnder + '/' + r.estSevere + '/' + r.estOver).padStart(12)}${String(r.shrunk).padStart(8)}${(Math.round(r.remPU / n) + '/' + Math.round(r.remPO / n)).padStart(11)}${String(r.pileMax).padStart(6)}${String(r.fab).padStart(5)}${((r.warnFirst == null ? '-' : r.warnFirst) + '/' + (r.overTrueFirst == null ? '-' : r.overTrueFirst) + '/' + (r.lateFirst == null ? '-' : r.lateFirst)).padStart(11)}${String(r.followed == null ? '-' : r.followed).padStart(7)}${String(r.skipped).padStart(5)}${String(Math.round(r.ms / n * 10) / 10).padStart(5)}`;
+  console.log('\n  ' + 'scenario'.padEnd(50) + 'candidate'.padEnd(13) + '  late  lateMin  lateDays  bigLate  overTrue(d/min)  overStated  peak(max/avg)    cv  cram  idle  prep  moved/cmp(later)  viol  est(u/S/o)  shrunk  remP(u/o)  pile  fab  warn/over/late  follow skip   ms');
   const tot = {};
   for (const sn in results) for (const cn in results[sn]) { const r = results[sn][cn]; if (r.error) continue;
-    const t = tot[cn] = tot[cn] || {late: 0, lateMins: 0, lateDays: 0, overDays: 0, overMins: 0, overTrueDays: 0, overTrueMins: 0, peakMax: 0, peakAvg: 0, cvAvg: 0, bigLate: 0, bigN: 0, estUnder: 0, estSevere: 0, estOver: 0, estHit: 0, estCover: 0, estCoverN: 0, estItems: 0, shrunk: 0, cram: 0, rescued: 0, idle: 0, moved: 0, movedLater: 0, compared: 0, viol: 0, estOk: 0, estN: 0, ms: 0, prepWant: 0, prepDone: 0, n: 0, mv: {new: 0, behind: 0, unfinished: 0, extra: 0, relearn: 0, done: 0, planner: 0}, mvLater: {new: 0, behind: 0, unfinished: 0, extra: 0, relearn: 0, done: 0, planner: 0}};
-    for (const k of ['late', 'lateMins', 'lateDays', 'overDays', 'overMins', 'overTrueDays', 'overTrueMins', 'peakAvg', 'cvAvg', 'bigLate', 'bigN', 'estUnder', 'estSevere', 'estOver', 'estHit', 'estCover', 'estCoverN', 'estItems', 'shrunk', 'cram', 'rescued', 'idle', 'moved', 'movedLater', 'compared', 'viol', 'estOk', 'estN', 'ms', 'prepWant', 'prepDone']) t[k] += r[k] || 0; t.peakMax = Math.max(t.peakMax, r.peakMax || 0); t.n++;
+    const t = tot[cn] = tot[cn] || {late: 0, lateMins: 0, lateDays: 0, overDays: 0, overMins: 0, overTrueDays: 0, overTrueMins: 0, peakMax: 0, peakAvg: 0, cvAvg: 0, bigLate: 0, bigN: 0, estUnder: 0, estSevere: 0, estOver: 0, estHit: 0, estCover: 0, estCoverN: 0, estItems: 0, shrunk: 0, remU: 0, remO: 0, remPU: 0, remPO: 0, pileMax: 0, fab: 0, skipped: 0, followedSum: 0, followedN: 0, warnFirst: null, overTrueFirst: null, lateFirst: null, cram: 0, rescued: 0, idle: 0, moved: 0, movedLater: 0, compared: 0, viol: 0, estOk: 0, estN: 0, ms: 0, prepWant: 0, prepDone: 0, n: 0, mv: {new: 0, behind: 0, unfinished: 0, extra: 0, relearn: 0, done: 0, planner: 0}, mvLater: {new: 0, behind: 0, unfinished: 0, extra: 0, relearn: 0, done: 0, planner: 0}};
+    for (const k of ['late', 'lateMins', 'lateDays', 'overDays', 'overMins', 'overTrueDays', 'overTrueMins', 'peakAvg', 'cvAvg', 'bigLate', 'bigN', 'estUnder', 'estSevere', 'estOver', 'estHit', 'estCover', 'estCoverN', 'estItems', 'shrunk', 'remU', 'remO', 'remPU', 'remPO', 'fab', 'skipped', 'cram', 'rescued', 'idle', 'moved', 'movedLater', 'compared', 'viol', 'estOk', 'estN', 'ms', 'prepWant', 'prepDone']) t[k] += r[k] || 0; t.peakMax = Math.max(t.peakMax, r.peakMax || 0); t.pileMax = Math.max(t.pileMax, r.pileMax || 0); t.n++;
+    if (r.followed != null) { t.followedSum += r.followed; t.followedN++; t.followed = Math.round(t.followedSum / t.followedN * 100) / 100; }
+    for (const k of ['warnFirst', 'overTrueFirst', 'lateFirst']) if (r[k] != null) t[k] = t[k] == null ? r[k] : Math.min(t[k], r[k]);   // a total shows the earliest day across worlds
     for (const k in t.mv) { t.mv[k] += r.mv[k]; t.mvLater[k] += r.mvLater[k]; }
     console.log('  ' + sn.slice(0, 48).padEnd(50) + cn.padEnd(13) + line(r, 1)); }
   console.log('  ' + '-'.repeat(140));
   for (const cn in tot) { const t = tot[cn]; console.log('  ' + 'TOTAL'.padEnd(50) + cn.padEnd(13) + line(t, t.n)); }
   console.log('\n  why the plan moved overnight (items whose first day changed; in brackets, moved LATER): new = Canvas changed · behind = yesterday\'s plan left undone · unfinished = worked its planned minutes, still open (estimate low) · extra = did more than the plan · relearn = a finish changed other estimates · done = a finish, pull-ins · planner = same student did the plan, nothing new, and it still moved');
   for (const cn in tot) { const t = tot[cn]; console.log('  ' + cn.padEnd(13) + Object.keys(t.mv).map(k => `${k} ${t.mv[k]} (${t.mvLater[k]})`).join('   ')); }
-  const out = path.join(process.env.LMK_BENCH_OUT || os.tmpdir(), `bench-plan-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.json`);
-  fs.writeFileSync(out, JSON.stringify({at: new Date().toISOString(), days: DAYS, tz: TZ, origin: new Date(ORIGIN).toISOString(), app: APP, student: STUDENT, hours: HOURS, set: SET, results}, null, 1));
-  console.log('\n  late = work due in the window handed in after its due time or never · bigLate = things that truly take 3 h+ whose earliest planned day was the due day or the day before · overTrue = today\'s plan past the minutes the simulated student truly has (an outcome measure, never a planner input) · overStated = past the 2 h / 3 h hours the seed states (legacy: the product no longer plans to hours) · peak = the heaviest planned day in view (max over mornings / mean) · cv = spread of the planned days (sd/mean) · est = first estimates under / SEVERELY under / over the truth · shrunk = items held for fewer minutes than estimated with no confirmed progress (must be 0) · cram = minutes on a 90+ min item on its due day');
+  const out = path.join(process.env.LMK_BENCH_OUT || os.tmpdir(), `bench-plan-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}-${process.pid}.json`);
+  fs.writeFileSync(out, JSON.stringify({at: new Date().toISOString(), days: DAYS, tz: TZ, origin: new Date(ORIGIN).toISOString(), app: APP, student: STUDENT, hours: HOURS, set: SET, confirm: CONFIRM, pace: PACE, results}, null, 1));
+  console.log('\n  late = work due in the window handed in after its due time or never · bigLate = things that truly take 3 h+ whose earliest planned day was the due day or the day before · overTrue = today\'s plan past the minutes the simulated student truly has (an outcome measure, never a planner input) · overStated = past the 2 h / 3 h hours the seed states (legacy: the product no longer plans to hours) · peak = the heaviest planned day in view (max over mornings / mean) · cv = spread of the planned days (sd/mean) · est = first estimates under / SEVERELY under / over the truth · shrunk = items held for fewer minutes than estimated with no confirmed progress (must be 0) · remP = remaining-work accuracy on PARTLY done items, minutes the plan holds UNDER the truth left (hidden work) / OVER it (re-planned work already done), averaged per morning · pile = the most minutes of one thing on its due day, any morning · fab = confirmations of a part the student had not worked in full (must be 0 unless --confirm optimist) · warn/over/late = first morning (0 = day 1) the bar warned (critical or a heavy day) / the plan exceeded the minutes the student truly had / overdue work was open (the total shows the earliest) · follow = minutes worked on the plan ÷ planned · skip = mornings the skipping student walked away from · cram = minutes on a 90+ min item on its due day');
   console.log('  rescued = due today or overdue, beyond the plan, done anyway · prep = study sessions sat / wanted for the exams in the window · idle = free minutes unused with work due within a week · moved = items whose first planned day changed overnight (of those compared; in brackets, how many moved LATER — earlier is the plan pulling work in as things get done, later is work slipping)');
   console.log(`  JSON: ${out}`);
   const bad = Object.values(results).flatMap(x => Object.values(x)).filter(r => r.error || r.pageErrors.length);
