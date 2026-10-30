@@ -1,6 +1,6 @@
 /* The planner's rule checker and metrics, shared by tools/test-planner.js (the suite) and tools/bench-plan.js (the semester
    simulator). One copy on purpose: a rule that lives in two files drifts. It is a string, evaluated inside the app's page by
-   CDP, so it can read PLAN, EVENTS and store directly. Returns JSON: v (violations of H1-H11), cum (minutes per item per day),
+   CDP, so it can read PLAN, EVENTS and store directly. Returns JSON: v (violations of H1-H11; H4 is the levelling rule since v78.0; overDays/overMins compare with d.cap, the physical room, since v79.0), cum (minutes per item per day),
    ms, chunks, prep, overDays, overMins, night, map (item#part -> day). */
 const CHECK = `(function(){
   const t0 = performance.now(); computePlan(); const ms = performance.now() - t0;
@@ -19,8 +19,15 @@ const CHECK = `(function(){
   }
   for (const d of days) {
     const must = d.items.filter(c => !c.late && !c.prep && (typeof lastWorkDay === 'function' ? lastWorkDay(c.e, today) : startOfDay(c.e.due)).getTime() === d.date.getTime());
-    const rest = d.mins - must.reduce((s, c) => s + c.mins, 0);
-    if (rest > d.cap) v.push('H4 over budget with work not due that day: ' + d.key + ' ' + d.mins + '/' + d.cap);
+    /* H4 since v78.0: work never waits on a heavier day while an earlier day could take it and end no heavier — with the planner's own
+       guards (the earlier day has room, today only what is left of it, no part of the same thing there, a study session at most two
+       days before its slot, not before the LMS opens it; overdue work is not moved). Until v78.0 it was "never over budget with work not
+       due that day"; since v79.0 there are no hours at all (d.cap is what is physically left of a day, Infinity for most days). */
+    for (const c of d.items) { if (c.late) continue; const key = c.grp || c.e.id, op = c.prep ? null : opensAt(c.e); let hit = null;
+      for (const t of days) { if (t.date >= d.date) break; if (t.cap <= 0 || t.items.some(x => (x.grp || x.e.id) === key) || (c.prep && t.date < addDays(c.release, -2)) || (op && t.date < startOfDay(op))) continue;
+        const leftT = t.date.getTime() === today.getTime() ? Math.max(0, Math.round((addDays(today, 1) - now()) / 6e4)) : Infinity;
+        if (t.mins + c.mins <= leftT && t.mins + c.mins <= d.mins - c.mins) { hit = t; break; } }
+      if (hit) { v.push('H4 work waits on a heavier day: ' + (c.prep ? 'study' : c.e.id) + ' ' + c.mins + 'm on ' + d.key + ' (' + d.mins + 'm) while ' + hit.key + ' holds ' + hit.mins + 'm'); break; } }
     const ids = d.items.filter(c => !must.includes(c)).map(c => c.grp || c.e.id);
     if (new Set(ids).size !== ids.length) v.push('H6 two parts of one thing on one day: ' + d.key);
   }

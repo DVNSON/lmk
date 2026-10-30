@@ -5,7 +5,7 @@
       left and puts the work at 9 PM or later; rows carry a time; Today says how much is free.
    C3 GOOGLE: one tap (GIS stubbed), freeBusy on "primary" only, an "LMK" calendar created, study blocks and exams
       upserted with deterministic ids, a stale LMK event deleted, a foreign event left alone; off = no writes.
-   C4 disconnect: the plan uses study hours again, times disappear; the card goes back to the two buttons.
+   C4 disconnect: the days have no limit again, times disappear; the card goes back to the two buttons.
    Google and the worker are stubbed in the page: no request leaves the machine.
    Run: node test-calendar.js   (needs :8899 serving ~/lmk-web and headless Chrome on :9333) */
 const {execSync}=require('child_process'); let id=0;
@@ -88,7 +88,7 @@ const tk=`dayKey(addDays(startOfDay(now()),1))`;
   await ev(ws,`document.querySelector('[data-cal="other"]').click(); document.getElementById('myCalUrl').value='webcal://p42-caldav.icloud.com/published/2/abc'; document.getElementById('myCalUse').click(); 1`); await sleep(1200);
   let r=JSON.parse(await ev(ws,`JSON.stringify({cal:store.cal, busy:(CAL.busy||[]).length, req:__net.filter(x=>/cal\\/fetch/.test(x.u)).map(x=>x.b), cap:PLAN[${tk}].cap, full:PLAN[${tk}].capFull, items:PLAN[${tk}].items.map(c=>{const t=PLAN_TIME.get(c); return t?t.s:null}), card:document.getElementById('setupMyCal').innerText.replace(/\\s+/g,' ')})`));
   check('C2 the link (webcal:// made https://) goes through /cal/fetch; store.cal says "ics"', r.cal && r.cal.src==='ics' && r.req.length && r.req[0].url==='https://p42-caldav.icloud.com/published/2/abc' && r.busy>=1, r);
-  check('C2 tomorrow\'s plan holds no more than the 2 h left after a shift until 9 PM (budget 4 h)', r.cap===120 && r.full===240, {cap:r.cap, full:r.full});
+  check('C2 tomorrow\'s plan holds no more than the 2 h the calendar leaves after a shift until 9 PM (v79.0: the calendar is the only limit a day has)', r.cap===120, {cap:r.cap, full:r.full});
   check('C2 every planned thing tomorrow gets a time at 9 PM or later', r.items.length>0 && r.items.every(s=>s!==null && s>=21*60), r.items);
   const dl=await ev(ws,`(()=>{const d=PLAN[${tk}]; const h=dayListHtml(d.items,d,startOfDay(now())); const div=document.createElement('div'); div.innerHTML=h; return [...div.querySelectorAll('.item')].map(x=>(x.classList.contains('calev')?'CAL:':'LMK:')+x.querySelector('.t').textContent.trim()).join(' | ')})()`);
   check('C2 your day is one list in time order: the 8 AM shift from your calendar, then LMK\'s work after 9 PM', /^CAL:Shift \| LMK:/.test(dl), dl);
@@ -105,8 +105,8 @@ const tk=`dayKey(addDays(startOfDay(now()),1))`;
   await ev(ws,`document.querySelector('[data-tab="now"]').click(); 1`); await sleep(300);
   /* C4 disconnect */
   await ev(ws,`calDisconnect(); 1`); await sleep(400);
-  r=JSON.parse(await ev(ws,`JSON.stringify({cal:store.cal, cap:PLAN[${tk}].cap, times:PLAN_TIME.size, card:(renderMyCal(), document.getElementById('setupMyCal').innerText.replace(/\\s+/g,' '))})`));
-  check('C4 disconnect: store.cal is {src:null} (so it travels), the plan uses the 4 h budget again, no times, the two buttons are back', r.cal && r.cal.src===null && r.cap===240 && r.times===0 && /Connect Google Calendar/.test(r.card), r);
+  r=JSON.parse(await ev(ws,`JSON.stringify({cal:store.cal, cap:PLAN[${tk}].cap===Infinity, times:PLAN_TIME.size, card:(renderMyCal(), document.getElementById('setupMyCal').innerText.replace(/\\s+/g,' '))})`));
+  check('C4 disconnect: store.cal is {src:null} (so it travels), tomorrow has no limit again, no times, the two buttons are back', r.cal && r.cal.src===null && r.cap===true && r.times===0 && /Connect Google Calendar/.test(r.card), r);
   P.close();
   /* C3 Google */
   P=await open(false); ws=P.ws;

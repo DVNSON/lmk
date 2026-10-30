@@ -268,8 +268,6 @@
   .budget .btxt{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--ink-2)} .budget .btxt b{color:var(--ink)}
   .budget .bacts{display:flex;gap:8px;flex-wrap:wrap}
   .bdiff{font-size:12px;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px}
-  .capcard{padding:14px 16px;margin-bottom:10px}
-  .caprow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0;font-size:13px} .caprow span{width:74px;color:var(--ink-2)}
   .item.pile .t{font-weight:700}
   .pilenames{margin-top:3px;color:var(--muted);font-size:12px;display:block;white-space:normal}
   .item.pilechild{background:color-mix(in srgb,var(--surface-2) 70%,transparent)}
@@ -1082,7 +1080,7 @@ const fmtMins = m => m >= 60 ? (Math.round(m / 30) / 2) + "h" : m + "m";
 
 /* ================= state ================= */
 const LS_KEY = "duenorth_v1";
-let store = {done:{}, dropped:{}, starred:{}, triaged:{}, streakDays:[], custom:null, customRows:[], undated:[], itemNotes:{}, courseNotes:{}, grades:{}, deleted:{}, celebrated:{}, examHide:{}, prepDone:{}, prepAmt:{}, seenAt:{}, planFirst:{}, planScored:{}, cal:null, effortOv:{}, leadOv:{}, seriesRules:{}, kindOv:{}, extGraded:{}, ext:null, capacity:null, capOv:{}, dur:{}, spent:{}, tab:{}, anon:"", };
+let store = {done:{}, dropped:{}, starred:{}, triaged:{}, streakDays:[], custom:null, customRows:[], undated:[], itemNotes:{}, courseNotes:{}, grades:{}, deleted:{}, celebrated:{}, examHide:{}, prepDone:{}, prepAmt:{}, seenAt:{}, planFirst:{}, planScored:{}, cal:null, effortOv:{}, leadOv:{}, seriesRules:{}, kindOv:{}, extGraded:{}, ext:null, dur:{}, spent:{}, tab:{}, anon:"", };
 try { const raw = localStorage.getItem(LS_KEY); if (raw) store = Object.assign(store, JSON.parse(raw)); } catch(e){}
 function migrateIds(s){
   for (const mk of ["done","dropped","starred","triaged","itemNotes"]) {
@@ -1336,6 +1334,208 @@ function buildLearn(){
   });
   LEARN = {bySeries, byCK, byKind, ratioKind};
 }
+/* ---- size-hints (T0): generated from tools/size-hints.js by tools/sync-hints.py — edit the file, never this block ---- */
+/* T0 assignment intelligence: how long is this likely to take, from what Canvas says about it — deterministic, every device, no model
+   (2026-10-29, directive §3; ~/lmk-docs/planner.md D). One function, no dependencies, the same file in node (tools/test-estimate.js)
+   and in the page (the size-hints plan candidate; later app/index.html).
+
+   Input: {t: title, st: Canvas submission types ("online_quiz,online_upload"), pts, k: the extension's kind hint, desc: the description
+   text as collect.js ships it (first 1200 characters), qn: quiz question count, tl: quiz time limit in minutes (the last two the
+   quizzes API has and the extension does not read yet)}.
+   Output: {mins, lo, hi, src, why, band}. `src` is the evidence tier the directive asks for —
+     explicit  a number the assignment itself states (pages, words, questions, a time limit, a video's length)
+     meta      Canvas's own type with nothing else to go on (a quiz with no count, an exam sat in class)
+     context   words in the title or description that say what kind of work it is, with the type's usual length
+     default   nothing but the type
+     unknown   a title and points, nothing else — and vague is NOT small: the estimate is the usual size for the points
+   [lo, hi] is the estimator's own range; the planner may plan `mins` and the UI may say "~2 h (3–5 h?)".
+   Writing rates are the Rice CTE Course Workload Estimator's (https://cte.rice.edu/workload): minutes per double-spaced 250-word page —
+   reflection 45/60/75, argument 90/120/150, research 180/240/300 for no / minimal / extensive drafting; reading pages per hour —
+   textbook to understand 14, journal/paperback to understand 24, close reading with many new concepts 9, survey 28. Everything with no
+   published rate (problem sets, code, labs, talks) is a stated convention, in `why`, to be corrected by what students measure.
+   The title decides the kind of work before the type does: "Read Ch. 7 – reading quiz" is reading that ends in a quiz, "Read chapters
+   10–12 for the exam" is reading and not an exam (the app's isExam calls it one — see test-estimate), "Case study analysis" is writing
+   even when the description names chapters. Pages are counted apart for reading ("20 pages in our edition") and writing ("a 3-page
+   memo"). "No outside research" is not research. */
+(function (root) {
+  const NUMW = {one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twelve: 12, fifteen: 15, twenty: 20};
+  const words2digits = s => s.replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten|twelve|fifteen|twenty)(?=[- ](?:page|pages|word|words|question|questions|problem|problems|exercise|exercises|proof|proofs|function|functions|lesson|lessons|slide|slides|source|sources|minute|minutes|reply|replies|classmates|peers|drafts?|essay questions?|short questions?|paragraphs?|sentences?|hours?|weeks?|cases|studies|terms|items|sides?))\b/g, m => NUMW[m]);
+  const num = (s, re) => { const m = s.match(re); return m ? parseFloat(m[1]) : null; };
+  const W = {reflection: [45, 60, 75], argument: [90, 120, 150], research: [180, 240, 300]};
+  function sizeHints(x) {
+    x = x || {};
+    const t = words2digits(String(x.t || '').toLowerCase()), d = words2digits(String(x.desc || '').toLowerCase()), a = t + ' \n ' + d, st = String(x.st || ''), k = x.k || '', pts = x.pts == null ? null : +x.pts;
+    const out = (mins, lo, hi, src, why) => { mins = mins >= 10 ? Math.round(mins / 5) * 5 : Math.round(mins); lo = Math.max(0, Math.round(lo)); hi = Math.max(mins, Math.round(hi)); return {mins: Math.max(0, mins), lo, hi, src, why, band: mins <= 25 ? 'quick' : mins <= 90 ? 'medium' : 'big'}; };
+    const has = re => re.test(a), inTitle = re => re.test(t);
+    /* --- what the title says it is --- */
+    const titleRead = /^(read|reading)\b|\breading:|^(watch|listen)\b/.test(t);
+    const titleProblems = /problem set|homework|\bhw\b|worksheet|exercises|\bproofs?\b|problems\b/.test(t);
+    const titleCode = /\bprogram|\bcode\b|coding|\bjava\b|python|c\+\+|fizzbuzz|scraper|\bapp\b|software|codecademy|zybooks/.test(t);
+    const titleWriting = /\bessay|\bpaper\b|reflection|journal|\bmemo\b|\bbrief\b|op-ed|narrative|\breview\b|analysis|proposal|\breport\b|bibliograph|portfolio|\bplan\b|summary|\bresponse\b|interview|take-home|take home|thesis|outline|position/.test(t) && !/\blab\b/.test(t);
+    const exam = (/\bmidterm\b|\bexam\b/.test(t) || (/\bfinal\b/.test(t) && !/\b(draft|written|essay|paper|project|reflection|assignment|report|presentation|portfolio|proposal|video|poster|lab|deliverable|submission|response|homework|worksheet|discussion|reading|journal)s?\b/.test(t)))
+      && !/\bfor (the|your|an?|our) (exam|midterm|final)|\bbefore the (exam|midterm)|\bstudy\b|\breview for\b/.test(t) && !titleRead && !/take-home|take home/.test(a);
+    /* --- not work: sat in class, or an exam (its study is the prep plan) --- */
+    /* "In class" comes from the extension's kind (kindHint reads submission types and points once, for the whole app) or from the text
+       itself — never from `st` alone here: a "none" submission type with no kind is work until the app says otherwise (held-out world
+       "nothing is described": calling it in class planned 2 minutes for a 5-hour thing). */
+    if (k === 'inclass' || (/on_paper/.test(st) && exam) || has(/during (the )?(lab|class)|first (5|10) minutes of class|hand in before you leave|complete in class/)) {
+      if (!titleRead && !/\bread/.test(d)) return out(exam ? 0 : 2, 0, 15, 'meta', exam ? 'an exam, sat not worked' : 'done in class');
+    }
+    if (exam) {
+      if (/online_quiz/.test(st) && x.tl) return out(x.tl * 0.85, x.tl * 0.6, x.tl, 'explicit', 'an online exam with a ' + x.tl + '-minute limit');
+      if (/online_quiz/.test(st) && x.qn) return out(x.qn * 1.6, x.qn, x.qn * 2.5, 'explicit', x.qn + ' questions');
+      if (/online_quiz/.test(st)) return out(60, 30, 120, 'meta', 'an online exam, length unknown');
+      return out(0, 0, 0, 'meta', 'an exam, sat not worked');
+    }
+    /* --- numbers the text states --- */
+    const pageRange = a.match(/(?:pp\.?|pages?)\s*(\d+)\s*(?:-|–|—|to)\s*(\d+)/);
+    const rangePages = pageRange ? Math.max(0, +pageRange[2] - +pageRange[1] + 1) : null;
+    const single = /single-spaced|single spaced/.test(a);
+    const readPages = rangePages != null ? rangePages : num(a, /(?:read|reading|about|roughly|is|are|of)\s+(\d+)\s*pages?\b(?:\s*(?:in|of|long|total|,|\)|\.)|$)/) || num(a, /\((\d+) pages?(?![^)]*(?:double|single|typed|spaced))[^)]*\)/) || num(a, /(\d+)[- ]?pages? (?:in (?:our|the)|long|of reading|to read)/);
+    let writePages = num(a, /(\d+(?:\.\d+)?)[- ]?pages?\b(?![^.]*\b(?:in our edition|in the journal|to read|of reading))(?=[^.]*\b(?:double-spaced|single-spaced|typed|write|essay|paper|memo|brief|report|reflection|response|summary|narrative|review|proposal|plan|analysis|outline|template|comments?|words|not counting|font|margins|mla|apa))/) ;
+    if (writePages == null) writePages = num(a, /(?:write|writing|submit|an?|the|about)\s+(?:a\s+)?(?:short\s+)?(\d+(?:\.\d+)?)[- ]?pages?\b/);
+    if (writePages == null) writePages = num(a, /\b(\d+(?:\.\d+)?)[- ]?pages?\b(?! \d)/) && !readPages ? num(a, /\b(\d+(?:\.\d+)?)[- ]?pages?\b(?! \d)/) : null;
+    if (writePages != null && single) writePages *= 2;
+    /* every word count in the text, summed; one followed by "each" is multiplied by the count it belongs to ("3 essay questions, about
+       500 words each"; "reply to 2 classmates (100 words each)") */
+    let words = null; for (const m of a.matchAll(/(\d{2,5})[- ]?words?\b/g)) { let n = +m[1]; const after = a.slice(m.index, m.index + 40), before = a.slice(Math.max(0, m.index - 80), m.index);
+      if (/\beach\b/.test(after) || /\beach\b[^.]{0,25}$/.test(before)) {   // "100 words each" or "answer each in about 500 words"
+        const c = num(before, /(\d+)\s*(?:essay |short )?(?:questions|drafts|prompts|classmates|peers|sources|parts|articles|replies)(?![\s\S]*\d+\s*(?:questions|drafts|prompts|classmates|peers|sources|parts|articles|replies))/) || num(before, /(\d+)\s*(?:essay |short )?(?:questions|drafts|prompts|classmates|peers|sources|parts|articles|replies)/) || 1; n *= c; }
+      words = (words || 0) + n; }
+    const qn = x.qn || num(a, /(\d+)\s*(?:multiple[- ]choice |short[- ]answer |essay |exam-style |review )?(?:questions|problems|exercises|proofs|items)\b/);
+    const tl = x.tl || num(a, /(\d+)[- ]?(?:minute|min)\.? (?:time )?limit/) || num(a, /time limit[^.]*?(\d+) ?(?:minutes|min)/);
+    const recording = /\brecord\b|film yourself|make a video|produce a video|screencast/.test(a);
+    const media = recording ? null : num(a, /(\d+)[- ]?(?:minute|min)s?\)?\s*(?:video|episode|lecture|podcast|recording|film|documentary|talk)/) || num(a, /(?:video|episode|lecture|podcast|recording|documentary)[^.]*?\((\d+) ?(?:minutes|min)\)/) || num(a, /(?:watch|listen)[^.]*?(\d+)[- ]?(?:minute|min)/);
+    const sources = num(a, /(?:at least |minimum of |using )?(\d+)\s*(?:scholarly |peer-reviewed |outside |academic |cited |primary )?(?:sources|studies|references|articles|cases)\b/);
+    const slides = num(a, /(\d+)[- ]?slides?/), talkMins = num(a, /(\d+)[- ]?minute (?:presentation|talk|pitch|demo)/);
+    const team = num(a, /teams? of (\d)(?:-(\d))?/) || (/\bgroup\b|per team|one submission per team/.test(a) ? 3 : null);
+    const replies = /reply|replies|respond to (2|1) (?:classmates|peers)|peer/.test(a) ? (/\b2\b|two/.test(a.slice(a.search(/repl|respond/))) ? 2 : 1) : 0;
+    const noResearch = /no (?:outside )?(?:research|citations?|sources)|without (?:outside )?research|outside sources are optional|no need to cite/.test(a);
+    /* --- reading, when the title says so --- */
+    const readingRate = () => /closely|line by line|seminar|engage|\bplato\b|philosoph/.test(a) ? 9 : /skim|survey|main ideas|for the (exam|midterm|test)/.test(a) ? 28 : /article|journal|pdf|paper\b/.test(a) ? 24 : 14;
+    const readingOut = () => {
+      let p = readPages;
+      const chapters = a.match(/chapters? (\d+)\s*(?:-|–|,|and|through|to)\s*(?:(\d+)\s*(?:and|,)\s*)?(\d+)/), ch1 = a.match(/\bch(?:apter|\.)? ?(\d+)\b/);
+      let src = 'explicit';
+      if (p == null && chapters) { p = (+chapters[3] - +chapters[1] + 1) * 30; src = 'context'; } else if (p == null && ch1) { p = 30; src = 'context'; }
+      if (p == null) { p = 25; src = 'context'; }
+      const rate = readingRate();
+      let m = p / rate * 60, lo = m * 0.75, hi = m * 1.4, why = p + ' pages at ' + rate + ' pages an hour';
+      if (/quiz/.test(a) || /online_quiz/.test(st)) { const q = qn ? qn * 1.5 : 15; m += q; hi += q + 10; why += ', plus a quiz'; }
+      if (/\bresponse\b|one-page|one page|write/.test(d) && !/quiz/.test(t)) { const wp = writePages || (words ? words / 250 : 1); m += wp * 45; lo += wp * 30; hi += wp * 60; why += ', plus ' + (wp % 1 ? wp.toFixed(1) : wp) + ' page' + (wp === 1 ? '' : 's') + ' in response'; }
+      else if (/questions/.test(d) && !/quiz/.test(a)) { m += 20; hi += 30; }
+      if (media) { m += media * 1.1; hi += media * 1.3; why += ', plus ' + media + ' minutes to watch'; }
+      return out(m, lo, hi, src, why);
+    };
+    if (titleRead && !media) return readingOut();
+    /* --- problem sets, when the title says so --- */
+    const problemsOut = () => {
+      const per = /proof/.test(a) ? 35 : /using r\b|\bcode\b|regression|dataset|interpret/.test(a) ? 50 : /worksheet/.test(a) ? 12 : 15;
+      if (qn) return out(qn * per, qn * per * 0.65, qn * per * 1.6, 'explicit', qn + ' problems at about ' + per + ' minutes');
+      if (/worksheet/.test(a)) return out(30, 20, 45, 'context', 'a worksheet');
+      return out(60, 40, 120, 'context', 'a problem set, count unknown');
+    };
+    const tool = /external_tool/.test(st) || /webassign|mymathlab|mylab|mastering|\bconnect\b|aleks|achieve|learningcurve|cengage|pearson|zybooks|codecademy|quizlet|knewton|wileyplus|sapling|top hat|tophat/.test(a);
+    if (titleProblems && !tool) return problemsOut();
+    /* --- quizzes and online homework systems --- */
+    const quiz = /online_quiz/.test(st) || k === 'quiz';
+    if (quiz) {
+      if (/attendance|honor code|acknowledg|exit ticket|check[- ]?in\b|confirm you|safety training/.test(a)) return out(3, 1, 5, 'context', 'a confirmation, not a quiz');
+      if (tl) return out(tl * 0.8, tl * 0.5, tl, 'explicit', 'a ' + tl + '-minute time limit');
+      if (qn) return out(qn * 1.5 + 2, qn * 0.6, qn * 2.5 + 5, 'explicit', qn + ' questions');
+      if (/syllabus|practice/.test(t)) return out(10, 5, 30, 'context', 'a syllabus or practice quiz');
+      return out(15, 5, 30, 'meta', 'a quiz, length unknown');
+    }
+    if (tool) {
+      if (/learningcurve|adaptive|until you reach|target score/.test(a)) return out(45, 15, 120, 'context', 'an adaptive quiz runs until a target — the time varies with it');   // 2026-10-29: one student's five tracked LearningCurve sittings ran 10-125 min (median 64); the range says so, the middle stays a guess
+      if (/survey/.test(a)) return out(10, 5, 15, 'context', 'a survey');
+      const lr = a.match(/lessons? (\d+)\s*(?:-|–|through|to)\s*(\d+)/), lessons = lr ? +lr[2] - +lr[1] + 1 : num(a, /(\d+) lessons/);
+      if (lessons) return out(lessons * 22, lessons * 15, lessons * 30, 'explicit', lessons + ' lessons');
+      const terms = num(a, /(\d+)[- ]?(?:term|card|word)s?\b/); if (terms && /flashcard|quizlet|vocab|terms/.test(a)) return out(terms * 1.6, terms * 1.1, terms * 2.3, 'explicit', terms + ' terms to learn');
+      if (qn) return out(qn * 5.5, qn * 3.5, qn * 8, 'explicit', qn + ' online exercises');
+      return out(45, 30, 90, 'meta', 'online homework, length unknown');
+    }
+    /* --- discussions --- */
+    if (/discussion_topic/.test(st) || k === 'discussion' || inTitle(/discussion|discuss\b/)) {
+      if (/introduce yourself|a few sentences|1 sentence/.test(a)) return out(12, 8, 20, 'context', 'a few sentences');
+      if (words) { let m = words * 0.22 + replies * 12; if (readPages) m += readPages / 24 * 60; return out(m, words * 0.15 + replies * 8, words * 0.35 + replies * 20 + (readPages ? readPages * 4 : 0), 'explicit', words + ' words' + (replies ? ' and ' + replies + ' replies' : '') + (readPages ? ', after ' + readPages + ' pages' : '')); }
+      return out(30 + replies * 10, 15, 60 + replies * 15, 'default', 'a discussion post');
+    }
+    /* --- media to watch or listen to --- */
+    if (media) { const q = num(a, /(\d+) (?:short )?(?:questions|answers)/) || 0; const w = words ? words * 0.18 : q * 7; return out(media * 1.1 + w, media + w * 0.6, media * 1.3 + w * 1.6 + 10, 'explicit', media + ' minutes to watch or listen, plus the response'); }
+    /* --- code --- */
+    if (titleCode || has(/\bprogram|\bcode\b|coding|implement|\bjava\b|python|c\+\+|\brepo\b|repository|unit test|\.py\b|scraper|software|algorithm/)) {
+      const fns = num(a, /(\d+) (?:small )?functions?/);
+      if (/\bproject\b/.test(t) || /due in (2|3) weeks|deliverables|\brepository\b.*\breport\b/.test(a)) { const m = 720 / (team ? Math.max(1, team / 1.5) : 1); return out(m, m * 0.6, m * 1.7, 'context', 'a programming project' + (team ? ', in a team' : '')); }
+      if (/\blab\b|hello world|install|first program/.test(a) && !fns) return out(50, 30, 90, 'context', 'a setup-and-run lab');
+      if (fns) return out(fns * 55, fns * 35, fns * 95, 'explicit', fns + ' functions to write');
+      if (/exercise|small|few lines|fizzbuzz/.test(a)) return out(45, 30, 75, 'context', 'a small coding exercise');
+      return out(240, 150, 480, 'context', 'a programming assignment, size unknown');
+    }
+    /* --- reading, from the description --- */
+    if (!titleWriting && (/^read\b/.test(d) || /\bread\b/.test(d) && !/write|essay|paper|post|respond|response|answer|summar/.test(t))) return readingOut();
+    /* --- labs --- */
+    if (/\blab\b/.test(t)) {
+      if (/\bcheck\b/.test(t) && !/report|write-up|writeup/.test(a)) return out(10, 3, 20, 'context', 'a lab check, a quiz in all but name');   // a real "Lab Check 1" measured one minute; Canvas calls them quizzes when the type is known
+      if (/template|fill in|worksheet/.test(a)) { const p = writePages || 2; return out(p * 60, p * 40, p * 90, writePages ? 'explicit' : 'context', 'a lab template of ' + p + ' pages'); }
+      if (/report|write-up|writeup/.test(a)) { const p = writePages || 4; return out(p * 120, p * 80, p * 160, writePages ? 'explicit' : 'context', 'a lab report of about ' + p + ' pages'); }
+      return out(90, 45, 180, 'context', 'a lab, length unknown');
+    }
+    /* --- talks, posters, media to make (writing with a page count wins over a deck that comes with it) --- */
+    if (has(/presentation|pitch deck|\bpitch\b|\btalk\b|slides|poster|infographic|\bvideo\b|record(ing)?|podcast episode/) && !(titleWriting && writePages >= 3)) {
+      if (recording || (/\bvideo\b/.test(a) && !/presentation|slides/.test(a))) { const m = num(a, /(\d+)[- ]?minute/) || 3; return out(m * 12 + 15, m * 8 + 10, m * 20 + 30, 'explicit', 'a ' + m + '-minute recording'); }
+      if (/infographic/.test(a)) return out(180, 120, 300, 'context', 'an infographic with sources');
+      if (/poster/.test(a)) return out(360, 240, 600, 'context', 'a research poster');
+      const base = talkMins ? talkMins * 25 : slides ? slides * 28 : 300;
+      return out(base, base * 0.65, base * 1.6, talkMins || slides ? 'explicit' : 'context', talkMins ? 'a ' + talkMins + '-minute talk' : slides ? slides + ' slides' : 'a presentation, length unknown');
+    }
+    /* --- problem sets, from the description --- */
+    if (!titleWriting && has(/problem set|\bproblems\b|homework|\bhw\b|exercises|worksheet|\bproofs?\b|calculation/)) return problemsOut();
+    /* --- small things --- */
+    if (!titleWriting && has(/exit ticket|1 sentence|1 paragraph|a paragraph|few sentences|check-in|screenshot|acknowledg|muddiest point/)) return out(12, 5, 25, 'context', 'a sentence or a paragraph');
+    if (has(/\bsurvey\b/)) return out(10, 5, 15, 'context', 'a survey');
+    if (has(/thesis statement|outline\b/) && !writePages && !/research paper|essay\b.*pages/.test(a)) return out(60, 30, 90, 'context', 'a thesis and an outline');
+    /* --- writing --- */
+    const writing = titleWriting || /\bessay|\bpaper\b|reflection|reflect|journal|\bresponse\b|\bmemo\b|\bbrief\b|op-ed|narrative|review\b|analysis|proposal|\breport\b|\bwrite\b|writing|bibliograph|portfolio|plan\b|summary|interview/.test(a) || (/online_text_entry/.test(st) && (words || writePages));
+    if (writing) {
+      const genre = !noResearch && /research|scholarly|peer-reviewed|outside sources|bibliograph|literature review|citations?\b|cite\b|bluebook|case law|appellate|business plan|market analysis|cited/.test(a) && !/\breflection\b/.test(t) && !(/\bmla\b|\bapa\b/.test(a) && !sources && !/research/.test(a)) ? 'research'
+        : /argu|position|analy|\bcase\b|\bmemo\b|\bbrief\b|op-ed|thesis|recommend|evaluate|critique|persua|take a (clear )?position|1 side|debate|take-home|take home|essay questions?|claims/.test(a) ? 'argument' : 'reflection';
+      const draft = /multiple drafts|extensive|peer feedback|draft 2|second draft|revis(ed|ion) (version|memo)|incorporating the (peer )?feedback|responding to my comments/.test(a) ? 2 : /revis|\bfinal\b|feedback|portfolio|turnitin|advisor/.test(a) && !/first draft|rough draft/.test(a) ? 1 : 0;
+      const revisionOnly = /draft 2|second draft|revised version/.test(a) && /incorporat|feedback/.test(a);
+      let p = writePages != null ? writePages : words != null ? words / 250 : null, src = p != null ? 'explicit' : 'context', why;
+      if (p == null) { p = genre === 'research' ? (/paper|thesis|literature/.test(a) ? 6 : 3) : genre === 'argument' ? 3 : 1.5; if (/paragraph|short/.test(a)) p = 0.5; }
+      let m = revisionOnly ? p * (W[genre][2] - W[genre][1]) : p * W[genre][draft];
+      why = (p % 1 ? p.toFixed(1) : p) + ' page' + (p === 1 ? '' : 's') + ' of ' + genre + ' writing' + (draft === 2 ? ', revised more than once' : draft === 1 ? ', revised once' : '') + (src === 'context' ? ' (length guessed)' : '');
+      if (/annotat/.test(a)) { m = Math.max(m, (sources || 5) * 60); why = (sources || 5) + ' sources to find and annotate'; }
+      if (/interview/.test(a)) { m += 45; why += ', plus the interview'; }
+      if (/portfolio/.test(a)) { m += 180; why += ', plus three revisions'; }
+      if (/proposal/.test(t) && sources) m = Math.max(m, sources * 25 + 60);
+      if (readPages && !/reflection|journal/.test(t)) { m += readPages / readingRate() * 60; why += ', after ' + readPages + ' pages of reading'; }
+      if (/peer review|review of .* drafts/.test(a)) { const n = num(a, /(\d+) drafts/) || 2; m += n * 15; why += ', plus reading ' + n + ' drafts'; }
+      if (team && /one submission per team|per team|teams? of/.test(a)) { m = m / (team * 0.7); why += ', shared by a team of ' + team; }
+      /* A bare title is not a short assignment (2026-10-29, Phase 4): "Essay 2" or "Industry report" with no description was 1.5 guessed pages of
+         reflection, 70 minutes — below the title rule's 2 h for a big thing, so turning T0 on made those SMALLER. With nothing but the title to go
+         on, a piece of writing is never sized below the title rule's big size, and the range is wide, because that is what not knowing looks like. */
+      const thin = d.replace(/\s+/g, '').length < 40;
+      if (src === 'context' && thin && titleWriting && m < 120) { m = 120; why = 'a piece of writing with no description (never below the 2 h a big thing gets)'; }
+      const lo = src === 'explicit' ? m * 0.75 : m * 0.5, hi = src === 'explicit' ? m * 1.3 : thin ? m * 2.5 : m * 2.2;
+      return out(m, lo, hi, src, why);
+    }
+    /* --- nothing to go on: the usual size for the points, never small because it is vague --- */
+    if (pts != null && pts >= 50) return out(180, 60, 480, 'unknown', pts + ' points and no description');
+    if (pts != null && pts >= 20) return out(90, 30, 180, 'unknown', pts + ' points and no description');
+    if (/online_text_entry/.test(st)) return out(30, 15, 90, 'unknown', 'a text box, length unknown');
+    return out(45, 15, 240, 'unknown', 'no description');   // the range is the honest part: a bare "Assignment 3" has been 20 minutes and 5 hours
+  }
+  if (typeof module !== 'undefined' && module.exports) module.exports = {sizeHints}; else root.sizeHints = sizeHints;
+})(typeof window !== 'undefined' ? window : globalThis);
+/* ---- end size-hints ---- */
+/* v78.1: T0 size hints behind the worker switch `sizeHints` (Admin → Ops → Switches; /config planner.hints). Off, the estimate is the
+   size rule's 15/45/120 as before; on, an assignment with no measurement, no size the student set and no series rule is sized from its
+   own words (pages, words, questions, a time limit, the kind of work), a guessed length never more than six hours. Measured first: tools/test-estimate.js (93 % of 72 labelled cases in range, no severe under-estimate, against the
+   rule's 28 % and 22) and tools/bench-plan.js (late work 16 → 11 over the eleven tuning worlds; the held-out worlds a wash on late items
+   — ~/lmk-docs/planner.md F). The hint writes only to the estimate's prior: never a due date, a completion state or a plan position. */
+function sizeHintsOn(){ return !!(typeof REMOTE_CFG !== "undefined" && REMOTE_CFG && REMOTE_CFG.planner && REMOTE_CFG.planner.hints); }
 function learnedMins(e){
   if (!LEARN) buildLearn();
   const base = EFFORT[e.effort].mins;
@@ -1348,11 +1548,21 @@ function learnedMins(e){
   const ck = LEARN.byCK[e.course + "|" + lk] || []; if (ck.length) { prior = shrink(median(ck), ck.length, 4, prior); n += ck.length; if (ck.length >= 3) level = "course"; }
   const sk = LEARN.bySeries[seriesKey(e.title, e.course) || ""] || []; if (sk.length) { prior = shrink(median(sk), sk.length, 2, prior); n += sk.length; if (sk.length >= 2) level = "series"; }
   const own = measuredMins(e.id); if (own.length) { prior = median(own); level = "own"; n += own.length; }
-  return {mins: Math.max(5, Math.round(prior / 5) * 5), n, level, learned: level === "own" || level === "series" || level === "course"};
+  let hint = null;
+  if (level === "guess" && sizeHintsOn() && (store.effortOv || {})[e.id] == null && !((store.seriesRules || {})[seriesKey(e.title, e.course) || ""] || {}).effort) {
+    const x = e.ext || {}, h = sizeHints({t: e.title, st: x.st || "", pts: x.pts, k: e.kind, desc: e.desc || x.desc || ""});
+    /* The hint stands alone: the student's tempo was learned against the 15/45/120 sizes, not against lengths read from the text, and
+       multiplying the two oscillated with the quantised "Longer / Shorter" answers (bench: 15 late, 39 re-learn moves, against 11 and 4
+       for the plain hint). Measurements of this item, its series or its course still win above. */
+    if (h && h.mins > 0) { const guessed = h.src !== "explicit" && h.src !== "meta"; prior = guessed ? Math.min(h.mins, 360) : h.mins; hint = h; }
+  }
+  return {mins: Math.max(5, Math.round(prior / 5) * 5), n, level, learned: level === "own" || level === "series" || level === "course", hint};
 }
 function minsTag(e){
   const l = learnedMins(e);
-  return `<span class="etag" style="text-transform:none" title="${l.learned ? `Learned from ${l.n} measurement${l.n > 1 ? "s" : ""}` : l.level === "crowd" ? "From other students on this assignment" : "A guess until LMK has seen you do a few of these"}">~${fmtMins(l.mins)}${l.learned ? " ✓" : l.level === "crowd" ? " ◎" : "?"}</span>`;
+  /* ✓ measured · ◎ other students · ≈ from the assignment's own words (v78.1, with its range) · ? a guess from the size alone */
+  const title = l.learned ? `Learned from ${l.n} measurement${l.n > 1 ? "s" : ""}` : l.level === "crowd" ? "From other students on this assignment" : l.hint ? `From the assignment: ${l.hint.why} — about ${fmtMins(l.hint.lo)} to ${fmtMins(l.hint.hi)}` : "A guess until LMK has seen you do a few of these";
+  return `<span class="etag" style="text-transform:none" title="${esc(title)}">~${fmtMins(l.mins)}${l.learned ? " ✓" : l.level === "crowd" ? " ◎" : l.hint ? " ≈" : "?"}</span>`;
 }
 function recordDuration(id, mins, src, pred){
   if (!(mins > 0)) return;
@@ -2074,7 +2284,7 @@ async function calUseLink(){
 function calDisconnect(){
   store.cal = {src: null, at: Date.now()}; CAL.busy = null; CAL.err = ""; PLAN_TIME = new Map();
   try { localStorage.removeItem("lmk_calbusy"); } catch(_){}
-  save(); render(); renderMyCal(); toast("Calendar disconnected. Your plan uses your study hours again.");
+  save(); render(); renderMyCal(); toast("Calendar disconnected. Your days have no limit again.");
 }
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-cal]"); if (!b || b.tagName === "INPUT") return;
@@ -3007,11 +3217,11 @@ function studyFacts(e){
   let today = null, plan = "";
   try {
     const d = PLAN[dayKey(startOfDay(n))];
-    if (d) today = {cap: d.cap, mins: d.mins};
+    if (d) today = {mins: d.mins};
     const soon = EVENTS.filter(open).filter(y => y.id !== e.id && y.due > n && y.due - n < 7 * 864e5 && y.kind !== "fyi" && y.kind !== "inclass").slice(0, 5);
     const late = EVENTS.filter(open).filter(y => y.id !== e.id && y.due < n && y.kind !== "fyi" && y.kind !== "inclass").length;
     const bits = [];
-    if (today) bits.push(`study budget today ${fmtMins(today.cap)}, ${fmtMins(today.mins)} of it already planned`);
+    if (today) bits.push(`${fmtMins(today.mins)} already planned for today`);
     if (soon.length) bits.push("also due within a week: " + soon.map(y => `${y.title.slice(0, 40)} (${y.course}, ${FMT_DAY.format(y.due)})`).join("; "));
     if (late) bits.push(`${late} overdue item${late === 1 ? "" : "s"} still open`);
     plan = bits.join(". ");
@@ -3066,7 +3276,7 @@ function openStudy(id, opts = {}){
     ["Due", `${FMT_DAY.format(e.due)} · ${FMT_TIME.format(e.due)}${f.days === 0 ? " · today" : f.days === 1 ? " · tomorrow" : " · in " + f.days + " days"}`],
     f.worth ? ["Worth", f.worth] : null,
     ["Usually takes", f.est.replace(/^about /, "").replace(/ \(.*\)$/, "")],
-    f.today ? ["Today", `${fmtMins(f.today.cap)} budget · ${fmtMins(f.today.mins)} planned`] : null,
+    f.today ? ["Today", `~${fmtMins(f.today.mins)} planned`] : null,
     g ? [esc(e.course), `${g.letter} · ${g.pct}%${g.working ? " · " + g.working + " in progress" : ""}`] : null,
   ].filter(Boolean);
   const rub = (e.ext && e.ext.rub) ? String(e.ext.rub).split("; ").filter(Boolean) : [];
@@ -3217,22 +3427,15 @@ function itemRow(e, opts={}){
     </div>
   </div>`;
 }
-/* ================= daily budget planner =================
-   Weekday hours and weekend hours (CAP_DEFAULT until the student changes them from the budget bar's ✎; asked up front
-   until v74.5, which made setup one question longer than it needed to be). Work enters the plan only when its
-   academic lead time opens (startBy), fills the day's budget earliest-due first, and big items
-   split into ≤90-minute parts across days. Nothing is booked into a calendar; the output is a
-   short list per day with a total, and an honest "over by X" when it doesn't fit. */
-const CAP_DEFAULT = {weekday: 2, weekend: 3};
+/* ================= the planner =================
+   v79.0 (2026-10-29, Emiel: "LMK should plan around the work that needs to be completed, not an assumed number of hours a student is
+   available each day"): no assumed daily hours anywhere. Until v78.1 each day filled to 2 h on a weekday and 3 h on a weekend (or the
+   chips a student once picked), and the "over by" line, the head-start offer and the budget bar all compared against that number. Now the
+   only limits on a day are physical — what is left of today, and a connected calendar's free minutes. Work enters the plan when its lead
+   time opens (a week, WEEK_LEAD) and each day takes its SHARE of the released work: the smallest even load that still meets every deadline
+   in view (computePlan). Nothing is booked into a calendar; the output is a short list per day with a total. Measured first in
+   tools/bench-plan.js (~/lmk-docs/planner.md M). */
 const CHUNK = 90, HORIZON = 14;
-function capHours(d){
-  const k = dayKey(d), ov = (store.capOv || {})[k];
-  const we = d.getDay() === 0 || d.getDay() === 6;
-  if (ov != null && Number.isFinite(+ov)) return +ov;
-  const c = store.capacity || CAP_DEFAULT;
-  const v = +(we ? c.weekend : c.weekday);
-  return Number.isFinite(v) ? v : (we ? CAP_DEFAULT.weekend : CAP_DEFAULT.weekday);   // a malformed capacity must never NaN the budget bar
-}
 function remainingMins(e){
   const pr = extProgress(e);
   return Math.max(10, Math.round(learnedMins(e).mins * (pr == null ? 1 : 1 - pr / 100)));
@@ -3256,80 +3459,114 @@ function planRelease(e, chunk){
   const early = addDays(lastWorkDay(e, startOfDay(now())), -Math.ceil(remainingMins(e) / chunk)), r = early < s ? early : s, op = opensAt(e);
   return op && startOfDay(op) > r ? startOfDay(op) : r;
 }
+/* The planner's shape since v79.0 (measured in tools/bench-plan.js before it reached this file; ~/lmk-docs/planner.md M):
+   1. One lead time for everything, a week (WEEK_LEAD): anything due within it may be planned from today. A big thing's own release (one
+      part a day) still applies when earlier; a lead the student set by hand still wins; never before the LMS opens it.
+   2. A thing is cut into parts by the days it has: as many parts as the work days between its release and its last work day can hold one
+      a day, never more than ceil(minutes / 90). A deadline that leaves two days makes two bigger parts instead of a pile on the due day.
+   3. Each day takes its SHARE of the released work: for every later day f, the released, unplaced work due by f divided by the days from
+      here to f that can hold work; the largest such ratio is the day's share, and the day fills soonest-due first until it reaches it. The
+      share rises with the workload and never with a setting. Work due that day is placed whatever the share. The share counts each piece
+      at PLAN_MARGIN times its estimate (or the T0 hint's own hi/mid when it has a range): the plan starts early enough for work that runs
+      past its estimate, which the bench's students' work does. PLAN_BUFFER days of slack before a deadline when its window allows.
+   4. Relief and levelling: a day past its physical room hands work back to the latest earlier day with room; a later day hands a piece to
+      the latest earlier day that ends no heavier in minutes. Overdue work in 30-minute pieces, merged into one row per day.
+   Every move in pass 2 goes earlier, so the sweeps end; the guard is belt and braces. */
+const WEEK_LEAD = 7;
+const PLAN_MARGIN = 1.5, PLAN_BUFFER = 1;
+/* margin: the share is computed on each piece's minutes times this (or times the T0 hint's hi/mins when the estimate has a range) — the plan
+   starts early enough for work that runs past its estimate, which the bench says it does (truth ~1.2x, wide). buffer: the share treats a thing
+   as due that many days before its last work day when its window allows — the margin in days instead of minutes. Neither is a number of hours. */
+const sharePiece = c => c.prep || c.late ? c.mins : Math.round(c.mins * (PLAN_MARGIN > 1 && c.hintHi ? Math.max(1, Math.min(PLAN_MARGIN, c.hintHi)) : PLAN_MARGIN));
+const shareDue = c => c.prep ? c.release : (c.late || PLAN_BUFFER <= 0) ? c.dueDay : (() => { const b = addDays(c.dueDay, -PLAN_BUFFER); return b < c.release ? c.dueDay : b; })();   // a study session counts on the day prepPlan spaced it onto, so that day's share holds it
 function computePlan(){
   PLAN = {}; PLAN_DAY = {}; PLAN_OVER = [];
   const n = now(), today = startOfDay(n), end = addDays(today, HORIZON);
+  const leftToday = Math.max(0, Math.round((addDays(today, 1) - n) / 6e4));
+  const days = [];
+  for (let i = 0; i <= HORIZON; i++) { const d = addDays(today, i); let room = i === 0 ? leftToday : Infinity; if (calOn() && CAL.busy) room = Math.min(room, calFreeMins(d)); days.push({key: dayKey(d), date: d, cap: room, capFull: room, mins: 0, items: [], over: 0}); }
+  const slotsBetween = (a, b) => days.filter(x => x.date >= a && x.date <= b && x.cap > 0).length;
   const chunks = [];
-  /* A part must fit the smallest study day in view: with a 1h/day budget a 90-minute part never fitted anywhere
-     and was forced onto its due day, over budget — the opposite of what the planner is for. Days set to 0h are
-     days off and do not shrink the part. */
-  let chunk = CHUNK;
-  for (let i = 0; i <= HORIZON; i++) { const c = Math.round(capHours(addDays(today, i)) * 60); if (c > 0) chunk = Math.min(chunk, c); }
-  chunk = Math.max(30, chunk);
-  EVENTS.filter(open).filter(e => e.kind !== "inclass" && e.kind !== "fyi" && !e.exam).forEach(e => {   // an exam is not work; its study is (prepChunks)
+  EVENTS.filter(open).filter(e => e.kind !== "inclass" && e.kind !== "fyi" && !e.exam).forEach(e => {
     const late = e.due < n;
-    if (late && !store.triaged[e.id]) return;              // overdue work joins the plan once you've chosen to keep it
-    const dueDay = late ? end : lastWorkDay(e, today);       // late = as soon as there's room, never "must today"; a morning deadline's work is the day before (v76.7)
-    let release = late ? today : planRelease(e, chunk);
+    if (late && !store.triaged[e.id]) return;
+    const dueDay = late ? end : lastWorkDay(e, today);
+    let release;
+    if (late) release = today;
+    else if ((store.leadOv || {})[e.id] != null) release = planRelease(e, CHUNK);
+    else { const own = planRelease(e, CHUNK), weekOut = addDays(dueDay, -WEEK_LEAD); release = weekOut < own ? weekOut : own; const op = opensAt(e); if (op && startOfDay(op) > release) release = startOfDay(op); }
     if (release > dueDay) release = dueDay;
     if (release < today) release = today;
     if (release > end) return;
-    let left = remainingMins(e), parts = Math.ceil(left / chunk), i = 0;
-    while (left > 0) { const m = Math.min(chunk, left); chunks.push({e, mins:m, part:++i, parts, release, dueDay, late, day:null}); left -= m; }
+    let left = remainingMins(e), i = 0;
+    const parts = late ? Math.ceil(left / 30) : Math.max(1, Math.min(Math.ceil(left / CHUNK), Math.max(1, slotsBetween(release, dueDay))));
+    const piece = late ? 30 : Math.max(5, Math.ceil(left / parts / 5) * 5);
+    const lm = learnedMins(e), hintHi = lm.hint && lm.hint.mins > 0 ? lm.hint.hi / lm.hint.mins : 0;
+    while (left > 0) { const m = Math.min(piece, left); chunks.push({e, mins: m, part: ++i, parts, release, dueDay, late, day: null, hintHi}); left -= m; }
   });
   chunks.push(...prepChunks(today, end));
-  /* What is needed first comes first. A study session ranks by its EXAM's day, not its own: ranked by its own day it
-     always looked the most urgent thing on the list, and "Study for MAT 210 Exam 2" sat above homework due Sunday and
-     Monday (Emiel, 2026-10-10: "it should be showing the assignment first, as it is stuff I need before the exam"). */
   const need = c => c.prep ? startOfDay(c.prep.x.due) : c.dueDay;
   chunks.sort((a, b) => (a.late ? 0 : 1) - (b.late ? 0 : 1) || need(a) - need(b) || (a.prep ? 1 : 0) - (b.prep ? 1 : 0) || a.release - b.release || b.mins - a.mins);
-  const days = [];
-  // pass 1 — forward fill: earliest-due first, only once the lead time opens, up to the day's budget
-  for (let i = 0; i <= HORIZON; i++){
-    const d = addDays(today, i), k = dayKey(d), full = Math.round(capHours(d) * 60);
-    /* Today only has what is left of it (v72.1): at 10:30 PM a 3-hour budget is 90 minutes, not 3 hours of plan. */
-    let cap = i === 0 ? Math.min(full, Math.max(0, Math.round((addDays(today, 1) - n) / 6e4))) : full;
-    if (calOn() && CAL.busy) cap = Math.min(cap, calFreeMins(d));   // a connected calendar: never more than the day's free study time (v73.0)
-    const day = {key:k, date:d, cap, capFull: full, mins:0, items:[], over:0};
-    const seen = new Set();
-    for (const c of chunks){
-      if (c.day || c.release > d || c.dueDay < d) continue;
-      /* A study session is never due (v77.1). prepChunks gives it the next day as its dueDay so it may slip once; treating that slip
-         day as a deadline forced it onto a full day over budget and past the one-session-a-day check (bench-plan, heavy exam week:
-         Thursday 145/120 while Friday sat at 50). A session that cannot fit by its slip day is left out of this plan; prepPlan
-         re-spreads the sessions left tomorrow ("skipping one leaves no debt"). */
-      const must = !c.late && !c.prep && c.dueDay.getTime() === d.getTime();
-      const fits = day.mins + c.mins <= cap;   // never plan past the budget; only same-day deadlines can force it over
-      if (!must && (seen.has(c.grp || c.e.id) || !fits)) continue;   // one part a day, and one study session a day per exam
-      c.day = k; day.items.push(c); day.mins += c.mins; seen.add(c.grp || c.e.id);
+  // pass 1 — each day takes its share of the released work, soonest-due first
+  for (let i = 0; i <= HORIZON; i++) {
+    const day = days[i], d = day.date, seen = new Set();
+    let share = 0;
+    if (day.cap > 0) {
+      const pend = chunks.filter(c => !c.day && c.release <= d && c.dueDay >= d).map(c => ({m: sharePiece(c), by: shareDue(c)})).sort((a, b) => a.by - b.by);
+      let acc = 0, slots = 0, pi = 0;
+      for (let f = i; f <= HORIZON + WEEK_LEAD; f++) { if (f > HORIZON || days[f].cap > 0) slots++; const fd = addDays(today, f); while (pi < pend.length && pend[pi].by <= fd) acc += pend[pi++].m; if (slots) share = Math.max(share, acc / slots); }
     }
-    PLAN[k] = day; days.push(day);
+    for (const c of chunks) {
+      if (c.day || c.release > d || c.dueDay < d) continue;
+      const must = !c.late && !c.prep && c.dueDay.getTime() === d.getTime(), key = c.grp || c.e.id;
+      if (!must && ((!c.late && seen.has(key)) || day.mins >= share || day.mins + c.mins > day.cap)) continue;
+      c.day = day.key; day.items.push(c); day.mins += c.mins; seen.add(key);
+    }
+    PLAN[day.key] = day;
   }
-  // pass 2 — backward relaxation: an overflowing day hands work to the latest earlier day with room,
-  // even before the lead time opens. This is the "one a day beats one night" move.
-  for (let i = days.length - 1; i > 0; i--){
+  // pass 2a — relief: a day past its physical room (what is left of today, a calendar's free time) hands work to the latest earlier day with room
+  for (let i = days.length - 1; i > 0; i--) {
     const day = days[i];
     if (day.mins <= day.cap) continue;
     const movable = day.items.filter(c => !c.late).sort((a, b) => b.mins - a.mins);
-    for (const c of movable){
+    for (const c of movable) {
       if (day.mins <= day.cap) break;
-      for (let j = i - 1; j >= 0; j--){
+      for (let j = i - 1; j >= 0; j--) {
         const t = days[j];
         if (t.mins + c.mins > t.cap || t.items.some(x => (x.grp || x.e.id) === (c.grp || c.e.id)) || (c.prep && t.date < addDays(c.release, -2))) continue;
-        { const op = !c.prep && opensAt(c.e); if (op && t.date < startOfDay(op)) continue; }   // the pull never lands before the LMS opens it
+        { const op = !c.prep && opensAt(c.e); if (op && t.date < startOfDay(op)) continue; }
         day.items.splice(day.items.indexOf(c), 1); day.mins -= c.mins;
-        t.items.push(c); t.mins += c.mins; c.day = t.key; c.pulled = true;
+        t.items.push(c); t.mins += c.mins; c.day = t.key; c.pulled = "over"; c.fromDate = day.date;
         break;
       }
     }
+  }
+  // pass 2b — levelling (v78.0): a later day hands a piece to the latest earlier day that can take it while ending no heavier in minutes
+  { const canTake = (t, c, j) => { if (t.cap <= 0 || (j === 0 && t.mins + c.mins > leftToday) || t.items.some(x => (x.grp || x.e.id) === (c.grp || c.e.id)) || (c.prep && t.date < addDays(c.release, -2))) return false;
+      const op = !c.prep && opensAt(c.e); return !(op && t.date < startOfDay(op)); };
+    for (let sweep = 0, moved = true; moved && sweep < 80; sweep++) {
+      moved = false;
+      for (let i = days.length - 1; i > 0; i--) {
+        const day = days[i];
+        const movable = day.items.filter(c => !c.late).sort((a, b) => b.mins - a.mins || need(a) - need(b));
+        for (const c of movable) {
+          for (let j = i - 1; j >= 0; j--) {
+            const t = days[j];
+            if (!canTake(t, c, j) || t.mins + c.mins > day.mins - c.mins) continue;
+            day.items.splice(day.items.indexOf(c), 1); day.mins -= c.mins;
+            t.items.push(c); t.mins += c.mins; c.day = t.key; c.pulled = c.pulled || "level"; c.fromDate = day.date; moved = true;
+            break;
+          }
+        }
+      }
+    }
+    for (const day of days) { const one = new Map(); day.items = day.items.filter(c => { if (!c.late) return true; const k = c.e.id, f = one.get(k); if (f) { f.mins += c.mins; return false; } one.set(k, c); c.part = 1; c.parts = 1; return true; }); }
   }
   days.forEach(day => {
     day.over = Math.max(0, day.mins - day.cap);
     day.items.sort((a, b) => (a.late ? 0 : 1) - (b.late ? 0 : 1) || need(a) - need(b) || (a.prep ? 1 : 0) - (b.prep ? 1 : 0) || b.mins - a.mins);
     day.items.forEach(c => { if (!PLAN_DAY[c.e.id]) PLAN_DAY[c.e.id] = day.key; });
   });
-  /* Parts are numbered in date order (v76.2). A 30-minute part that fitted the end of today used to read "part 2 of 2" above
-     tomorrow's "part 1 of 2" (test-planner's dense week). The numbers are labels only; a study session keeps its own. */
   { const byE = new Map();
     for (const day of days) for (const c of day.items) if (!c.prep && c.parts > 1) { if (!byE.has(c.e.id)) byE.set(c.e.id, []); byE.get(c.e.id).push([day.date, c]); }
     for (const list of byE.values()) list.sort((a, b) => a[0] - b[0] || b[1].mins - a[1].mins).forEach(([, c], i) => { c.part = i + 1; }); }
@@ -3337,54 +3574,53 @@ function computePlan(){
   try { calAssignTimes(); } catch(_) { PLAN_TIME = new Map(); }
 }
 /* ================= get ahead =================
-   The plan above is what is NEEDED. This is what a free day could take: a suggestion, never a debt. It shows as
-   rows under the day's plan and, on a day with nothing needed, as the hero — always labelled suggested, never
-   "do this". Rules: only when the day's needed work is under 60% of its budget with 40+ minutes to spare; never
-   past the budget; at most two things; first whatever lightens a nearly-full day ahead, then big work due within
-   twelve days (a first pass beats a late night), then the soonest due; nothing more than three weeks out. "Not
-   today" hides one for the day (store.aheadSkip, merged across devices). Nothing here moves the plan: a head
-   start not taken costs nothing, and one taken shows up as progress the next time the plan is built. */
+   The plan above is what is NEEDED. This is what a lighter day could take: a suggestion, never a debt. It shows as rows under the day's
+   plan and, on a day with nothing needed, as the hero — always labelled suggested, never "do this". Rules (v79.0): every day with room,
+   one part's worth at most (measured: a head start only on light days left the student idle beside pending work); at most three things; first whatever
+   lightens the week's heaviest day, then big work due within twelve days (a first pass beats a late night), then the soonest due; nothing
+   more than three weeks out. "Not today" hides one for the day (store.aheadSkip, merged across devices). Nothing here moves the plan: a
+   head start not taken costs nothing, and one taken shows up as progress the next time the plan is built. */
 let AHEAD = {}, AHEAD_WEEK = "";
 function computeAhead(){
   AHEAD = {}; AHEAD_WEEK = "";
   const n = now(), today = startOfDay(n), k = dayKey(today), day = PLAN[k];
   if (!day || day.cap <= 0) return;
-  const spare = day.cap - day.mins;
-  if (spare < 40 || day.mins > day.cap * 0.6) return;
+  // the week's own average day (the next seven days that hold work), the yardstick a later day is judged heavy by
+  const wk = []; for (let i = 0; i < 7; i++) { const d = PLAN[dayKey(addDays(today, i))]; if (d && d.items.length) wk.push(d.mins); }
+  const avg = wk.length ? wk.reduce((a, b) => a + b, 0) / wk.length : 0;
+  /* one part's worth every day that has room (measured: offering a head start only on days under the week's average left the student idle beside
+     pending work and lost deadlines; the plan is what is needed, the head starts are what a student with time could do next, soonest due first) */
+  const room = Math.min(CHUNK, day.cap - day.mins);
+  if (room < 15) return;
   const skip = store.aheadSkip || {};
   const onDay = new Set(day.items.map(c => c.e.id));
-  const placed = {};   // id -> the fullest later day its planned parts land on
+  const placed = {};
   for (const key in PLAN) {
     if (key <= k) continue;
     const d = PLAN[key]; if (!d.cap) continue;
-    d.items.forEach(c => { if (c.late) return; const r = d.mins / d.cap, p = placed[c.e.id]; if (!p || r > p.ratio) placed[c.e.id] = {date: d.date, mins: d.mins, cap: d.cap, ratio: r, over: d.mins > d.cap}; });
+    d.items.forEach(c => { if (c.late) return; const r = avg ? d.mins / avg : 0, p = placed[c.e.id]; if (!p || r > p.ratio) placed[c.e.id] = {date: d.date, mins: d.mins, ratio: r, heavy: r >= 1.5 && d.mins > day.mins}; });
   }
   const cands = EVENTS.filter(open).filter(e => e.kind !== "inclass" && e.kind !== "fyi" && !e.exam && !opensAt(e) && e.due > n && dayKey(e.due) !== k && !onDay.has(e.id) && skip[e.id] !== k && !skipped.has(e.id));
   const scored = cands.map(e => {
     const left = remainingMins(e), days = Math.round((startOfDay(e.due) - today) / 864e5), p = placed[e.id];
-    const relief = !!(p && p.ratio >= 0.85);   // "nearly full" has to mean it
-    /* Closer first. Until v70.7 a big item within 12 days outranked everything due this week — a 2 h midterm two
-       weeks out was "the head start" while three things due Friday sat below it (Emiel, 2026-09-29). A day this
-       week that is nearly full still comes first (that is what a head start is for); then whatever is due within
-       the week; then the big things further out, where a first pass beats one cram; then the rest of three weeks. */
+    const relief = !!(p && p.heavy);
     const reliefSoon = relief && Math.round((startOfDay(p.date) - today) / 864e5) <= 7;
     const tier = reliefSoon ? 0 : days <= 7 ? 1 : (relief || left >= 90) && days <= 14 ? 2 : days <= 21 ? 3 : 9;
     return {e, left, days, p, relief, tier};
   }).filter(x => x.tier < 9).sort((a, b) => a.tier - b.tier || (b.e.exam ? 1 : 0) - (a.e.exam ? 1 : 0) || a.days - b.days || b.left - a.left);
-  const list = []; let room = spare;
+  const list = []; let left = room;
   for (const x of scored) {
-    if (list.length >= 3 || room < 15) break;   // three, not two: this week's small things no longer crowd out the big one behind them
-    const mins = Math.min(room, x.left, CHUNK);
-    if (mins < 15 || (mins < x.left && mins < 30)) continue;   // a whole small thing is worth 15 min; a sliver of a big one is not
+    if (list.length >= 3 || left < 15) break;
+    const mins = Math.min(left, x.left, CHUNK);
+    if (mins < 15 || (mins < x.left && mins < 30)) continue;
     const whole = mins >= x.left, dueW = FMT_DAY.format(x.e.due);
-    const why = x.relief ? `${FMT_DAY.format(x.p.date)} is ${x.p.over ? "over its budget" : x.p.ratio >= 1 ? "full" : "nearly full"} (~${fmtMins(x.p.mins)} of ${fmtMins(x.p.cap)}) — ${fmtMins(mins)} now lightens it`
+    const why = x.relief ? `${FMT_DAY.format(x.p.date)} is the week's heaviest day (~${fmtMins(x.p.mins)}) — ${fmtMins(mins)} now lightens it`
       : whole ? `due ${dueW} — small enough to knock out now`
       : x.e.exam ? `exam ${dueW} — a first pass now beats one cram`
       : `due ${dueW} — a first pass now`;
-    list.push({e: x.e, mins, why, whole, relief: x.relief}); room -= mins;
+    list.push({e: x.e, mins, why, whole, relief: x.relief}); left -= mins;
   }
   if (list.length) AHEAD[k] = list;
-  // the shape of the week, for a day with nothing needed
   let free = 0, load = 0, busy = 0, firstBusy = null;
   for (let i = 0; i < 7; i++) { const d = PLAN[dayKey(addDays(today, i))]; if (!d) continue; if (d.items.length) { load += d.mins; busy++; if (!firstBusy) firstBusy = d; } else free++; }
   if (!day.items.length && free >= 2 && firstBusy && load >= 60) AHEAD_WEEK = `Nothing needed until ${FMT_DAY.format(firstBusy.date)}, then ~${fmtMins(load)} across ${busy} day${busy === 1 ? "" : "s"}. An hour ahead now makes that a normal week.`;
@@ -3499,23 +3735,36 @@ function pingReturn(){
    worker's per-school floor is measured in (v73.5). Sent before firstsync so the device that crosses the floor counts. */
 function pingSchool(){ const s = countedSchool(); if (s) pingOnce("lmk_seen_" + s, "school_seen"); }
 function pingAhead(){ const k = utcDayKey(); try { if (localStorage.getItem("lmk_ahead_go") === k) return; localStorage.setItem("lmk_ahead_go", k); } catch(_) { return; } ping("ahead_go"); }
+/* The line under today's total (v79.0): a comparison with the student's own week, never with a number of hours. */
 function budgetLine(day){
-  const spare = day.cap - day.mins;
   if (!day.items.length) return {tone:"good", txt:"Nothing needed today. Genuinely — enjoy it."};
-  if (spare >= day.cap * 0.25) return {tone:"good", txt:`You're fine — ~${fmtMins(spare)} to spare.`};
-  if (spare >= 0) return {tone:"warn", txt:"A full day, but it fits."};
-  const slip = [...day.items].reverse().find(c => c.dueDay > day.date && !c.prep);
-  if (slip) {
-    const nk = dayKey(addDays(day.date, 1)), nd = PLAN[nk];
-    const safe = nd && nd.mins + slip.mins <= nd.cap && slip.dueDay > addDays(day.date, 1);
-    return {tone:"warn", txt:`Over by ~${fmtMins(-spare)}. “${slip.e.title.slice(0, 32)}${slip.e.title.length > 32 ? "…" : ""}” can slip to tomorrow${safe ? " — still safe." : "."}`, slip};
+  const left = day.cap;   // what is physically left of today (and, with a calendar connected, its free minutes)
+  if (Number.isFinite(left) && day.mins > left) {
+    const due = day.items.some(c => !c.prep && c.dueDay <= day.date);
+    return {tone:"critical", txt: due ? `~${fmtMins(day.mins)} needed and ~${fmtMins(left)} left today — quick ones first, then ask for an extension on the biggest.` : `~${fmtMins(day.mins)} planned and ~${fmtMins(left)} left today — what doesn't fit moves on by itself.`};
   }
-  return {tone:"critical", txt:`Over by ~${fmtMins(-spare)} and it's all due today — quick ones first, then ask for an extension on the biggest.`};
+  const week = []; for (let i = 0; i < 7; i++) { const d = PLAN[dayKey(addDays(day.date, i))]; if (d && d.items.length) week.push(d); }
+  const heaviest = week.reduce((a, d) => d.mins > a.mins ? d : a, day), avg = week.length ? week.reduce((t, d) => t + d.mins, 0) / week.length : day.mins;
+  const up = day.items.reduce((t, c) => t + (c.pulled === "level" ? c.mins : 0), 0);
+  if (up > 0) return {tone:"warn", txt:`~${fmtMins(up)} of it moved up from heavier days ahead, to even out the week.`};
+  if (heaviest === day && week.length > 1 && day.mins > avg * 1.25) {
+    const slip = [...day.items].reverse().find(c => c.dueDay > day.date && !c.prep);
+    const nd = slip && PLAN[dayKey(addDays(day.date, 1))];
+    const safe = !!(slip && nd && nd.cap > 0 && nd.mins + slip.mins <= day.mins - slip.mins && slip.dueDay > addDays(day.date, 1));
+    if (safe) return {tone:"warn", txt:`The week's heaviest day. “${slip.e.title.slice(0, 32)}${slip.e.title.length > 32 ? "…" : ""}” can slip to tomorrow and the week stays even.`, slip};
+    return {tone:"warn", txt:"The week's heaviest day — soonest due first."};
+  }
+  if (heaviest !== day && week.length > 1 && day.mins > avg * 1.25) return {tone:"warn", txt:`A heavy day — soonest due first. ${FMT_DAY.format(heaviest.date)} is the week's heaviest (~${fmtMins(heaviest.mins)}).`};   // a 4 h day beside a 2 h average was called "about normal" because only the heaviest day had a line (review, 2026-10-30)
+  if (heaviest !== day && day.mins < avg * 0.75) return {tone:"good", txt:`A lighter day. ${FMT_DAY.format(heaviest.date)} is the week's heaviest (~${fmtMins(heaviest.mins)}).`};
+  return {tone:"good", txt:`About a normal day this week (~${fmtMins(Math.round(avg))} a day).`};
 }
 function planRow(c, today){
   if (c.prep) return prepRowHtml(c);
   const e = c.e, d = dueLabel(e), done = !!store.done[e.id];
-  const why = e.due < now() ? "overdue — rescue it" : dayKey(e.due) === dayKey(today) ? "due today" : c.parts > 1 ? `part ${c.part} of ${c.parts} · due ${FMT_DAY.format(e.due)}` : c.pulled ? `due ${FMT_DAY.format(e.due)} — that day is packed, do it now` : c.dueDay < startOfDay(e.due) ? `due ${FMT_DAY.format(e.due)} ${FMT_TIME.format(e.due)} — finish the day before` : `due ${FMT_DAY.format(e.due)} — start now`;
+  /* v79.0, Phase 3: LMK has no signal that an earlier part was done (the checkbox marks the whole thing; time is not progress), so a thing it first
+     planned on an earlier day is re-planned in full and the due-day row says so instead of pretending: the minutes stay, the uncertainty is spoken. */
+  const earlier = !c.prep && dayKey(e.due) === dayKey(today) && c.parts === 1 && (store.planFirst || {})[e.id] && (store.planFirst || {})[e.id] < dayKey(today) && c.mins >= 60;
+  const why = e.due < now() ? "overdue — rescue it" : dayKey(e.due) === dayKey(today) ? (earlier ? "due today — all of it, unless the parts planned on earlier days are done" : "due today") : c.parts > 1 ? `part ${c.part} of ${c.parts} · due ${FMT_DAY.format(e.due)}` : c.pulled === "level" && c.fromDate ? `due ${FMT_DAY.format(e.due)} — moved up from ${FMT_DAY.format(c.fromDate)} to even out the week` : c.pulled ? `due ${FMT_DAY.format(e.due)} — that day is packed, do it now` : c.dueDay < startOfDay(e.due) ? `due ${FMT_DAY.format(e.due)} ${FMT_TIME.format(e.due)} — finish the day before` : `due ${FMT_DAY.format(e.due)} — start now`;
   return `<div class="item ${done?"done":""}" data-id="${e.id}" style="box-shadow:inset 3px 0 0 ${COLOR[e.course]}">
     <button class="cbx" data-act="done" aria-label="${done?"Mark not done":"Mark done"}: ${esc(e.title)}">${ICON_CHECK}</button>
     <div class="body">
@@ -3542,18 +3791,6 @@ function planDiffLine(){
   const fmt = key => key === k ? "today" : FMT_DAY.format(new Date(+key.slice(0,4), +key.slice(5,7)-1, +key.slice(8,10)));
   return `<div class="bdiff">Replanned quietly: ${moved.slice(0, 2).map(m => `“${esc(m.e.title.slice(0, 28))}${m.e.title.length > 28 ? "…" : ""}” ${fmt(m.from)} → ${fmt(m.to)}${dayKey(m.e.due) > m.to ? " (still safe)" : ""}`).join(" · ")}${moved.length > 2 ? ` · +${moved.length - 2} more` : ""}</div>`;
 }
-function capacityCard(){
-  const c = store.capacity || CAP_DEFAULT;
-  const chip = (kind, v) => `<button class="minibtn ${+c[kind] === v ? "keep" : ""}" data-act="cap" data-kind="${kind}" data-v="${v}">${v}h</button>`;
-  return `<div class="card capcard">
-    <div style="font-weight:700;margin-bottom:4px">Your study hours</div>
-    <div class="privacy" style="margin:0 0 10px">LMK plans around this — no calendar grid, no daily ritual. Change it any time.</div>
-    <div class="caprow"><span>Weekdays</span>${[1,1.5,2,3,4].map(v => chip("weekday", v)).join("")}</div>
-    <div class="caprow"><span>Weekends</span>${[1,2,3,4,5].map(v => chip("weekend", v)).join("")}</div>
-    <div class="row" style="margin-top:8px"><button class="btn ghost" data-act="cap-close">Done</button></div>
-  </div>`;
-}
-let showCap = false;
 const openPiles = new Set();   // which piles the student opened; kept in the HTML so the minute render never folds them
 function pileRow(b, today){
   const hot = b.start <= today, openNow = openPiles.has(b.key);
@@ -4538,11 +4775,12 @@ function renderNow(root){
   // today's plan — the budget, the short list, and one honest sentence
   const dueToday = EVENTS.filter(visible).filter(e => dayKey(e.due) === dayKey(n));
   const icToday = dueToday.filter(e => e.kind === "inclass" && !store.done[e.id]);
-  const day = PLAN[dayKey(today)] || {cap:0, mins:0, items:[], date:today};
+  const day = PLAN[dayKey(today)] || {cap:Infinity, mins:0, items:[], date:today};
   // a study session the student said yes to takes its minutes out of today like any other work
   const bday = day;
   const bl = budgetLine(day);
-  const pct = bday.cap ? Math.min(100, Math.round(bday.mins / bday.cap * 100)) : 0;
+  /* the bar is today against the week's heaviest planned day (v79.0): full means today is that day; there is no number of hours behind it */
+  const pct = (() => { let peak = day.mins; for (let i = 1; i < 7; i++) { const d = PLAN[dayKey(addDays(today, i))]; if (d && d.mins > peak) peak = d.mins; } return peak ? Math.min(100, Math.round(bday.mins / peak * 100)) : 0; })();
   const doneTodayIds = Object.keys(store.done).filter(id => dayKey(new Date(store.done[id])) === dayKey(n));
   const ahead = AHEAD[dayKey(today)] || [];
   html += recapCountdownHtml("top");
@@ -4550,21 +4788,15 @@ function renderNow(root){
   html += `<h2 class="sec">Today <span class="count">${nThings ? `${nThings} thing${nThings > 1 ? "s" : ""} · ~${fmtMins(bday.mins)}` : "clear"}</span></h2>`;
   html += `<div class="card budget ${bl.tone}">
     <div class="bar"><i style="width:${animNext ? 0 : pct}%" data-w="${pct}%"></i></div>
-    <div class="btxt"><span>~${fmtMins(bday.mins)} of ${bday.capFull && bday.cap < bday.capFull ? `the ${fmtMins(bday.cap)} left today` : `your ${fmtMins(bday.cap)}`}</span><b>${esc(bl.txt)}</b></div>
-    ${(() => { const k = PLAN_OVER.find(x => x !== dayKey(today)); if (!k || day.mins > day.cap) return ""; const od = PLAN[k]; return `<div class="bdiff">Heads up: <b>${FMT_DAY.format(od.date)}</b> is packed — ~${fmtMins(od.mins)} of ${fmtMins(od.cap)}. An extra hour today pulls some of it forward.</div>`; })()}
-    <div class="bacts">
-      ${bl.slip ? `<button class="minibtn" data-act="slip" data-id="${bl.slip.e.id}">Slip it</button>` : ""}
-      ${day.mins > day.cap || PLAN_OVER.length ? `<button class="minibtn" data-act="cap-bump">Give today ${capHours(today) + 1}h</button>` : ""}
-      <button class="minibtn" data-act="cap-edit" title="Change your study hours">${fmtMins(Math.round(capHours(today)*60))}/day ✎</button>
-    </div>
+    <div class="btxt"><span>~${fmtMins(bday.mins)} today${Number.isFinite(bday.cap) && bday.cap < bday.mins ? ` · ~${fmtMins(bday.cap)} left in the day` : ""}</span><b>${esc(bl.txt)}</b></div>
+    ${bl.slip ? `<div class="bacts"><button class="minibtn" data-act="slip" data-id="${bl.slip.e.id}">Slip it</button></div>` : ""}
     ${planDiffLine()}
   </div>`;
-  if (showCap) html += capacityCard();
   if (day.items.length || (calOn() && CAL.busy && calEventsOn(today).length)) html += `<div class="card"><div class="list">${dayListHtml(day.items, day, today)}</div></div>`;
   else if (!doneTodayIds.length) html += `<div class="empty">${ahead.length ? "A head start is just below if you want one — going outside is also correct." : "Nothing to do today. Tomorrow's plan is already set — go outside."}</div>`;
   if (icToday.length) html += `<div class="empty" style="margin-top:8px;border-style:solid;font-size:12.5px">🏫 In class today: ${icToday.map(e => `<b>${esc(e.course)}</b> ${esc(e.title.slice(0, 40))}`).join(" · ")} — just show up.</div>`;
   html += annCardHtml();   // what professors posted (v76.0): after today's plan, never above it
-  // get ahead — optional, sized to what is left of today's budget, never a debt
+  // get ahead — optional, one part's worth on a day with room, never a debt
   if (ahead.length) {
     const tot = ahead.reduce((t, x) => t + x.mins, 0);
     html += `<h2 class="sec">Get ahead <span class="count">optional · ~${fmtMins(tot)}</span></h2>
@@ -4648,7 +4880,7 @@ function renderPlan(root){
     const mins = openCt.reduce((s,e)=>s+learnedMins(e).mins,0);
     const label = i===0?"Today":i===1?"Tomorrow":FMT_DAY.format(d);
     const pd = PLAN[dayKey(d)];
-    html += `<div class="dayhead"><span class="d">${label}</span><span class="m">${openCt.length} due · ~${mins>=60?Math.round(mins/60*10)/10+"h":mins+"m"}${pd && pd.items.length ? ` · plan ~${fmtMins(pd.mins)} of ${fmtMins(pd.cap)}${pd.mins > pd.cap ? " ⚠" : ""}` : ""}</span></div>`;
+    html += `<div class="dayhead"><span class="d">${label}</span><span class="m">${openCt.length} due · ~${mins>=60?Math.round(mins/60*10)/10+"h":mins+"m"}${pd && pd.items.length ? ` · plan ~${fmtMins(pd.mins)}` : ""}</span></div>`;
     if (calOn() && CAL.busy) { const ce = calEventsOn(d); if (ce.length) html += `<div class="calline">${ce.slice(0, 4).map(x => `<span>${FMT_TIME.format(new Date(x.s))} ${esc(x.t || "Busy")}</span>`).join("")}${ce.length > 4 ? `<span>+${ce.length - 4} more</span>` : ""}</div>`; }
     if (evs.length) html += listCard(evs, {timeOnly:true});
     if (preps.length) html += `<div class="card" style="margin-top:${evs.length ? 8 : 0}px"><div class="list">${preps.map(prepRowHtml).join("")}</div></div>`;
@@ -4856,7 +5088,7 @@ function postPlanToExtension(){
       const k = dayKey(addDays(today, i)), d = PLAN[k];
       if (!d) continue;
       const first = d.items[0];
-      days[k] = {n: d.items.length, mins: d.mins, cap: d.cap,
+      days[k] = {n: d.items.length, mins: d.mins,
         first: first ? {title: first.e.title.slice(0, 80), course: first.e.course, mins: first.mins, aid: /^a\d+$/.test(first.e.id) ? first.e.id.slice(1) : ""} : null};
     }
     /* Per-assignment estimates for the card the extension draws on a Canvas assignment page: the same learned
@@ -5013,7 +5245,7 @@ function cachePlanLine(days, today){
 /* The sync bookmarklet, generated from ~/lmk-extension/bookmarklet.txt — regenerate both together.
    It works on ANY school's Canvas, which is the whole point: it takes the origin from the page it runs on. */
 const LMK_SYNC_BOOKMARKLET = "javascript:(function(){%0A  let BASE = \"\";%0A  const sleep = ms => new Promise(r => setTimeout(r, ms));%0A  /* Bounded-concurrency map. Canvas answers one request about as fast as six, so the old one-at-a-time%0A     walk spent almost all of its time waiting: 1 + 3 per course + up to 40 quiz reads, strictly in series,%0A     is ~70 round trips deep and took tens of seconds on a full course load. LIMIT is deliberately modest %E2%80%94%0A     Canvas rate-limits on a leaky bucket per session and answers 403 when it runs dry. */%0A  const LIMIT = 6;%0A  /* The ceiling has to be on requests actually in flight, not on tasks: fanning out five courses that each%0A     fire three reads is fifteen at once, which is how you empty Canvas's bucket and start collecting 403s.%0A     Every hop passes through this gate, so the fan-out above can be as wide as it likes. */%0A  let live = 0; const waiting = [];%0A  const acquire = () => live < LIMIT ? (live++, Promise.resolve()) : new Promise(r => waiting.push(r));%0A  const release = () => { const w = waiting.shift(); if (w) w(); else live--; };   // hand the slot straight on%0A  async function pool(list, n, fn){%0A    const out = new Array(list.length); let i = 0;%0A    await Promise.all(Array.from({length: Math.min(n, list.length)}, async () => {%0A      for (;;){ const k = i++; if (k >= list.length) return; out[k] = await fn(list[k], k); }%0A    }));%0A    return out;%0A  }%0A  async function getJSON(path){%0A    const out = [];%0A    let url = BASE + path + (path.includes(\"?\") ? \"&\" : \"?\") + \"per_page=100\";%0A    for (let hop = 0; url && hop < 20; hop++){%0A      let r = null;%0A      /* A 403 here is usually the rate-limit bucket, not a permission problem, and it only started%0A         happening once LMK asked for several courses at once. Backing off and trying again is the%0A         difference between a full sync and a course going silently missing. */%0A      for (let tryN = 0; tryN < 3; tryN++){%0A        const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000);%0A        await acquire();%0A        try { r = await fetch(url, {credentials:\"include\", headers:{\"Accept\":\"application/json\"}, signal: ctl.signal}); }%0A        finally { clearTimeout(timer); release(); }%0A        if (r.ok || (r.status !== 403 && r.status !== 429 && r.status < 500)) break;%0A        await sleep(300 * (tryN + 1));%0A      }%0A      if (!r || !r.ok) throw new Error(((r && r.status) || \"net\") + \" \" + path);%0A      let txt = await r.text();%0A      if (txt.startsWith(\"while(1);\")) txt = txt.slice(9);%0A      const data = JSON.parse(txt);%0A      if (Array.isArray(data)) out.push(...data); else return data;%0A      const link = r.headers.get(\"Link\") || \"\";%0A      const m = link.match(/<([^>]+)>;%5Cs*rel=\"next\"/);%0A      url = m ? m[1] : null;%0A    }%0A    return out;%0A  }%0A  const strip = h => (h || \"\").replace(/<[^>]+>/g, \" \").replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/%5Cs+/g, \" \").trim();%0A  /* Canvas's own grade for this course: exactly what the student sees, with group weights, drop rules,%0A     late policies and excused work already applied. Null when the instructor hides totals. */%0A  function courseScores(c){%0A    const num = v => (v === null || v === undefined || v === \"\" || !isFinite(+v)) ? null : +v;%0A    const es = (c.enrollments || []).filter(e => /student/i.test(e.type || e.role || \"\"));%0A    const e = es.find(x => x.computed_current_score != null) || es[0] || {};%0A    return {cur: num(e.computed_current_score), fin: num(e.computed_final_score)};%0A  }%0A  /* The syllabus page, as text that keeps its lines (a schedule table reads \"Oct 14 | Midterm Exam\" row by row), so the app%0A     can find exam dates itself instead of asking the student to read the syllabus (0.9.4). A syllabus that is only a%0A     linked file (often a PDF) is passed on as that file's address. Same request as the course list: nothing extra. */%0A  function sylText(h){%0A    return tidy(String(h || \"\").replace(/<(br|%5C/p|%5C/li|%5C/tr|%5C/h[1-6]|%5C/div)[^>]*>/gi, \"%5Cn\").replace(/<%5C/t[dh]>/gi, \" | \").replace(/<[^>]+>/g, \" \")%0A      .replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\")%0A      .split(\"%5Cn\").map(l => l.replace(/[ %5Ct]+/g, \" \").trim()).filter(Boolean).join(\"%5Cn\"), 15000);   // tidy: the cap keeps the dated lines (0.9.6)%0A  }%0A  /* Links on the syllabus page that are not Canvas files but name the syllabus, schedule or calendar %E2%80%94 a Google Doc, a%0A     department page. LMK cannot read them; the app can at least show the student where the syllabus is (0.9.6). */%0A  function sylLinks(h){%0A    const out = [];%0A    for (const a of String(h || \"\").match(/<a[^>]+href=\"[^\"]+\"[^>]*>[^<]*<%5C/a>/gi) || []) {%0A      let u = ((a.match(/href=\"([^\"]+)\"/i) || [])[1] || \"\").replace(/&amp;/g, \"&\"); const t = a.replace(/<[^>]+>/g, \"\").replace(/%5Cs+/g, \" \").trim();%0A      if (u.startsWith(\"/\")) u = BASE + u;   // Canvas writes its own links relative (a page, a module item)%0A      if (!/^https:/.test(u) || /%5C/files%5C/%5Cd+/.test(u) || !/syllab|schedule|calendar/i.test(t + \" \" + u) || out.some(x => x.u === u)) continue;%0A      out.push({t: t.slice(0, 60), u: u.slice(0, 300)}); if (out.length >= 5) break;%0A    }%0A    return out;%0A  }%0A  function sylFile(h){%0A    const m = String(h || \"\").match(/<a[^>]+href=\"([^\"]*%5C/files%5C/%5Cd+[^\"]*)\"[^>]*>([^<]*)<%5C/a>/gi) || [];%0A    for (const a of m) { const href = (a.match(/href=\"([^\"]+)\"/i) || [])[1] || \"\", txt = a.replace(/<[^>]+>/g, \"\"); if (/syllab/i.test(txt + href)) return href.replace(/&amp;/g, \"&\"); }%0A    return \"\";%0A  }%0A  /* ---- the linked syllabus file, read (0.9.5) ----%0A     Measured on Emiel's Canvas on 2026-10-10 (extension.md, \"Syllabus files %E2%80%94 the check\"): the file is reachable only through the%0A     address /api/v1/files/:id hands back %E2%80%94 a verifier link that redirects to Instructure's file CDN, which lets the bytes through%0A     from the page and from the worker alike. /courses/:cid/files/:fid/download fails in both, and Files is 403 to students on%0A     most courses, so the syllabus page's own link is the only source. Both of his were .docx, so Word is read first and PDF%0A     second. Only text leaves here (rows kept, like the page); the bytes are never stored. A file is read once a day per file id;%0A     the rest of the time its text rides along from the previous payload. */%0A  const DOC_MAX = 2 * 1024 * 1024, DOC_TTL = 24 * 3600e3, DOC_CHARS = 30000;%0A  async function inflate(bytes, format){%0A    const r = new Response(new Response(bytes).body.pipeThrough(new DecompressionStream(format)));%0A    return new Uint8Array(await r.arrayBuffer());%0A  }%0A  const latin1 = b => { let s = \"\"; for (let i = 0; i < b.length; i += 8192) s += String.fromCharCode.apply(null, b.subarray(i, i + 8192)); return s; };%0A  const u32 = (b, i) => (b[i] | (b[i + 1] << 8) | (b[i + 2] << 16)) + b[i + 3] * 16777216, u16 = (b, i) => b[i] | (b[i + 1] << 8);%0A  /* Lines, tidied, within the cap. Past the cap only lines that carry a date survive: a schedule at the end of a long syllabus%0A     is exactly what this is for, and the page text's own 15,000-char cut has already lost one. */%0A  const DATED = /%5Cb(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*%5C.? ?%5Cd|%5Cd{1,2}%5C/%5Cd{1,2}/i;%0A  const tidy = (t, cap = DOC_CHARS) => {%0A    const ls = t.split(\"%5Cn\").map(l => l.replace(/[ %5Ct%5Cu00a0]+/g, \" \").replace(/( %5C|)+ *$/, \"\").trim()).filter(Boolean);%0A    let n = 0, cut = ls.length;%0A    for (let i = 0; i < ls.length; i++) { n += ls[i].length + 1; if (n > cap) { cut = i; break; } }%0A    if (cut === ls.length) return ls.join(\"%5Cn\");%0A    /* Past the cap, the lines that carry a date are what matters %E2%80%94 a schedule at the end of a long syllabus %E2%80%94 so they take%0A       room first and the head of the text takes what is left; the total stays within the cap (privacy.html quotes it). */%0A    const dated = ls.slice(cut).filter(l => DATED.test(l));%0A    while (dated.length && dated.reduce((a, l) => a + l.length + 1, 0) > cap) dated.pop();%0A    let room = cap - dated.reduce((a, l) => a + l.length + 1, 0);%0A    const head = []; for (const l of ls.slice(0, cut)) { if (room < l.length + 1) break; head.push(l); room -= l.length + 1; }%0A    return head.concat(dated).join(\"%5Cn\");%0A  };%0A  const unxml = s => s.replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/&apos;/g, \"'\").replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&#(%5Cd+);/g, (_, d) => String.fromCodePoint(+d));%0A  /* One entry out of a zip (a .docx is one): the central directory from the end, then the local header it points at. */%0A  async function zipEntry(bytes, name){%0A    let e = bytes.length - 22; while (e >= 0 && u32(bytes, e) !== 0x06054b50) e--; if (e < 0) return null;%0A    let p = u32(bytes, e + 16);%0A    for (let n = u16(bytes, e + 10); n > 0 && u32(bytes, p) === 0x02014b50; n--) {%0A      const method = u16(bytes, p + 10), csize = u32(bytes, p + 20), nl = u16(bytes, p + 28), el = u16(bytes, p + 30), cl = u16(bytes, p + 32), lh = u32(bytes, p + 42);%0A      const nm = latin1(bytes.subarray(p + 46, p + 46 + nl));%0A      p += 46 + nl + el + cl;%0A      if (nm !== name) continue;%0A      const d = lh + 30 + u16(bytes, lh + 26) + u16(bytes, lh + 28), data = bytes.subarray(d, d + csize);%0A      return method === 8 ? inflate(data, \"deflate-raw\") : method === 0 ? data : null;%0A    }%0A    return null;%0A  }%0A  /* Word: paragraphs are lines, a table row is one line with \" | \" between its cells (so \"Oct 14 | Midterm Exam\" reads as a row). */%0A  async function docxText(bytes){%0A    const xml = await zipEntry(bytes, \"word/document.xml\"); if (!xml) return \"\";%0A    return tidy(unxml(new TextDecoder().decode(xml)%0A      .replace(/<w:(?:tab|br|cr)%5Cb[^>]*%5C/>/g, m => /tab/.test(m) ? \" \" : \"%5Cn\")%0A      .replace(/<%5C/w:p>%5Cs*(?=<%5C/w:tc>)/g, \"\").replace(/<%5C/w:tc>/g, \" | \").replace(/<%5C/w:(?:p|tr)>/g, \"%5Cn\")%0A      .replace(/<[^>]+>/g, \"\")));%0A  }%0A  /* PDF, without a library: every object (object streams unpacked), each page's content streams inflated, text operators%0A     read with the font's ToUnicode map (what Word, Google Docs and Chrome write). A line ends where the text matrix moves%0A     down; a horizontal move between runs on the same line is a space. A scanned PDF, or one whose fonts carry no map, yields%0A     nothing %E2%80%94 and the app then says the file could not be read, which is true. */%0A  async function pdfText(bytes){%0A    const src = latin1(bytes); if (!src.startsWith(\"%25PDF\")) return \"\";%0A    const objs = {};%0A    const value = (s, i) => {%0A      while (i < s.length && /%5Cs/.test(s[i])) i++;%0A      const c = s[i], c2 = s[i + 1];%0A      if (c === \"<\" && c2 === \"<\") { let d = 0, j = i; while (j < s.length) { if (s[j] === \"<\" && s[j + 1] === \"<\") { d++; j += 2; } else if (s[j] === \">\" && s[j + 1] === \">\") { d--; j += 2; if (!d) break; } else if (s[j] === \"(\") j = value(s, j)[1]; else j++; } return [s.slice(i, j), j]; }%0A      if (c === \"[\") { let d = 0, j = i; while (j < s.length) { if (s[j] === \"[\") { d++; j++; } else if (s[j] === \"]\") { d--; j++; if (!d) break; } else if (s[j] === \"(\" || (s[j] === \"<\" && s[j + 1] === \"<\")) j = value(s, j)[1]; else j++; } return [s.slice(i, j), j]; }%0A      if (c === \"(\") { let d = 0, j = i; while (j < s.length) { if (s[j] === \"%5C%5C\") { j += 2; continue; } if (s[j] === \"(\") d++; else if (s[j] === \")\") { d--; if (!d) { j++; break; } } j++; } return [s.slice(i, j), j]; }%0A      if (c === \"<\") { const j = s.indexOf(\">\", i); return j < 0 ? [\"\", s.length] : [s.slice(i, j + 1), j + 1]; }%0A      const m = s.slice(i, i + 64).match(/^(%5Cd+%5Cs+%5Cd+%5Cs+R%5Cb|%5C/[^%5Cs%5C/%5C[%5C]<>(){}%25]*|[^%5Cs%5C/%5C[%5C]<>(){}%25]+)/);%0A      return m ? [m[0], i + m[0].length] : [\"\", i + 1];%0A    };%0A    const parseDict = s => { const out = {}; if (!s.startsWith(\"<<\")) return out; let i = 2; const end = s.length - 2;%0A      while (i < end) { const [k, j] = value(s, i); if (!k) { i = j; continue; } if (k[0] === \"/\") { const [v, j2] = value(s, j); out[k.slice(1)] = v; i = j2; } else i = j; }%0A      return out; };%0A    const tokens = arr => { const out = []; let i = 1; const end = arr.length - 1; while (i < end) { const [v, j] = value(arr, i); if (v) out.push(v); i = j; } return out; };%0A    const ref = v => (String(v || \"\").match(/^(%5Cd+)%5Cs+%5Cd+%5Cs+R$/) || [])[1];%0A    const deref = v => { const n = ref(v); return n ? (objs[n] || {}).body || \"\" : String(v || \"\"); };%0A    const dictOf = v => parseDict(value(deref(v), 0)[0]);%0A    const streamOf = async n => { const o = objs[n]; if (!o || !o.raw) return null;%0A      const d = parseDict(value(o.body, 0)[0]), f = String(d.Filter || \"\");%0A      if (/Predictor%5Cs+(?:[2-9]|1%5Cd)%5Cb/.test(deref(d.DecodeParms))) return null;%0A      try { return !f ? o.raw : /FlateDecode/.test(f) && !/(ASCII|LZW|DCT|CCITT|JBIG|JPX|RunLength)/.test(f) ? await inflate(o.raw, \"deflate\") : null; } catch (_) { return null; } };%0A    const re = /(%5Cd+)%5Cs+%5Cd+%5Cs+obj%5Cb/g; let m; const lateLen = [];%0A    while ((m = re.exec(src))) {%0A      const start = re.lastIndex, end = src.indexOf(\"endobj\", start); if (end < 0) break;%0A      let body = src.slice(start, end), raw = null;%0A      const si = body.search(/stream%5Cr?%5Cn/);%0A      if (si >= 0) {%0A        const dataStart = start + si + (body[si + 6] === \"%5Cr\" ? 8 : 7); body = body.slice(0, si);%0A        const lm = body.match(/%5C/Length%5Cs+(%5Cd+)(%5Cs+%5Cd+%5Cs+R)?/);%0A        if (lm && !lm[2]) raw = bytes.subarray(dataStart, dataStart + +lm[1]);%0A        else lateLen.push([m[1], dataStart, lm ? lm[1] : null]);%0A      }%0A      objs[m[1]] = {body, raw}; re.lastIndex = end + 6;%0A    }%0A    for (const [n, dataStart, lenObj] of lateLen) {%0A      let len = lenObj && objs[lenObj] ? +objs[lenObj].body.trim() : NaN;%0A      if (!(len >= 0)) { let e = src.indexOf(\"endstream\", dataStart); while (e > dataStart && /[%5Cr%5Cn]/.test(src[e - 1])) e--; len = e - dataStart; }%0A      objs[n].raw = bytes.subarray(dataStart, dataStart + len);%0A    }%0A    for (const n of Object.keys(objs)) {               // object streams hold the catalog, pages and fonts of most modern writers%0A      const o = objs[n]; if (!o.raw || !/%5C/Type%5Cs*%5C/ObjStm%5Cb/.test(o.body)) continue;%0A      const data = await streamOf(n); if (!data) continue;%0A      const d = parseDict(value(o.body, 0)[0]), txt = latin1(data), first = +d.First, N = +d.N;%0A      const head = txt.slice(0, first).trim().split(/%5Cs+/).map(Number);%0A      for (let i = 0; i < N; i++) { const num = head[2 * i], off = head[2 * i + 1], next = i + 1 < N ? head[2 * i + 3] : txt.length - first;%0A        if (num >= 0 && !objs[num]) objs[num] = {body: txt.slice(first + off, first + next), raw: null}; }%0A    }%0A    const uni = h => { let s = \"\"; for (let i = 0; i + 4 <= h.length; i += 4) s += String.fromCharCode(parseInt(h.slice(i, i + 4), 16)); if (h.length === 2) s = String.fromCharCode(parseInt(h, 16)); return s.replace(/[%5Cud800-%5Cudbff][%5Cudc00-%5Cudfff]|[%5Cud800-%5Cudfff]/g, x => x.length === 2 ? x : \"\"); };%0A    const cmapOf = async f => {%0A      const n = ref(f.ToUnicode); if (!n) return null;%0A      const data = await streamOf(n); if (!data) return null;%0A      const t = latin1(data), map = new Map();%0A      const cs = t.match(/begincodespacerange%5Cs*<([0-9a-f]+)>/i) || t.match(/beginbfchar%5Cs*<([0-9a-f]+)>/i) || t.match(/beginbfrange%5Cs*<([0-9a-f]+)>/i);%0A      const w = cs ? Math.max(1, Math.min(4, cs[1].length / 2)) : 2;%0A      for (const blk of t.matchAll(/beginbfchar([%5Cs%5CS]*?)endbfchar/g)) for (const p of blk[1].matchAll(/<([0-9a-f]+)>%5Cs*<([0-9a-f]*)>/gi)) map.set(parseInt(p[1], 16), uni(p[2]));%0A      for (const blk of t.matchAll(/beginbfrange([%5Cs%5CS]*?)endbfrange/g)) for (const p of blk[1].matchAll(/<([0-9a-f]+)>%5Cs*<([0-9a-f]+)>%5Cs*(<[0-9a-f]*>|%5C[[^%5C]]*%5C])/gi)) {%0A        const lo = parseInt(p[1], 16), hi = Math.min(parseInt(p[2], 16), lo + 65535);%0A        if (p[3][0] === \"[\") { const arr = [...p[3].matchAll(/<([0-9a-f]*)>/gi)].map(x => uni(x[1])); for (let c = lo; c <= hi && c - lo < arr.length; c++) map.set(c, arr[c - lo]); }%0A        else { const base = uni(p[3].slice(1, -1)); if (!base) continue; for (let c = lo; c <= hi; c++) map.set(c, base.slice(0, -1) + String.fromCharCode(base.charCodeAt(base.length - 1) + (c - lo))); }%0A      }%0A      return map.size ? {map, w} : null;%0A    };%0A    const bytesOf = tok => {%0A      if (tok[0] === \"<\") { const h = tok.slice(1, -1).replace(/[^0-9a-f]/gi, \"\"); const out = []; for (let i = 0; i < h.length; i += 2) out.push(parseInt(h.slice(i, i + 2).padEnd(2, \"0\"), 16)); return out; }%0A      const out = [], s = tok.slice(1, -1), esc = {n: 10, r: 13, t: 9, b: 8, f: 12};%0A      for (let i = 0; i < s.length; i++) { const c = s[i];%0A        if (c !== \"%5C%5C\") { out.push(c.charCodeAt(0) & 255); continue; }%0A        const n = s[i + 1]; if (n === undefined) break;%0A        const oct = s.slice(i + 1, i + 4).match(/^[0-7]{1,3}/);%0A        if (oct) { out.push(parseInt(oct[0], 8) & 255); i += oct[0].length; continue; }%0A        i++; if (n === \"%5Cn\") continue; if (n === \"%5Cr\") { if (s[i + 1] === \"%5Cn\") i++; continue; }%0A        out.push(esc[n] !== undefined ? esc[n] : n.charCodeAt(0) & 255); }%0A      return out;%0A    };%0A    const decode = (tok, font) => {%0A      const b = bytesOf(tok); if (!font || !font.cmap) return font && font.identity ? \"\" : String.fromCharCode.apply(null, b);%0A      const {map, w} = font.cmap; let s = \"\";%0A      for (let i = 0; i < b.length; i += w) { let code = 0; for (let k = 0; k < w; k++) code = code * 256 + (b[i + k] || 0); const u = map.get(code); s += u !== undefined ? u : (w === 1 && code >= 32 && code < 127 ? String.fromCharCode(code) : \"\"); }%0A      return s;%0A    };%0A    const lines = []; const fontCache = new Map(); let pages = 0;%0A    const runContent = (txt, fonts) => {%0A      let line = \"\", font = null, y = null, stack = [], i = 0; const L = txt.length;%0A      const nl = () => { if (line.trim()) lines.push(line); line = \"\"; };%0A      const gap = () => { if (line && !/%5Cs$/.test(line)) line += \" \"; };%0A      while (i < L) {%0A        const c = txt[i];%0A        if (/%5Cs/.test(c)) { i++; continue; }%0A        if (c === \"%25\") { i = txt.indexOf(\"%5Cn\", i); if (i < 0) break; continue; }%0A        if (c === \"(\" || c === \"[\" || c === \"<\" || c === \"/\") { const [v, j] = value(txt, i); stack.push(v); i = j > i ? j : i + 1; continue; }%0A        const om = txt.slice(i, i + 32).match(/^[^%5Cs%5C/%5C[%5C]<>(){}%25]+/); if (!om) { i++; continue; }%0A        const op = om[0]; i += op.length;%0A        if (/^[-+.%5Cd]/.test(op)) { stack.push(op); continue; }%0A        const last = stack[stack.length - 1], prev = stack[stack.length - 2];%0A        switch (op) {%0A          case \"Tf\": font = fonts[String(prev || \"\").slice(1)] || null; break;%0A          case \"Tj\": case \"'\": case '\"': if (op !== \"Tj\") nl(); if (last && /^[(<]/.test(last)) line += decode(last, font); break;%0A          case \"TJ\": for (const t of tokens(last || \"[]\")) { if (/^[(<]/.test(t)) line += decode(t, font); else if (+t < -150) gap(); } break;%0A          case \"Td\": case \"TD\": if (Math.abs(+last || 0) > 0.01) nl(); else if ((+prev || 0) > 0) gap(); break;%0A          case \"T*\": nl(); break;%0A          case \"Tm\": { const f = +last; if (y !== null && Math.abs(f - y) > 0.5) nl(); else if (y !== null) gap(); y = f; break; }%0A          case \"BI\": { const e = txt.indexOf(\"EI\", i); i = e < 0 ? L : e + 2; break; }%0A        }%0A        stack = [];%0A      }%0A      nl();%0A    };%0A    const page = async (d, res) => {%0A      pages++;%0A      const fonts = {}, fd = dictOf(dictOf(res).Font);%0A      for (const [name, v] of Object.entries(fd)) {%0A        const key = ref(v) || name + v;%0A        if (!fontCache.has(key)) { const f = dictOf(v); const cm = await cmapOf(f); fontCache.set(key, {cmap: cm, identity: !cm && /Identity|Type0/.test(String(f.Encoding || \"\") + String(f.Subtype || \"\"))}); }%0A        fonts[name] = fontCache.get(key);%0A      }%0A      let c = d.Contents; if (ref(c) && objs[ref(c)] && !objs[ref(c)].raw) c = objs[ref(c)].body.trim();%0A      let txt = \"\";%0A      for (const r of String(c || \"\").startsWith(\"[\") ? tokens(c) : [c]) { const n = ref(r); if (!n) continue; const data = await streamOf(n); if (data) txt += latin1(data) + \"%5Cn\"; }%0A      runContent(txt, fonts);%0A    };%0A    const walk = async (node, inherited, depth) => {%0A      if (pages >= 80 || depth > 32) return;%0A      const d = dictOf(node), res = d.Resources || inherited;%0A      if (/^%5C/Pages%5Cb/.test(d.Type || \"\")) { for (const k of tokens(deref(d.Kids).trim() || \"[]\")) await walk(k, res, depth + 1); }%0A      else if (/^%5C/Page%5Cb/.test(d.Type || \"\")) await page(d, res);%0A    };%0A    const catalog = Object.keys(objs).find(n => /%5C/Type%5Cs*%5C/Catalog%5Cb/.test(objs[n].body));%0A    const root = catalog && dictOf(objs[catalog].body).Pages;%0A    if (root) await walk(root, \"\", 0);%0A    if (!pages) for (const n of Object.keys(objs).map(Number).sort((a, b) => a - b)) { const d = parseDict(value(objs[n].body, 0)[0]); if (/^%5C/Page%5Cb/.test(d.Type || \"\")) await page(d, d.Resources || \"\"); }%0A    return tidy(lines.join(\"%5Cn\"));%0A  }%0A  async function docText(bytes, kind){%0A    const head = latin1(bytes.subarray(0, 5));%0A    if (head.startsWith(\"PK\")) return docxText(bytes);%0A    if (head.startsWith(\"%25PDF\")) return pdfText(bytes);%0A    return kind === \"docx\" ? docxText(bytes) : kind === \"pdf\" ? pdfText(bytes) : \"\";%0A  }%0A  (typeof window !== \"undefined\" ? window : self).lmkDocText = docText;   // for test-collect, and for collect-d2l.js: one reader for Word and PDF (0.9.10)%0A  (typeof window !== \"undefined\" ? window : self).lmkSylText = sylText;   // the syllabus-page text with table rows kept, for collect-d2l.js too%0A  function courseTag(c){%0A    const s = (c.course_code || c.name || \"\");%0A    if (/asuready/i.test(s)) return \"ASU Ready\";%0A    const m = s.match(/([A-Z]{2,4})%5Cs?-?(%5Cd{2,3}[A-Z]?)/);%0A    return m ? m[1] + \" \" + m[2] : s.slice(0, 18);%0A  }%0A  function rubricText(a){%0A    const r = Array.isArray(a.rubric) ? a.rubric : [];%0A    return r.slice(0, 12).map(c => String(c.description || \"\").replace(/%5Cs+/g, \" \").trim().slice(0, 80) + (c.points != null ? \" (\" + c.points + \" pts)\" : \"\")).filter(x => x.trim() && x.trim() !== \"(0 pts)\").join(\"; \").slice(0, 900);%0A  }%0A  function kindHint(a){%0A    const st = a.submission_types || [];%0A    if (a.grading_type === \"not_graded\" || (a.points_possible === 0 && !st.includes(\"online_quiz\"))) return \"fyi\";%0A    if (st.includes(\"none\") || st.includes(\"on_paper\")) return \"inclass\";%0A    if (/attendance|participation|in.?class|clicker/i.test(a.name || \"\")) return \"inclass\";%0A    if (st.includes(\"online_quiz\")) return \"quiz\";%0A    if (st.includes(\"discussion_topic\")) return \"discussion\";%0A    return \"\";%0A  }%0A  (typeof window !== \"undefined\" ? window : self).lmkCollect = async function(base, prev){%0A    BASE = (base || location.origin).replace(/%5C/$/, \"\");%0A    const HOST = BASE.replace(/^https?:%5C/%5C//, \"\");%0A    /* LMK plans a STUDENT's work, and `enrollment_state=active` happily returns the courses someone%0A       teaches as well. With `include[]=submission` those come back with no submission %E2%80%94 because it is not%0A       their work to hand in %E2%80%94 so every assignment a professor has ever set would arrive looking like%0A       unfinished homework due tomorrow. A course is only dropped when every enrolment in it is positively%0A       a teaching one; a course whose roles Canvas does not report is kept, because guessing wrong in that%0A       direction hides a student's real work. */%0A    const rolesOf = c => (c.enrollments || []).map(e => String(e.type || e.role || \"\").toLowerCase()).filter(Boolean);%0A    const teachesOnly = c => { const r = rolesOf(c); return r.length > 0 && r.every(x => /teacher|^ta$|ta_|designer|grader/.test(x)); };%0A    const allCourses = (await getJSON(\"/api/v1/courses?enrollment_state=active&include[]=term&include[]=total_scores&include[]=syllabus_body\")).filter(c => c.name && !c.access_restricted_by_date);%0A    const taught = allCourses.filter(teachesOnly).length;%0A    const courses = allCourses.filter(c => !teachesOnly(c));%0A    const items = {};%0A    const groups = {};%0A    /* What the professors posted (0.9.13): the last 14 days of announcements across the student's courses, in ONE request%0A       (Canvas takes every course as a context code). Title, the text with its lines kept, when, the link, and whether Canvas%0A       shows it as read; never who wrote it. It goes out with the course reads below, so it adds no wait. A failed read keeps%0A       the previous payload's list, or with none carries no `ann` at all, so the app keeps the list it had (a reader that%0A       does not send a field must not wipe it); an answer with nothing in it is an empty list. */%0A    const since = new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10);%0A    const annP = courses.length ? getJSON(`/api/v1/announcements?${courses.map(c => \"context_codes[]=course_\" + c.id).join(\"&\")}&start_date=${since}&active_only=true`).then(x => x, () => null) : Promise.resolve([]);%0A    /* The three reads a course needs know nothing about each other, and neither do the courses, so they%0A       all go out together. The results are folded back in course order afterwards, so `items`, `groups`%0A       and every id in them come out exactly as the one-at-a-time version produced them. */%0A    const fetched = await pool(courses, 8, async c => {%0A      const [list, subs, g] = await Promise.all([%0A        getJSON(`/api/v1/courses/${c.id}/assignments?include[]=submission&order_by=due_at`).then(x => x, () => null),%0A        /* What the instructor actually wrote back. One request per course, only this student's submissions,%0A           only comments from someone who is not the student. It is the most useful thing LMK can know. */%0A        getJSON(`/api/v1/courses/${c.id}/students/submissions?student_ids[]=self&include[]=submission_comments&per_page=100`).then(x => x, () => []),%0A        getJSON(`/api/v1/courses/${c.id}/assignment_groups`).then(x => x, () => null),%0A      ]);%0A      return {list, subs, g};%0A    });%0A    for (let ci = 0; ci < courses.length; ci++){%0A      const c = courses[ci], tag = courseTag(c), got = fetched[ci] || {};%0A      const list = got.list;%0A      if (!list) continue;                                   // the course's assignments failed: skip it whole, as before%0A      const fb = {};%0A      for (const sub of (Array.isArray(got.subs) ? got.subs : [])) {%0A        const mine = String(sub.user_id || \"\");%0A        const notes = (sub.submission_comments || []).filter(x => x && x.comment && String(x.author_id || \"\") !== mine);%0A        if (notes.length) fb[String(sub.assignment_id)] = strip(notes[notes.length - 1].comment).slice(0, 400);%0A      }%0A      if (got.g) groups[c.id] = got.g.map(x => ({id:x.id, name:x.name, w:x.group_weight}));%0A      for (const a of list){%0A        if (a.only_visible_to_overrides && !a.due_at && !a.has_overrides) continue;%0A        const s = a.submission || {};%0A        items[String(a.id)] = {%0A          t: a.name, c: tag, cid: String(c.id),%0A          due: a.due_at || \"\", lock: a.lock_at || \"\", open: a.unlock_at || \"\",   // open: work cannot start before it (0.9.3)%0A          pts: a.points_possible, gt: a.grading_type, st: (a.submission_types || []).join(\",\"),%0A          grp: a.assignment_group_id, k: kindHint(a),%0A          sub: s.workflow_state || \"\", subAt: s.submitted_at || \"\", score: s.score == null ? null : s.score,%0A          late: !!s.late, missing: !!s.missing, excused: !!s.excused,%0A          url: a.html_url || \"\",%0A          desc: strip(a.description).slice(0, 1200),%0A          rub: rubricText(a),%0A          fb: fb[String(a.id)] || \"\",%0A          qid: a.quiz_id ? String(a.quiz_id) : \"\",%0A        };%0A      }%0A    }%0A    // Canvas keeps seconds spent on every quiz attempt %E2%80%94 exact durations, no sensor needed.%0A    /* This was the other half of the wait: up to forty one-at-a-time reads, every single sync, re-measuring%0A       quizzes that were finished weeks ago. A submitted quiz's time_spent never changes, so anything the%0A       last payload already measured is carried straight over and never asked for again %E2%80%94 after the first%0A       sync this is usually zero requests %E2%80%94 and whatever is genuinely new goes out in parallel. */%0A    const quizTime = {}, quizMap = {};%0A    const known = (prev && prev.quizTime) || {};%0A    const submitted = Object.entries(items).filter(([aid, x]) => x.qid && /^(submitted|graded|pending_review)$/.test(x.sub));%0A    for (const [aid, x] of submitted){%0A      quizMap[x.cid + \"/\" + x.qid] = aid;%0A      if (known[aid] != null) quizTime[aid] = known[aid];%0A    }%0A    const fresh = submitted.filter(([aid]) => known[aid] == null).slice(0, 40);%0A    await pool(fresh, 12, async ([aid, x]) => {%0A      try {%0A        const r = await getJSON(`/api/v1/courses/${x.cid}/quizzes/${x.qid}/submissions`);%0A        const subs = (r && r.quiz_submissions) || [];%0A        const secs = subs.map(q => +q.time_spent || 0).filter(v => v > 0);%0A        if (secs.length) quizTime[aid] = Math.round(Math.max(...secs) / 60);%0A      } catch(e){}%0A    });%0A    for (const aid in items) if (items[aid].qid) quizMap[items[aid].cid + \"/\" + items[aid].qid] = aid;%0A    /* The syllabus files (0.9.5): read once a day per file id, text only; three at a time, through the same request gate. */%0A    const prevDocs = {}; for (const c of ((prev && prev.courses) || [])) if (c && c.sylDocId) prevDocs[String(c.id)] = c;%0A    const docs = {};%0A    /* Where a course's syllabus lives, beyond the page itself: a linked file, or %E2%80%94 when the page only points elsewhere inside%0A       Canvas %E2%80%94 a wiki page (\"READ THE SYLLABUS\" %E2%86%92 /courses/:c/pages/syllabus, CIS 105) or a module item, which the API resolves%0A       to a page or a file (0.9.6). A link off Canvas (a Google Doc) is passed on as a link and never followed. */%0A    const sylTarget = c => {%0A      const f = (sylFile(c.syllabus_body).match(/%5C/files%5C/(%5Cd+)/) || [])[1]; if (f) return {kind: \"file\", fid: f, id: f};%0A      for (const l of sylLinks(c.syllabus_body)) {%0A        let m = l.u.match(new RegExp(\"^\" + BASE.replace(/[.*+?^${}()|[%5C]%5C%5C]/g, \"%5C%5C$&\") + \"/courses/(%5C%5Cd+)/pages/([^/?#]+)\")); if (m) return {kind: \"page\", cid: m[1], slug: m[2], id: \"page:\" + m[1] + \"/\" + m[2]};%0A        m = l.u.match(new RegExp(\"^\" + BASE.replace(/[.*+?^${}()|[%5C]%5C%5C]/g, \"%5C%5C$&\") + \"/courses/(%5C%5Cd+)/modules/items/(%5C%5Cd+)\")); if (m) return {kind: \"item\", cid: m[1], item: m[2], id: \"item:\" + m[2]};%0A      }%0A      return null;%0A    };%0A    await pool(courses.filter(c => sylTarget(c)), 3, async c => {%0A      let tg = sylTarget(c); const old = prevDocs[String(c.id)];%0A      if (old && old.sylDocId === tg.id && Date.now() - (old.sylDocAt || 0) < DOC_TTL) { docs[c.id] = {sylDoc: old.sylDoc || \"\", sylDocId: tg.id, sylDocAt: old.sylDocAt, sylDocKind: old.sylDocKind || \"none\"}; return; }%0A      const out = {sylDoc: \"\", sylDocId: tg.id, sylDocAt: Date.now(), sylDocKind: \"none\"};%0A      try {%0A        if (tg.kind === \"item\") {   // a module item is a pointer: to a page, a file, or something LMK does not read%0A          const it = await getJSON(`/api/v1/courses/${tg.cid}/modules/items/${tg.item}`);%0A          tg = it.type === \"Page\" && it.page_url ? {kind: \"page\", cid: tg.cid, slug: it.page_url, id: tg.id} : it.type === \"File\" && it.content_id ? {kind: \"file\", fid: String(it.content_id), id: tg.id} : {kind: \"none\", id: tg.id};%0A        }%0A        if (tg.kind === \"page\") {%0A          const pg = await getJSON(`/api/v1/courses/${tg.cid}/pages/${encodeURIComponent(tg.slug)}`);%0A          out.sylDoc = sylText(pg.body); out.sylDocKind = out.sylDoc ? \"page\" : \"none\"; docs[c.id] = out; return;%0A        }%0A        if (tg.kind !== \"file\") { docs[c.id] = out; return; }%0A        const fid = tg.fid;%0A        const meta = await getJSON(`/api/v1/files/${fid}`), ct = String(meta[\"content-type\"] || \"\") + \" \" + String(meta.display_name || \"\");%0A        const kind = /pdf%5Cb/i.test(ct) ? \"pdf\" : /wordprocessingml|%5C.docx%5Cb/i.test(ct) ? \"docx\" : \"\";%0A        if (kind && meta.url && (meta.size || 0) <= DOC_MAX) {%0A          await acquire(); let r; try { r = await fetch(meta.url, {credentials: \"include\"}); } finally { release(); }%0A          if (r.ok) { const text = await docText(new Uint8Array(await r.arrayBuffer()), kind); out.sylDoc = text; out.sylDocKind = text ? kind : \"none\"; }%0A        }%0A      } catch (_) { out.sylDocAt = Date.now() - DOC_TTL + 3600e3; }   // try again in an hour, not every sync%0A      docs[c.id] = out;%0A    });%0A    // apply_assignment_group_weights is the course-level switch: when it is false Canvas ignores%0A    // the group weights entirely and grades on total points, however the weights are set.%0A    return Object.assign({lmk:\"canvas\", v:3, at: Date.now(), host: HOST, taught,%0A      courses: courses.map(c => Object.assign({id:String(c.id), tag:courseTag(c), name:c.name, wt: !!c.apply_assignment_group_weights, syl: sylText(c.syllabus_body), sylFile: sylFile(c.syllabus_body), sylLinks: sylLinks(c.syllabus_body)}, courseScores(c), docs[c.id] || {})),%0A      groups, items, quizTime, quizMap}, annOut(await annP, courses, prev));%0A  };%0A  function annOut(list, courses, prev){%0A    if (!Array.isArray(list)) return prev && Array.isArray(prev.ann) ? {ann: prev.ann} : {};   // a failed read keeps the last list%0A    const of = {}; for (const c of courses) of[\"course_\" + c.id] = {cid: String(c.id), c: courseTag(c)};%0A    const ann = list.filter(a => a && a.id != null && of[a.context_code] && (a.title || a.message))%0A      .map(a => ({id: String(a.id), cid: of[a.context_code].cid, c: of[a.context_code].c, t: String(a.title || \"\").slice(0, 200), at: a.posted_at || a.delayed_post_at || \"\",%0A                  txt: sylText(a.message).slice(0, 2000), url: a.html_url || \"\", rd: a.read_state === \"read\"}))%0A      .sort((x, y) => (Date.parse(y.at) || 0) - (Date.parse(x.at) || 0) || (x.id < y.id ? -1 : 1)).slice(0, 40);%0A    return {ann};%0A  }%0A})();%0A%0A(async()=>{try{const p=await window.lmkCollect();const s=JSON.stringify(p);const n=Object.keys(p.items).length;%0Alet ok=false;try{await navigator.clipboard.writeText(s);ok=true}catch(e){}%0Aif(!ok){const ta=document.createElement(\"textarea\");ta.value=s;ta.style.cssText=\"position:fixed;top:8px;left:8px;width:90vw;height:40vh;z-index:99999;font-size:12px\";document.body.appendChild(ta);ta.focus();ta.select();try{ok=document.execCommand(\"copy\")}catch(e){}if(ok)ta.remove();else alert(\"Select all + copy the box, then paste it into LMK (gear %E2%86%92 Paste from Canvas).\")}%0Aif(ok)alert(\"LMK: copied \"+n+\" assignments. Open LMK %E2%86%92 gear %E2%86%92 Paste from Canvas %E2%86%92 paste.\")}catch(e){alert(\"LMK: could not read Canvas %E2%80%94 are you logged in on this tab? \"+e)}})();";
-const APP_BUILD = "v77.1";
+const APP_BUILD = "v79.0";
 const LMK_SYNC_BOOKMARKLET_D2L = "javascript:(function(){%0A  let BASE = \"\", XSRF = \"\", LP = \"1.0\", LE = \"1.0\", ME = \"\";%0A  const DIAG = [];%0A  const lastStatus = () => (DIAG[DIAG.length - 1] || {}).s;   // the status of the call just made (getJSON records every one)%0A  const mask = p => p.replace(/%5C/%5Cd{2,}(?=%5C/|$|%5C?)/g, \"/#\");   // ids out of the path names%0A  async function getJSON(path, soft){%0A    const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 20000);%0A    let r;%0A    try {%0A      const headers = {\"Accept\": \"application/json\"};%0A      if (XSRF) headers[\"X-Csrf-Token\"] = XSRF;%0A      r = await fetch(BASE + path, {credentials: \"include\", headers, signal: ctl.signal});%0A    } catch(e) { clearTimeout(timer); DIAG.push({p: mask(path), s: 0, err: String(e && e.message || e).slice(0, 60)}); if (soft) return null; throw e; }%0A    finally { clearTimeout(timer); }%0A    const rec = {p: mask(path), s: r.status};%0A    if (!r.ok) { DIAG.push(rec); if (soft) return null; throw new Error(r.status + \" \" + path); }%0A    let data = null;%0A    try { data = await r.json(); } catch(e) { rec.err = \"not json\"; DIAG.push(rec); if (soft) return null; throw e; }%0A    const list = Array.isArray(data) ? data : data && Array.isArray(data.Items) ? data.Items : data && Array.isArray(data.Objects) ? data.Objects : null;%0A    rec.n = list ? list.length : 1;%0A    rec.k = Object.keys((list ? list[0] : data) || {}).slice(0, 40);%0A    DIAG.push(rec);%0A    return data;%0A  }%0A  /* Brightspace pages two ways: PagedResultSet {PagingInfo:{Bookmark,HasMoreItems}, Items} and%0A     ObjectListPage {Objects, Next}. Both are walked here; twenty hops is more than any student has. */%0A  async function getAll(path, soft){%0A    const out = []; let next = path;%0A    for (let hop = 0; next && hop < 20; hop++){%0A      const d = await getJSON(next, soft);%0A      if (!d) { if (hop === 0) out.failed = true; break; }   // refused, not empty: \"nothing here\" must never be read into it%0A      if (Array.isArray(d)) { out.push(...d); break; }%0A      if (Array.isArray(d.Items)) { out.push(...d.Items); const pi = d.PagingInfo || {}; next = pi.HasMoreItems && pi.Bookmark ? path + (path.includes(\"?\") ? \"&\" : \"?\") + \"bookmark=\" + encodeURIComponent(pi.Bookmark) : null; continue; }%0A      if (Array.isArray(d.Objects)) { out.push(...d.Objects); next = typeof d.Next === \"string\" && d.Next ? d.Next.replace(/^https?:%5C/%5C/[^/]+/, \"\") : null; continue; }%0A      break;%0A    }%0A    return out;%0A  }%0A  const strip = h => String(h == null ? \"\" : h).replace(/<[^>]+>/g, \" \").replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/%5Cs+/g, \" \").trim();%0A  /* Brightspace text comes in three shapes: a RichText {Text, Html}; on quizzes a wrapper {Text: RichText, IsDisplayed}%0A     (QuizReadData's Description, Instructions, Header and Footer, per D2L's docs); or a bare string. Until 0.9.9 the wrapper%0A     was taken for RichText, so strip() was handed an object and the whole read threw on the first quiz %E2%80%94 what the first%0A     real school to report (mycourses.cccs.edu, 2026-10-13) died on. Text the instructor hid (IsDisplayed false) is text%0A     the student cannot see, so LMK does not show it either. */%0A  const rich = o => {%0A    if (o == null) return \"\";%0A    if (typeof o === \"string\") return strip(o);%0A    if (typeof o !== \"object\") return \"\";%0A    if (o.Text && typeof o.Text === \"object\") return o.IsDisplayed === false ? \"\" : rich(o.Text);%0A    return o.Html ? strip(o.Html) : strip(typeof o.Text === \"string\" ? o.Text : \"\");%0A  };%0A  /* One item a school shapes in a way nobody foresaw is skipped and named in the diag, never the end of the whole read. */%0A  const skipped = (kind, e) => DIAG.push({p: \"lmk/skip/\" + kind, s: 0, n: 0, k: [String((e && e.name) || \"Error\").replace(/[^A-Za-z0-9_]/g, \"\").slice(0, 30)]});%0A  const num = v => (v === null || v === undefined || v === \"\" || !isFinite(+v)) ? null : +v;%0A  const iso = v => { const t = Date.parse(v || \"\"); return isNaN(t) ? \"\" : new Date(t).toISOString(); };%0A  function courseTag(ou){%0A    const s = String(ou.Code || ou.Name || \"\");%0A    const m = s.match(/([A-Z]{2,4})[%5Cs_-]?(%5Cd{2,3}[A-Z]?)(?![0-9])/);%0A    return m ? m[1] + \" \" + m[2] : String(ou.Name || s).slice(0, 18);%0A  }%0A  /* D2L ids are org-wide database ids, but a dropbox folder and a quiz can share a number, and progress is%0A     keyed by id alone. One leading digit per kind keeps them apart and keeps the id all digits (invariant 2). */%0A  const ID_KIND = {dropbox: \"1\", quiz: \"2\", discussion: \"3\", grade: \"4\", event: \"5\", content: \"6\"};   // never renumber one: done marks are keyed by these ids%0A  const idOf = (kind, id) => (ID_KIND[kind] || \"1\") + String(id).replace(/%5CD/g, \"\");%0A  /* The app's isExam(), so a calendar entry LMK takes as an exam is one the app plans study for (and nothing else is taken). */%0A  const EXAM_RE = /%5Cbmidterm%5Cb|%5Cbexam%5Cb|%5Cbfinal%5Cb(?!%5Cs*(draft|written|essay|paper|project|reflection|assignment))/i, NOT_EXAM_RE = /practice|no credit|review session/i;%0A  const nameKey = s => String(s || \"\").toLowerCase().replace(/[^a-z0-9]+/g, \" \").trim();%0A  /* GradeValue.Comments: what the instructor wrote on this grade, which the student sees in Brightspace (PrivateComments is never read). */%0A  const comment = g => g ? rich(g.Comments).slice(0, 400) : \"\";%0A  const pct = (n, d) => (num(n) != null && num(d) > 0) ? Math.round(n / d * 1000) / 10 : null;%0A%0A%0A  /* ---- the syllabus (0.9.10) ----%0A     Canvas has one syllabus field; Brightspace has none, so LMK looks where Brightspace courses keep one, in order: the Course%0A     Overview (its text, and the file attached to it), then a Content topic whose title says syllabus (a Word or PDF file, an%0A     HTML page, or a link elsewhere). The same fields as collect.js, so the app reads exam dates from either the same way:%0A     syl (text), sylDoc/sylDocId/sylDocAt/sylDocKind (a document's text), sylLinks (where it lives when LMK cannot open it).%0A     Text only, read at most once a day per course (sylAt) %E2%80%94 the overview and the table of contents are not asked every sync.%0A     The Word/PDF reader is collect.js's (lmkDocText), loaded beside this file; without it a document is left unread. */%0A  const SYL_TTL = 24 * 3600e3, DOC_MAX = 2 * 1024 * 1024;%0A  const SYL_TITLE = /syllab/i;%0A  const g_ = typeof window !== \"undefined\" ? window : self;%0A  const htmlText = h => typeof g_.lmkSylText === \"function\" ? g_.lmkSylText(String(h || \"\")) : strip(h).slice(0, 15000);%0A  const richText = o => { if (!o) return \"\"; if (typeof o === \"string\") return htmlText(o); if (o.Text && typeof o.Text === \"object\") return o.IsDisplayed === false ? \"\" : richText(o.Text); return o.Html ? htmlText(o.Html) : strip(typeof o.Text === \"string\" ? o.Text : \"\"); };%0A  function sylTopic(toc){%0A    const walk = mods => { for (const m of (Array.isArray(mods) ? mods : [])) {%0A      if (!m || m.IsHidden) continue;%0A      for (const t of (Array.isArray(m.Topics) ? m.Topics : [])) if (t && !t.IsHidden && !t.IsBroken && t.TopicId != null && SYL_TITLE.test(String(t.Title || \"\"))) return t;%0A      const deeper = walk(m.Modules); if (deeper) return deeper;%0A    } return null; };%0A    return walk(toc && toc.Modules);%0A  }%0A  async function fetchDoc(path){%0A    const headers = {}; if (XSRF) headers[\"X-Csrf-Token\"] = XSRF;%0A    const r = await fetch(BASE + path, {credentials: \"include\", headers});%0A    const rec = {p: mask(path), s: r.status, n: 0, k: []}; DIAG.push(rec);%0A    if (!r.ok) return \"\";%0A    const ct = String(r.headers.get(\"content-type\") || \"\"), len = +(r.headers.get(\"content-length\") || 0);%0A    if (len > DOC_MAX) return \"\";%0A    if (/text%5C/html|text%5C/plain/i.test(ct)) { const t = htmlText(await r.text()); rec.n = t ? 1 : 0; return t; }%0A    if (typeof g_.lmkDocText !== \"function\") return \"\";%0A    const bytes = new Uint8Array(await r.arrayBuffer()); if (bytes.length > DOC_MAX) return \"\";%0A    const t = await g_.lmkDocText(bytes, /pdf/i.test(ct) ? \"pdf\" : /wordprocessingml/i.test(ct) ? \"docx\" : \"\");%0A    rec.n = t ? 1 : 0; return t || \"\";%0A  }%0A  async function readSyllabus(cid, prev){%0A    if (prev && prev.sylAt && Date.now() - prev.sylAt < SYL_TTL && \"syl\" in prev) {%0A      const keep = {}; for (const k of [\"syl\", \"sylFile\", \"sylLinks\", \"sylDoc\", \"sylDocId\", \"sylDocAt\", \"sylDocKind\", \"sylAt\"]) if (prev[k] !== undefined) keep[k] = prev[k];%0A      return keep;%0A    }%0A    const out = {syl: \"\", sylFile: \"\", sylLinks: [], sylDoc: \"\", sylDocId: \"\", sylDocAt: Date.now(), sylDocKind: \"none\", sylAt: Date.now()};%0A    try {%0A      const ov = await getJSON(`/d2l/api/le/${LE}/${cid}/overview`, true);%0A      if (ov) out.syl = richText(ov.Description);%0A      if (ov && ov.HasAttachment) {%0A        out.sylDocId = \"overview:\" + cid; out.sylDoc = await fetchDoc(`/d2l/api/le/${LE}/${cid}/overview/attachment`);%0A        out.sylDocKind = out.sylDoc ? \"file\" : \"none\";%0A        if (out.sylDoc) return out;%0A        out.sylFile = out.sylDocId;                                    // a file is there; the app says LMK could not read it (a scan, say)%0A      }%0A      const t = sylTopic(await getJSON(`/d2l/api/le/${LE}/${cid}/content/toc`, true));%0A      if (!t) return out;%0A      const url = String(t.Url || \"\");%0A      if (/^https?:%5C/%5C//i.test(url) && !url.startsWith(BASE)) { out.sylLinks = [{t: String(t.Title || \"Syllabus\").slice(0, 120), u: url.slice(0, 500)}]; return out; }%0A      out.sylDocId = \"topic:\" + t.TopicId;%0A      out.sylDoc = await fetchDoc(`/d2l/api/le/${LE}/${cid}/content/topics/${t.TopicId}/file?stream=true`);%0A      out.sylDocKind = out.sylDoc ? \"file\" : \"none\";%0A      if (out.sylDoc) out.sylFile = \"\"; else if (!out.sylFile) out.sylFile = out.sylDocId;%0A    } catch (_) { out.sylAt = Date.now() - SYL_TTL + 3600e3; }   // a failure is asked again in an hour, not every sync%0A    return out;%0A  }%0A  (typeof window !== \"undefined\" ? window : self).lmkD2LDiag = DIAG;%0A  (typeof window !== \"undefined\" ? window : self).lmkCollectD2L = async function(base, last){%0A    BASE = (base || location.origin).replace(/%5C/$/, \"\");%0A    const HOST = BASE.replace(/^https?:%5C/%5C//, \"\");%0A    DIAG.length = 0;%0A    try { XSRF = String((typeof localStorage !== \"undefined\" && localStorage.getItem(\"XSRF.Token\")) || \"\").replace(/^\"|\"$/g, \"\"); } catch(_) { XSRF = \"\"; }%0A    // the API is versioned per product; ask which versions this school runs rather than guessing%0A    const versions = await getJSON(\"/d2l/api/versions/\", true);%0A    for (const v of (Array.isArray(versions) ? versions : [])) { if (v.ProductCode === \"lp\" && v.LatestVersion) LP = v.LatestVersion; if (v.ProductCode === \"le\" && v.LatestVersion) LE = v.LatestVersion; }%0A    const me = await getJSON(`/d2l/api/lp/${LP}/users/whoami`, true);%0A    ME = me && me.Identifier != null ? String(me.Identifier) : \"\";%0A    const now = Date.now();%0A    const enr = await getAll(`/d2l/api/lp/${LP}/enrollments/myenrollments/?orgUnitTypeId=3`, false);%0A    /* A course this person teaches is not work to plan (Canvas: collect.js `taught`). Brightspace says the role only by its%0A       classlist name, which each school names itself, so the test is by words (0.9.10). */%0A    const TEACH = /instructor|teacher|professor|faculty|lecturer|teaching assistant|%5Cbta%5Cb|designer|grader|facilitator|leader/i;%0A    const teaches = e => TEACH.test(String(((e || {}).Access || {}).ClasslistRoleName || \"\"));%0A    let taught = 0;%0A    const courses = enr.map(e => e || {}).filter(e => {%0A      const ou = e.OrgUnit || {}, a = e.Access || {};%0A      if (!ou.Id || !ou.Name) return false;%0A      if (a.IsActive === false || a.CanAccess === false) return false;%0A      const end = Date.parse(a.EndDate || \"\"), start = Date.parse(a.StartDate || \"\");%0A      if (!isNaN(end) && end < now - 14 * 864e5) return false;       // a course that ended a fortnight ago%0A      if (!isNaN(start) && start > now + 30 * 864e5) return false;   // one that has not started%0A      if (teaches(e)) { taught++; return false; }%0A      return true;%0A    }).map(e => e.OrgUnit);%0A    const items = {}, groups = {}, quizTime = {}, quizMap = {};%0A    let subCalls = 0, attCalls = 0;%0A    /* Whose submissions: D2L documents GET %E2%80%A6/submissions/mysubmissions/ as \"all the submissions made by the current user\",%0A       returning the same EntityDropbox array as the folder-wide %E2%80%A6/submissions/ (0.9.11). The folder-wide route is an%0A       instructor's: the first real school (mycourses.cccs.edu) answered it to a student with empty lists or 403, so only 2 of%0A       93 items there ever showed as handed in. mySub: \"\" untried, \"mine\" the learner route answers, \"all\" it is unknown to this%0A       school's Brightspace (404) and the folder-wide route is all there is. */%0A    let mySub = \"\";%0A    /* Quiz attempts have no learner route in D2L's docs; GET %E2%80%A6/attempts/ answers 403 \"No permission to view quiz or grade quiz\"%0A       where a student may not read them. One quiz can be refused on its own (a release condition), so the read stops asking%0A       only after two refusals and no answer at all: mycourses.cccs.edu refused every quiz, one call each. */%0A    let attRefused = false, attOk = false, att403 = 0;%0A    /* Late and missing (0.9.10). Canvas computes both; Brightspace leaves it to us. \"Late\" needs only a submission time past%0A       the due date. \"Missing\" is a claim about absence, so it is made only when this school has shown, in this very read,%0A       that it returns this student's own submissions (or attempts): an empty answer from a route that never shows a%0A       learner anything would otherwise turn every past assignment into \"missing\". The first real school answered the%0A       submissions route with empty lists, which is exactly the case that must stay silent. */%0A    let subSeen = false, attSeen = false, postSeen = false, postCalls = 0;%0A    const missSub = [], missAtt = [], missPost = [];%0A    const out = [];%0A    for (const ou of courses){%0A      const cid = String(ou.Id), tag = courseTag(ou);%0A      // grades first: a released score is the strongest evidence, and the id map is needed by both lists%0A      const gv = {};%0A      for (const g of (await getAll(`/d2l/api/le/${LE}/${cid}/grades/values/myGradeValues/`, true) || [])) if (g && g.GradeObjectIdentifier != null) gv[String(g.GradeObjectIdentifier)] = g;%0A      const fin = await getJSON(`/d2l/api/le/${LE}/${cid}/grades/final/values/myGradeValue`, true);%0A      const cur = fin ? (pct(fin.WeightedNumerator, fin.WeightedDenominator) ?? pct(fin.PointsNumerator, fin.PointsDenominator)) : null;%0A      // categories carry the weights; these two routes are often instructor-only, and that is fine (points-based grading then)%0A      const setup = await getJSON(`/d2l/api/le/${LE}/${cid}/grades/setup/`, true);%0A      const cats = await getAll(`/d2l/api/le/${LE}/${cid}/grades/categories/`, true);%0A      const gobjs = await getAll(`/d2l/api/le/${LE}/${cid}/grades/`, true);%0A      const catOf = {}; for (const g of gobjs || []) if (g && g.Id != null && g.CategoryId != null) catOf[String(g.Id)] = String(g.CategoryId);%0A      /* What an item is out of before it is graded: a quiz carries no points of its own, and a released grade value only exists%0A         after grading. The grade book's MaxPoints is there from the start (0.9.10), so worth-your-hour works on day one. */%0A      const maxOf = {}; for (const g of gobjs || []) if (g && g.Id != null && num(g.MaxPoints) != null) maxOf[String(g.Id)] = num(g.MaxPoints);%0A      const maxFor = id => id != null && maxOf[String(id)] != null ? maxOf[String(id)] : null;%0A      if (Array.isArray(cats) && cats.length) groups[cid] = cats.map(c => ({id: String(c.Id), name: c.Name, w: num(c.Weight)}));%0A      const wt = !!(setup && /weight/i.test(String(setup.GradingSystem || \"\")));%0A      const prevC = ((last && last.lms === \"d2l\" && Array.isArray(last.courses)) ? last.courses : []).find(c => c && String(c.id) === cid) || null;%0A      out.push(Object.assign({id: cid, tag, name: ou.Name, wt, cur, fin: null}, await readSyllabus(cid, prevC)));%0A      // dropbox folders = assignments%0A      const folders = (await getAll(`/d2l/api/le/${LE}/${cid}/dropbox/folders/`, true) || []).filter(f => f && f.Id != null && f.Name && !f.IsHidden);%0A      folders.sort((a, b) => (Date.parse(b.DueDate || (b.Availability || {}).EndDate || \"\") || 0) - (Date.parse(a.DueDate || (a.Availability || {}).EndDate || \"\") || 0));%0A      for (const f of folders){ try {%0A        const av = f.Availability || {}, as = f.Assessment || {};%0A        const due = iso(f.DueDate) || iso(av.EndDate);          // Brightspace instructors often set only \"Ends\"; the student treats that as the deadline%0A        const g = f.GradeItemId != null ? gv[String(f.GradeItemId)] : null;%0A        const stype = ({0: \"online_upload\", 1: \"online_text_entry\", 2: \"on_paper\", 3: \"none\"})[f.SubmissionType] || \"online_upload\";%0A        const pts = num(as.ScoreDenominator) ?? (g ? num(g.PointsDenominator) : null) ?? maxFor(f.GradeItemId);%0A        let sub = \"\", subAt = \"\", score = g ? num(g.PointsNumerator) : null, fb = \"\";%0A        /* The learner's own submissions: the one call that turns \"graded\" into \"handed in on <date>\". Read for%0A           the recent and coming work only, capped, and never trusted blindly %E2%80%94 a 403 here just means no%0A           auto-check for this school until we know its rules. */%0A        const dueMs = Date.parse(due) || 0;%0A        /* D2L: GroupTypeId \"present and not null\" = a group folder. A teammate's submission may not be \"made by the current%0A           user\", so an empty answer there is no evidence the group handed nothing in: a group folder is never called missing. */%0A        const group = f.GroupTypeId != null;%0A        if (subCalls < 40 && (!dueMs || dueMs > now - 60 * 864e5) && stype !== \"none\") {%0A          const mineUrl = `/d2l/api/le/${LE}/${cid}/dropbox/folders/${f.Id}/submissions/mysubmissions/`, allUrl = `/d2l/api/le/${LE}/${cid}/dropbox/folders/${f.Id}/submissions/`;%0A          let ent = null, askedAll = false;%0A          if (mySub !== \"all\") {%0A            subCalls++; ent = await getJSON(mineUrl, true);%0A            if (Array.isArray(ent)) mySub = \"mine\";%0A            /* a 404 means \"no such route\" (an older Brightspace) or \"no such folder\"; the folder-wide route on the same folder tells%0A               them apart, so one deleted folder can't switch the whole read back to the route that shows a student nothing */%0A            else if (mySub === \"\" && lastStatus() === 404) { subCalls++; askedAll = true; ent = await getJSON(allUrl, true); if (Array.isArray(ent)) mySub = \"all\"; }%0A          }%0A          if (!Array.isArray(ent) && mySub !== \"mine\" && !askedAll) { subCalls++; ent = await getJSON(allUrl, true); }%0A          const mine = (Array.isArray(ent) ? ent : []).filter(e => e && e.Entity && (!ME || String(e.Entity.EntityId) === ME || e.Entity.EntityType === \"Group\"));%0A          if (mine.some(e => Array.isArray(e.Submissions) && e.Submissions.length)) subSeen = true;%0A          if (Array.isArray(ent) && !group && stype !== \"on_paper\" && dueMs && dueMs < now) missSub.push(idOf(\"dropbox\", f.Id));%0A          for (const e of mine){%0A            const subs = Array.isArray(e.Submissions) ? e.Submissions : [];%0A            const latest = subs.map(s => iso(s.SubmissionDate)).filter(Boolean).sort().pop();%0A            if (latest) { sub = \"submitted\"; subAt = latest; }%0A            const fbk = e.Feedback || null;%0A            if (fbk) { if (num(fbk.Score) != null) { score = num(fbk.Score); sub = \"graded\"; } const t = rich(fbk.Feedback); if (t) fb = t.slice(0, 400); }%0A          }%0A        }%0A        if (!sub && score != null) sub = \"graded\";%0A        items[idOf(\"dropbox\", f.Id)] = {%0A          t: f.Name, c: tag, cid, due, lock: iso(av.EndDate), open: iso(av.StartDate),%0A          pts, gt: (pts > 0 || f.GradeItemId != null) ? \"points\" : \"not_graded\", st: stype,%0A          grp: f.GradeItemId != null && catOf[String(f.GradeItemId)] ? catOf[String(f.GradeItemId)] : \"\",%0A          k: stype === \"on_paper\" || stype === \"none\" ? \"inclass\" : (!(pts > 0) && f.GradeItemId == null) ? \"fyi\" : \"\",%0A          sub, subAt, score, late: !!(subAt && dueMs && Date.parse(subAt) > dueMs + 60e3), missing: false, excused: false,%0A          url: `${BASE}/d2l/lms/dropbox/user/folder_submit_files.d2l?ou=${cid}&db=${f.Id}`,%0A          desc: rich(f.CustomInstructions).slice(0, 1200),%0A          rub: (Array.isArray(as.Rubrics) ? as.Rubrics : []).map(r => String(r.Name || \"\").trim()).filter(Boolean).slice(0, 12).join(\"; \").slice(0, 900),%0A          fb: fb || comment(g), qid: \"\",%0A        };%0A      } catch(e) { skipped(\"folder\", e); } }%0A      // quizzes%0A      const quizzes = (await getAll(`/d2l/api/le/${LE}/${cid}/quizzes/`, true) || []).filter(q => q && q.QuizId != null && q.Name && q.IsActive !== false);%0A      for (const q of quizzes){ try {%0A        const due = iso(q.DueDate) || iso(q.EndDate);%0A        const g = q.GradeItemId != null ? gv[String(q.GradeItemId)] : null;%0A        let sub = \"\", subAt = \"\", score = g ? num(g.PointsNumerator) : null;%0A        const dueMs = Date.parse(due) || 0;%0A        const aid = idOf(\"quiz\", q.QuizId);%0A        if (!attRefused && attCalls < 20 && (!dueMs || dueMs > now - 60 * 864e5)) {%0A          attCalls++;%0A          // never ?userId=: the diag masks ids that follow a \"/\", so a query-string id would travel in the school's report%0A          const att = await getAll(`/d2l/api/le/${LE}/${cid}/quizzes/${q.QuizId}/attempts/`, true);%0A          if (!att.failed) attOk = true;%0A          else if (lastStatus() === 403 && ++att403 >= 2 && !attOk) attRefused = true;%0A          const mine = (att || []).filter(a => a && (!ME || a.UserId == null || String(a.UserId) === ME));%0A          if (mine.length) attSeen = true;%0A          if (!att.failed && dueMs && dueMs < now) missAtt.push(aid);%0A          /* QuizAttemptData's times are \"Started\" and \"Completed\" (null while in progress), per D2L's docs. Until 0.9.11 this read%0A             TimeStarted/TimeCompleted, names D2L never uses: where a student can read attempts, no quiz was ever handed in, and%0A             a past one with no released grade was called missing. */%0A          const done = mine.map(a => ({at: iso(a.Completed), mins: (Date.parse(a.Completed || \"\") - Date.parse(a.Started || \"\")) / 60e3})).filter(a => a.at);%0A          if (done.length) { sub = \"submitted\"; subAt = done.map(a => a.at).sort().pop(); const m = Math.max(...done.map(a => a.mins).filter(v => v > 0 && v < 600)); if (isFinite(m) && m > 0) quizTime[aid] = Math.round(m); }%0A        }%0A        if (score != null) sub = subAt ? \"graded\" : \"graded\";%0A        quizMap[cid + \"/\" + q.QuizId] = aid;%0A        items[aid] = {%0A          t: q.Name, c: tag, cid, due, lock: iso(q.EndDate), open: iso(q.StartDate),%0A          pts: (g ? num(g.PointsDenominator) : null) ?? maxFor(q.GradeItemId), gt: q.GradeItemId != null ? \"points\" : \"not_graded\", st: \"online_quiz\",%0A          grp: q.GradeItemId != null && catOf[String(q.GradeItemId)] ? catOf[String(q.GradeItemId)] : \"\",%0A          k: \"quiz\",%0A          sub, subAt, score, late: !!(subAt && dueMs && Date.parse(subAt) > dueMs + 60e3), missing: false, excused: false,%0A          url: `${BASE}/d2l/lms/quizzing/user/quiz_summary.d2l?ou=${cid}&qi=${q.QuizId}`,%0A          desc: (rich(q.Description) + \" \" + rich(q.Instructions)).trim().slice(0, 1200),%0A          rub: \"\", fb: comment(g), qid: String(q.QuizId),%0A        };%0A      } catch(e) { skipped(\"quiz\", e); } }%0A%0A      /* ---- the rest of a course (0.9.11) ----%0A         Canvas lists every graded thing as an assignment; Brightspace keeps each kind in its own tool. Read from D2L's documented%0A         routes, in this order so each grade-book entry is used once: graded discussions (claim their grade by AssociatedTool),%0A         work set in Content with a due date, exam dates on the course calendar (both claim a grade by exact name). The grade book%0A         is a lookup, never a source of items: an entry with no date (participation, attendance) would never reach the app's grade%0A         maths, which counts dated work, yet would add a row count, a done mark and a streak day for nothing the student did;%0A         the course grade itself is Brightspace's own final grade. Every read is soft: a tool a school refuses is simply not there. */%0A      const usedGrades = new Set([...folders.map(f => f.GradeItemId), ...quizzes.map(q => q.GradeItemId)].filter(v => v != null).map(String));%0A      const books = (Array.isArray(gobjs) ? gobjs : []).filter(go => go && go.Id != null && go.Name && !go.IsHidden && /^(Numeric|PassFail|SelectBox)$/.test(String(go.GradeType || \"\")));   // categories, formulas, text and final grades are not work%0A      const free = go => !usedGrades.has(String(go.Id));%0A      const claim = go => { if (go) usedGrades.add(String(go.Id)); return go; };%0A      const toolGrade = id => books.find(go => free(go) && go.AssociatedTool && String(go.AssociatedTool.ToolItemId) === String(id)) || null;%0A      const namedGrade = (name, linked) => { const k = nameKey(name), hit = books.filter(go => free(go) && !!go.AssociatedTool === linked && nameKey(go.Name) === k); return hit.length === 1 ? hit[0] : null; };%0A      const fromGrade = go => { const g = go ? gv[String(go.Id)] : null; return {pts: go ? (num(go.MaxPoints) ?? (g ? num(g.PointsDenominator) : null)) : null, score: g ? num(g.PointsNumerator) : null, grp: go && catOf[String(go.Id)] ? catOf[String(go.Id)] : \"\", fb: comment(g)}; };%0A      const here = u => { u = String(u || \"\"); return /^https:%5C/%5C//.test(u) ? u : u.startsWith(\"/\") ? BASE + u : \"\"; };%0A      const late = (subAt, dueMs) => !!(subAt && dueMs && Date.parse(subAt) > dueMs + 60e3);%0A%0A      /* Graded discussions. Topic (D2L): Name, Description, StartDate, EndDate, UnlockStartDate, DueDate (LE 1.90+), ScoreOutOf,%0A         IsHidden, GroupTypeId. Handed in = a post of the student's own: Post.PostingUserId is whoami's Identifier, DatePosted its%0A         time. The topic's posts are read for that alone and nothing of anyone else's is kept; the earliest own post is the hand-in. */%0A      const forums = (await getAll(`/d2l/api/le/${LE}/${cid}/discussions/forums/`, true) || []).filter(fo => fo && fo.ForumId != null && !fo.IsHidden).slice(0, 30);   // a forum a week runs past 15%0A      let coursePosts = 0;%0A      for (const fo of forums){%0A        const topics = (await getAll(`/d2l/api/le/${LE}/${cid}/discussions/forums/${fo.ForumId}/topics/`, true) || []).filter(tp => tp && tp.TopicId != null && tp.Name && !tp.IsHidden);%0A        for (const tp of topics){ try {%0A          const go = toolGrade(tp.TopicId), G = fromGrade(go);%0A          const due = iso(tp.DueDate) || iso(tp.EndDate), pts = num(tp.ScoreOutOf) || G.pts;%0A          if (!due && !(pts > 0) && !go) continue;   // an ungraded, undated topic is a conversation, not work%0A          claim(go);%0A          const dueMs = Date.parse(due) || 0, aid = idOf(\"discussion\", tp.TopicId);%0A          let sub = \"\", subAt = \"\";%0A          if (ME && postCalls < 16 && coursePosts < 5 && !(G.score > 0) && dueMs && dueMs > now - 60 * 864e5 && dueMs < now + 21 * 864e5) {%0A            postCalls++; coursePosts++;   // shared fairly: an early course with many topics must not use every later course's reads%0A            const posts = await getJSON(`/d2l/api/le/${LE}/${cid}/discussions/forums/${fo.ForumId}/topics/${tp.TopicId}/posts/`, true);%0A            if (Array.isArray(posts)) {%0A              const mine = posts.filter(p => p && !p.IsDeleted && p.PostingUserId != null && String(p.PostingUserId) === ME).map(p => iso(p.DatePosted)).filter(Boolean).sort();%0A              if (mine.length) { sub = \"submitted\"; subAt = mine[0]; postSeen = true; }%0A              else if (tp.GroupTypeId == null && dueMs < now) missPost.push(aid);   // a group topic's post may be a teammate's: never \"missing\"%0A            }%0A          }%0A          if (!sub && G.score != null) sub = \"graded\";%0A          items[aid] = {t: tp.Name, c: tag, cid, due, lock: iso(tp.EndDate), open: iso(tp.StartDate) || iso(tp.UnlockStartDate),%0A            pts, gt: pts > 0 || go ? \"points\" : \"not_graded\", st: \"discussion_topic\", grp: G.grp, k: \"discussion\",%0A            sub, subAt, score: G.score, late: late(subAt, dueMs), missing: false, excused: false,%0A            url: `${BASE}/d2l/le/${cid}/discussions/topics/${tp.TopicId}/View`, desc: rich(tp.Description).slice(0, 1200), rub: \"\", fb: G.fb, qid: \"\"};%0A        } catch(e) { skipped(\"topic\", e); } }%0A      }%0A%0A      /* Work set in Content with a due date. ScheduledItem (D2L): ItemId, ItemName, ItemUrl, StartDate, EndDate, DueDate,%0A         ActivityType, IsExempt. Only kinds no tool above reads: LTI (7: publisher homework), self-assessments (11), surveys (12).%0A         DateCompleted is not a hand-in (for a link it can mean \"opened\"); the grade is, and a publisher's running score is the app's%0A         extInProgress, as on Canvas. */%0A      const sched = await getAll(`/d2l/api/le/${LE}/${cid}/content/myItems/`, true) || [];%0A      for (const si of sched){ try {%0A        const at = si ? +si.ActivityType : -1;%0A        if (!si || si.ItemId == null || !si.ItemName || si.IsExempt === true || ![7, 11, 12].includes(at)) continue;%0A        const due = iso(si.DueDate), aid = idOf(\"content\", si.ItemId);%0A        if (!due || items[aid]) continue;%0A        const go = claim(namedGrade(si.ItemName, true) || namedGrade(si.ItemName, false)), G = fromGrade(go);%0A        items[aid] = {t: si.ItemName, c: tag, cid, due, lock: iso(si.EndDate), open: iso(si.StartDate),%0A          pts: G.pts, gt: go ? \"points\" : \"not_graded\", st: at === 7 ? \"external_tool\" : \"online_quiz\", grp: G.grp, k: \"\",%0A          sub: G.score != null ? \"graded\" : \"\", subAt: \"\", score: G.score, late: false, missing: false, excused: false,%0A          url: here(si.ItemUrl) || `${BASE}/d2l/le/content/${cid}/Home`, desc: \"\", rub: \"\", fb: G.fb, qid: \"\"};%0A      } catch(e) { skipped(\"content\", e); } }%0A%0A      /* Exam dates on the course calendar: an in-class exam has no folder or quiz, so its date lives only here. EventDataInfo (D2L):%0A         Title, Description (plain text), StartDateTime, StartDay (all-day), IsAssociatedWithEntity, IsRecurring, CalendarEventViewUrl.%0A         Only what isExam() calls an exam; never an event tied to an activity (its date is that item's due date), never a recurring%0A         one (a class meeting), never a title this course already has as an item. A grade-book entry of the same name gets the date%0A         and keeps its own id, so marks on it survive the calendar entry coming and going. */%0A      const taken = new Set(Object.values(items).filter(x => x.cid === cid).map(x => nameKey(x.t)));%0A      const win = \"?startDateTime=\" + encodeURIComponent(new Date(now - 30 * 864e5).toISOString()) + \"&endDateTime=\" + encodeURIComponent(new Date(now + 200 * 864e5).toISOString());%0A      const evs = await getAll(`/d2l/api/le/${LE}/${cid}/calendar/events/myEvents/${win}`, true) || [];%0A      for (const ev of evs){ try {%0A        if (!ev || ev.CalendarEventId == null || !ev.Title || ev.IsAssociatedWithEntity === true || ev.IsRecurring === true) continue;%0A        const title = String(ev.Title);%0A        if (!EXAM_RE.test(title) || NOT_EXAM_RE.test(title) || taken.has(nameKey(title))) continue;%0A        const start = iso(ev.StartDateTime) || iso(ev.StartDay); if (!start) continue;%0A        const go = claim(namedGrade(title, false)), G = fromGrade(go);%0A        taken.add(nameKey(title));%0A        items[go ? idOf(\"grade\", go.Id) : idOf(\"event\", ev.CalendarEventId)] = {t: go ? go.Name : title, c: tag, cid, due: start, lock: \"\", open: \"\",%0A          pts: G.pts, gt: go ? \"points\" : \"not_graded\", st: \"on_paper\", grp: G.grp, k: \"inclass\",%0A          sub: G.score != null ? \"graded\" : \"\", subAt: \"\", score: G.score, late: false, missing: false, excused: false,%0A          url: here(ev.CalendarEventViewUrl) || `${BASE}/d2l/le/calendar/${cid}`, desc: strip(ev.Description).trim().slice(0, 1200), rub: \"\", fb: G.fb, qid: \"\"};%0A      } catch(e) { skipped(\"event\", e); } }%0A%0A    }%0A    if (subSeen) for (const id of missSub) { const x = items[id]; if (x && !x.subAt && (x.score == null || x.score === 0)) x.missing = true; }%0A    if (postSeen) for (const id of missPost) { const x = items[id]; if (x && !x.subAt && (x.score == null || x.score === 0)) x.missing = true; }%0A    if (attSeen) for (const id of missAtt) { const x = items[id]; if (x && !x.subAt && (x.score == null || x.score === 0)) x.missing = true; }%0A    return {lmk: \"canvas\", lms: \"d2l\", v: 3, at: Date.now(), host: HOST, taught, courses: out, groups, items, quizTime, quizMap, diag: DIAG.slice(0, 200)};%0A  };%0A})();%0A%0A(async()=>{try{const p=await window.lmkCollectD2L();delete p.diag;const s=JSON.stringify(p);const n=Object.keys(p.items).length;%0Alet ok=false;try{await navigator.clipboard.writeText(s);ok=true}catch(e){}%0Aif(!ok){const ta=document.createElement(\"textarea\");ta.value=s;ta.style.cssText=\"position:fixed;top:8px;left:8px;width:90vw;height:40vh;z-index:99999;font-size:12px\";document.body.appendChild(ta);ta.focus();ta.select();try{ok=document.execCommand(\"copy\")}catch(e){}if(ok)ta.remove();else alert(\"Select all + copy the box, then paste it into LMK (gear %E2%86%92 Paste from Canvas).\")}%0Aif(ok)alert(\"LMK: copied \"+n+\" assignments from Brightspace. Open LMK %E2%86%92 gear %E2%86%92 Paste from Canvas %E2%86%92 paste.\")}catch(e){alert(\"LMK: could not read Brightspace %E2%80%94 are you signed in on this tab? \"+e)}})();";   // embedded by ~/lmk-backend/tools/build-d2l.py from collect-d2l.js
 let lastErr = null;
 function reportErr(e, where){
@@ -5319,7 +5551,7 @@ document.addEventListener("wheel", e => {
   document.addEventListener("touchstart", e => {
     const t = e.touches[0]; x0 = t.clientX; y0 = t.clientY; t0 = Date.now();
     /* a second finger (a pinch) or a zoomed-in page is reading, not swiping: panning sideways must not change the tab */
-    ok = e.touches.length === 1 && !(window.visualViewport && visualViewport.scale > 1.02) && !e.target.closest(".chips,.gstrip,.radar,.overlay,textarea,input,.cal,.caprow");
+    ok = e.touches.length === 1 && !(window.visualViewport && visualViewport.scale > 1.02) && !e.target.closest(".chips,.gstrip,.radar,.overlay,textarea,input,.cal");
   }, {passive:true});
   document.addEventListener("touchend", e => {
     if (!ok) return;
@@ -5444,9 +5676,6 @@ document.querySelector(".wrap").addEventListener("click", e=>{
       document.getElementById("addOverlay").classList.add("open");
     }
   }
-  else if (a==="cap") {
-    store.capacity = Object.assign({}, CAP_DEFAULT, store.capacity || {}); store.capacity[act.dataset.kind] = +act.dataset.v; save(); render();
-  }
   else if (a==="gbreak") openGradeDetail(act.dataset.course);
   else if (a==="gpa") openGpaDetail();
   else if (a==="reload") { location.reload(); }
@@ -5489,13 +5718,11 @@ document.querySelector(".wrap").addEventListener("click", e=>{
   else if (a==="adm-copy-csv") { adminCopyCsv(); }
   else if (a==="adm-pause") { adminSave({cloudPaused: !!act.checked}); }
   else if (a==="adm-ai-pause") { adminSave({aiPaused: !!act.checked}); try { localStorage.removeItem("lmk_cfg"); } catch (_) {} }   // this device re-reads at once
+  else if (a==="adm-size-hints") { adminSave({sizeHints: !!act.checked}); try { localStorage.removeItem("lmk_cfg"); } catch (_) {} LEARN = null; loadData(); render(); }
   else if (a==="adm-lookup") { adminLookup(); }
   else if (a==="adm-student") { adminStudent(act.dataset.sid, act.dataset.do, act.dataset.months, act.dataset.level); }
   else if (a==="adm-school") { ADMIN.school = act.dataset.school || ""; animNext = true; adminFetch(true); render(); }
   else if (a==="adm-tab") { ADMIN.tab = act.dataset.tab; try { localStorage.setItem("lmk_admin_tab", ADMIN.tab); } catch(_){} animNext = true; render(); }
-  else if (a==="cap-close") { showCap = false; render(); }
-  else if (a==="cap-edit") { showCap = !showCap; render(); }
-  else if (a==="cap-bump") { store.capOv = store.capOv || {}; store.capOv[dayKey(now())] = capHours(now()) + 1; save(); render(); toast("Today got an extra hour. Just today."); }
   else if (a==="slip") {
     const id = act.dataset.id; store.leadOv = store.leadOv || {};
     const e = EVENTS.find(x => x.id === id); if (!e) return;
@@ -6706,7 +6933,7 @@ function mergeStores(a, b){
   const newer = (b.savedAt||0) >= (a.savedAt||0) ? b : a;
   const older = newer === b ? a : b;
   const m = {};
-  for (const k of ["done","dropped","examHide","prepDone","prepAmt","planScored","starred","triaged","itemNotes","courseNotes","grades","effortOv","leadOv","seriesRules","kindOv","extGraded","extDone","handDone","capOv","celebrated","recapSeen","lmkSyllabusIds","wrappedSeen"]) {
+  for (const k of ["done","dropped","examHide","prepDone","prepAmt","planScored","starred","triaged","itemNotes","courseNotes","grades","effortOv","leadOv","seriesRules","kindOv","extGraded","extDone","handDone","celebrated","recapSeen","lmkSyllabusIds","wrappedSeen"]) {
     m[k] = Object.assign({}, older[k]||{}, newer[k]||{});
   }
   // learning data: measurements union by timestamp, tracked minutes take the max
@@ -6722,7 +6949,6 @@ function mergeStores(a, b){
   m.profile = (newer.profile && newer.profile.name) ? newer.profile : (older.profile || newer.profile || null);
   m.onboarded = a.onboarded || b.onboarded || 0;
   m.streakDays = [...new Set([...(a.streakDays||[]), ...(b.streakDays||[])])];
-  m.capacity = newer.capacity || older.capacity || null;
   m.since = Math.min(a.since || Infinity, b.since || Infinity); if (!isFinite(m.since)) delete m.since;
   /* A real key beats an empty one whichever side is newer: `adminForget()` writes "" and that empty string
      used to win and un-admin every other device. Forgetting is local — it clears this device's
@@ -8103,6 +8329,7 @@ function renderAdmin(root){
     html += `<div class="card adm-card"><h3>App errors · last 7 days</h3>${table(["Build", "Message", "num:Count"], errs.map(e => `<tr><td class="mono">${esc(e.build)}</td><td>${esc(e.msg)}</td><td class="num">${e.n}</td></tr>`)) || `<p class="sub2" style="margin:0">Nothing caught. Every uncaught error on a real device lands here with a build and a message, nothing else.</p>`}</div>`;
     html += `<div class="card adm-card"><h3>Switches</h3><p class="sub2">Each takes effect on every device within about ten minutes. Nothing is deleted either way.</p>
       <div class="adm-row"><label class="ck"><input type="checkbox" ${S.aiPaused ? "checked" : ""} data-act="adm-ai-pause"> Pause Chrome's built-in AI for everyone (it stops reading posts and the shelf, and what it found is hidden; LMK's own rules keep working)</label></div>
+      <div class="adm-row"><label class="ck"><input type="checkbox" ${S.sizeHints ? "checked" : ""} data-act="adm-size-hints"> Size assignments from their own words for everyone (v78.1, T0 size hints: pages, words, questions, time limits, the kind of work; a guessed length never past six hours). On the bench, late work 16 → 11 over the tuning worlds; off until the estimation decision.</label></div>
       <div class="adm-row"><label class="ck"><input type="checkbox" ${S.cloudPaused ? "checked" : ""} data-act="adm-pause"> Pause Sync from anywhere for everyone (reads stop, phones keep their last copy)</label></div></div>`;
     const A = S.announce || {};
     html += `<div class="card adm-card"><h3>Announcement</h3><p class="sub2">A slim banner every student sees above their plan until they dismiss it. Plain text, one link at most.</p>

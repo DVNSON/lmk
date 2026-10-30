@@ -58,9 +58,9 @@ const STUB=`(function(){const J=o=>new Response(JSON.stringify(o),{status:200,he
   // locks
   r=JSON.parse(await ev(ws,`JSON.stringify((()=>{const I=${I}; return {ok:dueLabel(EVENTS.find(x=>x.id===I.lateOk)).txt, closed:dueLabel(EVENTS.find(x=>x.id===I.closed)).txt}})())`));
   check('A2 an overdue item says Canvas still takes it late, and until when; one past its lock says closed', /overdue · taken late until/.test(r.ok) && /overdue · closed/.test(r.closed), r);
-  // today's budget is never more than what is left of today
-  r=JSON.parse(await ev(ws,`JSON.stringify((()=>{const d=PLAN[dayKey(now())]; const left=Math.round((addDays(startOfDay(now()),1)-now())/6e4); return {cap:d.cap, full:d.capFull, left}})())`));
-  check('A3 today\'s plan budget is at most the minutes left before midnight', r.cap<=Math.min(r.full, r.left+1) && r.full===240, r);
+  // today's room is what is left of today and nothing else (v79.0: no hours; tomorrow has no limit at all)
+  r=JSON.parse(await ev(ws,`JSON.stringify((()=>{const d=PLAN[dayKey(now())], t=PLAN[dayKey(addDays(startOfDay(now()),1))]; const left=Math.round((addDays(startOfDay(now()),1)-now())/6e4); return {cap:d.cap, left, tomorrow:t.cap===Infinity}})())`));
+  check('A3 today\'s room is at most the minutes left before midnight, and tomorrow has no limit', r.cap<=r.left+1 && r.tomorrow, r);
   // measurement
   r=JSON.parse(await ev(ws,`JSON.stringify((()=>{const I=${I}; return {tool:measuredMins(I.tool), upload:measuredMins(I.upload), lab:measuredMins(I.lab), ext:extToolItem(I.tool), up:extToolItem(I.upload), quiz:extToolItem(I.lab)}})())`));
   check('A4 page time on an external tool or an upload never teaches the estimator; Canvas\'s quiz timer does', !r.tool.length && !r.upload.length && r.lab.join()==='1' && r.ext && r.up && !r.quiz, r);

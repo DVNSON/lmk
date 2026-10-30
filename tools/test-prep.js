@@ -33,7 +33,8 @@ function payload(kind){ const items={}; let n=9300;
 }
 const STUB=`(function(){const J=o=>new Response(JSON.stringify(o),{status:200,headers:{"content-type":"application/json"}}); window.fetch=async(u,o)=>/\\/config$/.test(String(u))?J({ok:true,rooms:{on:false},push:{key:''}}):J({ok:false});})()`;
 async function open(kind, seedExtra, mobile){
-  const SEED=Object.assign({onboarded:1, profile:{name:"Sam"}, capacity:{weekday:4, weekend:4}, ext:null}, seedExtra||{});
+  /* 5h days (v78.0; 4 until then): the week's two practice quizzes now reach today too, and at 4h the PSY session missed today by five minutes — the world means a student with room for everything on day one */
+  const SEED=Object.assign({onboarded:1, profile:{name:"Sam"}, capacity:{weekday:5, weekend:5}, ext:null}, seedExtra||{});
   const t=JSON.parse(execSync('curl -s http://localhost:9333/json/new -X PUT').toString());
   const ws=new WebSocket(t.webSocketDebuggerUrl); await new Promise(r=>ws.addEventListener('open',r));
   await send(ws,'Page.enable'); await send(ws,'Runtime.enable'); await send(ws,'Page.bringToFront');
@@ -41,6 +42,7 @@ async function open(kind, seedExtra, mobile){
   if (mobile) await send(ws,'Emulation.setUserAgentOverride',{userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'});
   await send(ws,'Page.addScriptToEvaluateOnNewDocument',{source:STUB});
   await send(ws,'Page.addScriptToEvaluateOnNewDocument',{source:`try{if(!sessionStorage.getItem('__s')){localStorage.clear();localStorage.setItem('duenorth_v1',${JSON.stringify(JSON.stringify(SEED))});sessionStorage.setItem('__s','1')}}catch(_){}`});
+  { const cs = require('./suite-clock').clockScript(); if (cs) await send(ws,'Page.addScriptToEvaluateOnNewDocument',{source: cs}); }   // the suite's clock: 9 AM today unless LMK_TEST_HOUR says otherwise
   await send(ws,'Page.navigate',{url:'about:blank'}); await sleep(120); await send(ws,'Page.navigate',{url:'http://localhost:8899/app/'}); await sleep(2600);
   await ev(ws,`window.postMessage({lmk:'ext-hello',version:'0.9.2'},'*'); window.postMessage({lmk:'canvas-payload',payload:${JSON.stringify(payload(kind))}},'*'); 1`); await sleep(2200);
   await ev(ws,`welcomeOverlay.classList.remove('open'); courseFilter=null; render(); 1`); await sleep(400);
@@ -66,8 +68,11 @@ const planned=(ws)=>ev(ws,`JSON.stringify(Object.values(PLAN).map(d=>({k:d.key, 
   check('P3 in Today, the problem set comes before the midterm\'s study session, which still follows the same day', iHw>=0 && iStudy>iHw, order);
   let rows=JSON.parse(await ev(ws,`JSON.stringify([...document.querySelectorAll('#view-now .item.prep')].map(r=>r.innerText.replace(/\\s+/g,' ').trim()))`));
   const both=JSON.parse(await ev(ws,`JSON.stringify(Object.values(PLAN).map(d=>d.items.map(c=>(c.prep?'P:':'')+c.e.course+' '+c.e.title.slice(0,24))).filter(l=>l.some(x=>/^P:PSY 101/.test(x)) && l.some(x=>/^PSY 101 Chapter [56] Practice/.test(x))))`));
-  check('P3 on every day a PSY practice quiz and a PSY Exam 2 study session share, the quiz (due first) comes first — the live-data bug put study above homework due Sunday', both.length>0 && both.every(l=>l.findIndex(x=>/^PSY 101 Chapter/.test(x)) < l.findIndex(x=>/^P:PSY 101/.test(x))), both);
-  check('P3 Today lists each session with its class, size, which session, the exam day and the step', rows.some(r=>/Study for PSY 101 Exam 2/.test(r) && /session 1 of 6/.test(r) && /First pass/.test(r)) && rows.some(r=>/Study for ECN 211 Midterm/.test(r)), rows);
+  /* v78.0: the week's quizzes fill the early days and the sessions take what is left, so a quiz and a session may share no day at all; the rule itself is checked on every day */
+  const ruleOk=JSON.parse(await ev(ws,`JSON.stringify(Object.values(PLAN).every(d=>d.items.every((c,i)=>!c.prep || d.items.slice(i+1).every(x=>x.prep || x.late || x.dueDay > startOfDay(c.prep.x.due)))))`));
+  check('P3 on every day, work due before an exam sits above that exam\'s study session (where a PSY quiz and a PSY session share a day, the quiz is first) — the live-data bug put study above homework due Sunday', ruleOk && both.every(l=>l.findIndex(x=>/^PSY 101 Chapter/.test(x)) < l.findIndex(x=>/^P:PSY 101/.test(x))), {ruleOk, both});
+  const psy1=JSON.parse(await ev(ws,`JSON.stringify(Object.values(PLAN).some(d=>d.items.some(c=>c.prep && c.prep.x.key==='${K.psy}' && c.prep.s.n===1)))`));
+  check('P3 Today lists the midterm session (exam in 2 days) with its class, size, which session, the exam day and the step; PSY Exam 2\'s first session is planned on a day the week leaves room (v78.0: due work fills a day first)', rows.some(r=>/Study for ECN 211 Midterm/.test(r) && /session 1 of 2/.test(r) && /exam/.test(r) && /Practice|First pass|review/.test(r)) && psy1, {rows, psy1});
   const pdays=JSON.parse(await ev(ws,`JSON.stringify({bundles:BUNDLE_LIST.some(b=>b.items.some(e=>e.exam)), ahead:Object.values(AHEAD).flat().some(a=>(a.e||a).exam), overdue:[...document.querySelectorAll('#view-now .triage .item, #view-now .triagecard .item')].map(r=>r.innerText).join('|')})`));
   check('P4 piles and head starts never hold an exam, and the exam sat 3 days ago is not "past due"', !pdays.bundles && !pdays.ahead && !/Exam 1/.test(pdays.overdue), pdays);
   // the step for the day before a LockDown exam names the check

@@ -253,17 +253,13 @@ const Q = `(function(){ const $=s=>document.querySelector(s); const rows=[...doc
   await ev(ws,`document.querySelector('[data-act="setup-change"][data-step="school"]').click()`); await sleep(300);
   sv=await save('Middle Tennessee State University (Canvas)');
   check('T23 a school on both platforms is picked by platform', sv.school==='mtsu.instructure.com' && sv.hint==='canvas', sv);
-  // T24 no study-hours question (v74.5): the plan starts at 2h weekdays / 3h weekends; the budget bar's ✎ changes it
+  // T24 no study-hours question (v74.5), and since v79.0 no hours at all: no card, no ✎, no "of your 2h", nothing stored; a legacy capacity in the store changes nothing
   await fresh(ws,{seed:{onboarded:1}}); await ev(ws,`window.postMessage({lmk:'canvas-payload', payload:${PAYLOAD}}, '*')`); await sleep(1000);
-  r=JSON.parse(await ev(ws,`JSON.stringify({ext:!!store.ext, cap:!!document.querySelector('.capcard'), edit:!!document.querySelector('[data-act="cap-edit"]'), capacity:store.capacity})`));
-  check('T24 after the first sync no question waits: no hours card, the budget bar has its ✎, nothing stored', r.ext && !r.cap && r.edit && r.capacity===null, r);
-  await ev(ws,`document.querySelector('[data-act="cap-edit"]').click()`); await sleep(300);
-  r=JSON.parse(await ev(ws,`JSON.stringify({title:(document.querySelector('.capcard div')||{}).textContent, done:!!document.querySelector('.capcard [data-act="cap-close"]')})`));
-  check('T24 ✎ opens "Your study hours" with a Done button', r.title==='Your study hours' && r.done, r);
-  await ev(ws,`document.querySelector('.capcard [data-act="cap"][data-kind="weekday"][data-v="3"]').click()`); await sleep(250);
-  await ev(ws,`document.querySelector('.capcard [data-act="cap-close"]').click()`); await sleep(250);
-  r=JSON.parse(await ev(ws,`JSON.stringify({c:store.capacity, card:!!document.querySelector('.capcard')})`));
-  check('T24 a chip saves that day kind and keeps the other default; Done closes it', r.c && r.c.weekday===3 && r.c.weekend===3 && !r.card, r);
+  r=JSON.parse(await ev(ws,`JSON.stringify({ext:!!store.ext, cap:!!document.querySelector('.capcard'), edit:!!document.querySelector('[data-act="cap-edit"],[data-act="cap-bump"],[data-act="cap"]'), capacity:store.capacity, txt:(document.querySelector('#view-now .budget')||{}).innerText||''})`));
+  check('T24 after the first sync no question waits: no hours card, no ✎, no hours in the budget text, nothing stored', r.ext && !r.cap && !r.edit && r.capacity===undefined && !/of your|\/day|hours/i.test(r.txt), r);
+  await fresh(ws,{seed:{onboarded:1, capacity:{weekday:1, weekend:1}, capOv:{}}}); await ev(ws,`window.postMessage({lmk:'canvas-payload', payload:${PAYLOAD}}, '*')`); await sleep(1000);
+  const legacy=JSON.parse(await ev(ws,`JSON.stringify({caps:Object.values(PLAN).map(d=>d.cap).filter(c=>c!==null && Number.isFinite(c)).length, days:Object.keys(PLAN).length})`));
+  check('T24 a capacity left in an old store limits no day (every day but today is unlimited; today holds what is left of it)', legacy.caps<=1 && legacy.days===15, legacy);
 
   // T25 a link names the school (v74.5): ?school= fills the step, but only with an address LMK knows as a school's
   const sch = async (q) => { await send(ws,'Page.navigate',{url:'about:blank'}); await sleep(200); await send(ws,'Page.navigate',{url:'http://localhost:8899/app/'+q}); await sleep(1800);   // via about:blank: a hash-only change would not reload the app
